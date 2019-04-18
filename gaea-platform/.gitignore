@@ -1,0 +1,35 @@
+######python#########
+# Byte-compiled/ optimized/DLL files
+__pycache__/
+*.py[cod]
+.idea
+#Distrbution
+dist/
+
+# Environments
+venv/
+.env
+
+#####node###########
+# parcel-bundler cache
+.cache
+node_modules/
+package-lock.json
+yarn.lock
+####log########
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+###Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+###compiled binary
+build/
+user-dashboard/src/run
+user-dashboard/src/app/assets/public/

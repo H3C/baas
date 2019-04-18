@@ -1,0 +1,2785 @@
+swagger: '2.0'
+info:
+  description: cello api
+  version: 1.0.0
+  title: cello api
+basePath: /v2
+tags:
+  - name: host
+    description: host related rest api
+  - name: organization
+    description: organization related rest api
+  - name: blockchain_network
+    description: blockchain_network related rest api
+  - name: user
+    description: users related rest api
+  - name: channel
+    description: channel related rest api
+  - name: chaincode
+    description: chaincode related rest api
+  - name: orguser
+    description: org user related rest api
+  - name: operator_log
+    description: operating log of operator-dashboard
+schemes:
+  - http
+paths:
+  /hosts:
+    get:
+      tags:
+        - host
+      summary: host list
+      description: host list
+      consumes:
+        - application/json
+      responses:
+        '200':
+          description: OK
+          schema:
+            type: object
+            required:
+              - hosts
+            properties:
+              hosts:
+                $ref: '#/definitions/Hosts'
+        '401':
+          description: Unauthorized
+    post:
+      tags:
+        - host
+      summary: create a new host
+      description: create a new host
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - name: body
+          in: body
+          required: true
+          description: request body
+          schema:
+            type: object
+            required:
+              - host
+            properties:
+              host:
+                $ref: '#/definitions/CreateHost'
+      responses:
+        '201':
+          description: Created
+          schema:
+            type: object
+            required:
+              - host
+            properties:
+              host:
+                $ref: '#/definitions/Host'
+        '400':
+          description: Bad Request
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+        '409':
+          description: Conflict
+        '500':
+          description: Internal Server Error
+  '/hosts/{host_id}':
+    get:
+      tags:
+        - host
+      summary: get specific host
+      description: get specific host
+      consumes:
+        - application/json
+      parameters:
+        - name: host_id
+          in: path
+          description: host UUID
+          required: true
+          type: string
+      responses:
+        '200':
+          description: OK
+          schema:
+            type: object
+            required:
+              - host
+            properties:
+              host:
+                $ref: '#/definitions/Host'
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
+    put:
+      tags:
+        - host
+      summary: update specific host
+      description: update specific host
+      produces:
+        - application/json
+      consumes:
+        - application/json
+      parameters:
+        - name: host_id
+          in: path
+          description: host UUID
+          required: true
+          type: string
+        - name: body
+          in: body
+          required: true
+          description: request body
+          schema:
+            type: object
+            required:
+              - host
+            properties:
+              host:
+                $ref: '#/definitions/UpdateHost'
+      responses:
+        '200':
+          description: OK
+          schema:
+            type: object
+            required:
+              - host
+            properties:
+              host:
+                $ref: '#/definitions/Host'
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
+    delete:
+      tags:
+        - host
+      summary: delete an host
+      description: delete an host
+      consumes:
+        - application/json
+      parameters:
+        - name: host_id
+          in: path
+          description: host UUID
+          required: true
+          type: string
+      responses:
+        '204':
+          description: Not Content
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
+        '409':
+          description: Conflict
+  /organizations:
+    get:
+      tags:
+        - organization
+      summary: organization list
+      description: organization list
+      consumes:
+        - application/json
+      responses:
+        '200':
+          description: OK
+          schema:
+            type: object
+            required:
+              - organizations
+            properties:
+              organizations:
+                $ref: '#/definitions/Organizations'
+        '401':
+          description: Unauthorized
+    post:
+      tags:
+        - organization
+      summary: create a new organization
+      description: create a new organization
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - name: body
+          in: body
+          required: true
+          description: request body
+          schema:
+            type: object
+            required:
+              - organization
+            properties:
+              organization:
+                $ref: '#/definitions/CreateOrg'
+      responses:
+        '201':
+          description: Created
+          schema:
+            type: object
+            required:
+              - organization
+            properties:
+              organization:
+                $ref: '#/definitions/Organization'
+        '400':
+          description: Bad Request
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+        '409':
+          description: Conflict
+        '500':
+          description: Internal Server Error
+  '/organizations/{organization_id}':
+    get:
+      tags:
+        - organization
+      summary: organization list
+      description: organization list
+      consumes:
+        - application/json
+      parameters:
+        - name: organization_id
+          in: path
+          description: organization UUID
+          required: true
+          type: string
+      responses:
+        '200':
+          description: OK
+          schema:
+            type: object
+            required:
+              - organization
+            properties:
+              organization:
+                $ref: '#/definitions/Organization'
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
+    put:
+      tags:
+        - organization
+      summary: update organization info
+      description: 'update organization info, support only peer organization for now'
+      consumes:
+        - application/json
+      parameters:
+        - name: organization_id
+          in: path
+          description: organization UUID
+          required: true
+          type: string
+        - name: body
+          in: body
+          required: true
+          description: request body
+          schema:
+            type: object
+            required:
+              - organization
+            properties:
+              organization:
+                $ref: '#/definitions/UpdateOrg'
+      responses:
+        '200':
+          description: OK
+          schema:
+            type: object
+            required:
+              - organization
+            properties:
+              organization:
+                $ref: '#/definitions/Organization'
+        '400':
+          description: Bad Request
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
+        '500':
+          description: Internal Server Error
+    delete:
+      tags:
+        - organization
+      summary: delete an organization
+      description: delete an organization
+      consumes:
+        - application/json
+      parameters:
+        - name: organization_id
+          in: path
+          description: organization UUID
+          required: true
+          type: string
+      responses:
+        '204':
+          description: Not Content
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
+        '409':
+          description: Conflict
+  /blockchain_networks:
+    get:
+      tags:
+        - blockchain_network
+      summary: blockchain_network list
+      description: blockchain_network list
+      consumes:
+        - application/json
+      responses:
+        '200':
+          description: OK
+          schema:
+            type: object
+            required:
+              - blockchain_networks
+            properties:
+              blockchain_networks:
+                $ref: '#/definitions/BlockchainNetworks'
+        '401':
+          description: Unauthorized
+    post:
+      tags:
+        - blockchain_network
+      summary: create a blockchain_network
+      description: create a blockchain_network
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - name: body
+          in: body
+          required: true
+          description: request body
+          schema:
+            type: object
+            required:
+              - blockchain_network
+            properties:
+              blockchain_network:
+                $ref: '#/definitions/CreateBlockchainNetwork'
+      responses:
+        '201':
+          description: Created
+          schema:
+            type: object
+            required:
+              - blockchain_network
+            properties:
+              blockchain_network:
+                $ref: '#/definitions/BlockchainNetwork'
+        '400':
+          description: Bad Request
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+        '409':
+          description: Conflict
+        '500':
+          description: Internal Server Error
+  '/blockchain_networks/{blockchain_network_id}':
+    get:
+      tags:
+        - blockchain_network
+      summary: get specific blockchain network
+      description: get specific blockchain network
+      consumes:
+        - application/json
+      parameters:
+        - name: blockchain_network_id
+          in: path
+          description: blockchain_network UUID
+          required: true
+          type: string
+      responses:
+        '200':
+          description: OK
+          schema:
+            type: object
+            required:
+              - blockchain_network
+            properties:
+              blockchain_network:
+                $ref: '#/definitions/BlockchainNetwork'
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
+    delete:
+      tags:
+        - blockchain_network
+      summary: delete an blockchain_network
+      description: delete an blockchain_network
+      consumes:
+        - application/json
+      parameters:
+        - name: blockchain_network_id
+          in: path
+          description: blockchain_network UUID
+          required: true
+          type: string
+      responses:
+        '204':
+          description: Not Content
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
+        '409':
+          description: Conflict
+    put:
+      tags:
+        - blockchain_network
+      summary: update specific blockchain network
+      description: update specific blockchain network
+      produces:
+        - application/json
+      consumes:
+        - application/json
+      parameters:
+        - name: blockchain_network_id
+          in: path
+          description: blockchain_network UUID
+          required: true
+          type: string
+        - name: body
+          in: body
+          required: true
+          description: request body
+          schema:
+            type: object
+            required:
+              - blockchain_network
+            properties:
+              blockchain_network:
+                $ref: '#/definitions/UpdateBlockchainNetwork'
+      responses:
+        '200':
+          description: OK
+          schema:
+            type: object
+            required:
+              - blockchain_network
+            properties:
+              blockchain_network:
+                $ref: '#/definitions/BlockchainNetwork'
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
+      deprecated: true
+  '/blockchain_networks/{blockchain_network_id}/orgAdd':
+    post:
+      tags:
+        - blockchain_network
+      summary: add an organization to a blockchain_network
+      description: add an organization to a blockchain_network
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - name: blockchain_network_id
+          in: path
+          description: blockchain_network UUID
+          required: true
+          type: string
+        - name: body
+          in: body
+          required: true
+          description: request body
+          schema:
+            type: object
+            required:
+              - peer_orgs
+            properties:
+              peer_orgs:
+                type: array
+                description: peer organization uuids
+                items:
+                  type: string
+                example:
+                  - 2480265b420e4d91a395d9db4a7787ad
+                  - 2cc71f2d53dd4fdab532a08b5731fe91
+      responses:
+        '201':
+          description: succeed
+        '400':
+          description: Bad Request
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+        '409':
+          description: Conflict
+        '500':
+          description: Internal Server Error
+  /users:
+    get:
+      tags:
+        - user
+      summary: user list
+      description: user list
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      responses:
+        '200':
+          description: OK
+          schema:
+            type: object
+            required:
+              - users
+            properties:
+              users:
+                $ref: '#/definitions/Users'
+        '401':
+          description: Unauthorized
+    post:
+      tags:
+        - user
+      summary: create a new user
+      description: create a new user
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - name: body
+          in: body
+          required: true
+          description: request body
+          schema:
+            type: object
+            required:
+              - user
+            properties:
+              user:
+                $ref: '#/definitions/CreateUser'
+      responses:
+        '201':
+          description: Created
+          schema:
+            type: object
+            required:
+              - user
+            properties:
+              user:
+                $ref: '#/definitions/User'
+        '400':
+          description: Bad Request
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+        '409':
+          description: Conflict
+        '500':
+          description: Internal Server Error
+  '/user/{user_id}':
+    put:
+      tags:
+        - user
+      summary: update a user
+      description: update a user
+      produces:
+        - application/json
+      consumes:
+        - application/json
+      parameters:
+        - name: user_id
+          in: path
+          description: user UUID
+          required: true
+          type: string
+        - name: body
+          in: body
+          required: true
+          description: request body
+          schema:
+            type: object
+            required:
+              - user
+            properties:
+              user:
+                $ref: '#/definitions/UpdateUser'
+      responses:
+        '200':
+          description: OK
+          schema:
+            type: object
+            required:
+              - user
+            properties:
+              user:
+                $ref: '#/definitions/User'
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
+    delete:
+      tags:
+        - user
+      summary: delete a user
+      description: delete a user
+      parameters:
+        - name: user_id
+          in: path
+          description: user UUID
+          required: true
+          type: string
+      responses:
+        '204':
+          description: Not Content
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
+        '409':
+          description: Conflict
+  /operator_logs:
+    get:
+      tags:
+        - operator_log
+      summary: operating log list in operator-dashboard
+      description: operating log list in operator-dashboard
+      consumes:
+        - application/json
+      responses:
+        '200':
+          description: OK
+          schema:
+            type: object
+            required:
+              - operator_logs
+            properties:
+              operator_logs:
+                $ref: '#/definitions/Operator_logs'
+        '401':
+          description: Unauthorized
+    post:
+      tags:
+        - operator_log
+      summary: create a piece of operator_log
+      description: create a piece of operator_log
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - name: body
+          in: body
+          required: true
+          description: request body
+          schema:
+            type: object
+            required:
+              - operator_log
+            properties:
+              operator_log:
+                $ref: '#/definitions/Operator_log'
+      responses:
+        '201':
+          description: Created
+          schema:
+            type: object
+            required:
+              - operator_log
+            properties:
+              operator_log:
+                $ref: '#/definitions/Operator_log'
+        '400':
+          description: Bad Request
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+        '409':
+          description: Conflict
+        '500':
+          description: Internal Server Error
+  /channels:
+    get:
+      tags:
+        - channel
+      summary: channel list in the organization
+      description: channel list in the organization
+      consumes:
+        - application/json
+      parameters:
+        - name: organizaiton_id
+          in: query
+          description: organizaiton UUID
+          required: true
+          type: string
+      responses:
+        '200':
+          description: OK
+          schema:
+            type: object
+            required:
+              - channel
+            properties:
+              channels:
+                $ref: '#/definitions/Channels'
+        '401':
+          description: Unauthorized
+    post:
+      tags:
+        - channel
+      summary: create a new channel
+      description: create a new channel
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - name: body
+          in: body
+          required: true
+          description: request body
+          schema:
+            type: object
+            required:
+              - channel
+            properties:
+              channel:
+                $ref: '#/definitions/CreateChannel'
+      responses:
+        '201':
+          description: Created
+          schema:
+            type: object
+            required:
+              - channel
+            properties:
+              channel:
+                $ref: '#/definitions/Channel'
+        '400':
+          description: Bad Request
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+        '409':
+          description: Conflict
+        '500':
+          description: Internal Server Error
+  '/channels/{channel_id}':
+    get:
+      tags:
+        - channel
+      summary: get a channel by channel_id
+      description: get a channel by channel_id
+      consumes:
+        - application/json
+      parameters:
+        - name: channel_id
+          in: path
+          description: channel UUID
+          required: true
+          type: string
+        - name: organizaiton_id
+          in: query
+          description: organizaiton UUID
+          required: true
+          type: string
+      responses:
+        '200':
+          description: OK
+          schema:
+            type: object
+            required:
+              - channel
+            properties:
+              channel:
+                $ref: '#/definitions/Channel'
+        '401':
+          description: Unauthorized
+  /peers:
+    get:
+      tags:
+        - channel
+      summary: peer list
+      description: peer list
+      consumes:
+        - application/json
+      parameters:
+        - name: organizaiton_id
+          in: query
+          description: organizaiton UUID
+          type: string
+        - name: channel_id
+          in: query
+          description: channel UUID
+          type: string
+      responses:
+        '200':
+          description: OK
+          schema:
+            type: object
+            required:
+              - peers
+            properties:
+              peers:
+                $ref: '#/definitions/ChannelPeers'
+        '401':
+          description: Unauthorized
+  '/channels/{channel_id}/peerJoin':
+    post:
+      tags:
+        - channel
+      summary: add peers to a channel
+      description: add peers to a channel
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - name: channel_id
+          in: path
+          description: channel UUID
+          required: true
+          type: string
+        - name: body
+          in: body
+          required: true
+          description: request body
+          schema:
+            type: object
+            required:
+              - peers
+            properties:
+              peers:
+                $ref: '#/definitions/PeerNames'
+      responses:
+        '201':
+          description: succeed
+        '400':
+          description: Bad Request
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+        '409':
+          description: Conflict
+        '500':
+          description: Internal Server Error
+  '/channels/{channel_id}/chaincodeInstantiate':
+    post:
+      tags:
+        - channel
+      summary: instantiate chaincode in a channel
+      description: instantiate chaincode in a channel
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - name: channel_id
+          in: path
+          description: channel UUID
+          required: true
+          type: string
+        - name: body
+          in: body
+          required: true
+          description: request body
+          schema:
+            $ref: '#/definitions/InstantiateChaincodeDeprecated'
+      responses:
+        '201':
+          description: succeed
+        '400':
+          description: Bad Request
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+        '409':
+          description: Conflict
+        '500':
+          description: Internal Server Error
+      deprecated: true
+  '/channels/{channel_id}/orgAdd':
+    post:
+      tags:
+        - channel
+      summary: add an organization to a channel
+      description: add an organization to a channel
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - name: channel_id
+          in: path
+          description: channel UUID
+          required: true
+          type: string
+        - name: body
+          in: body
+          required: true
+          description: request body
+          schema:
+            type: object
+            required:
+              - peer_orgs
+            properties:
+              peer_orgs:
+                type: array
+                description: peer organization uuids
+                items:
+                  type: string
+                example:
+                  - 2480265b420e4d91a395d9db4a7787ad
+                  - 2cc71f2d53dd4fdab532a08b5731fe91
+      responses:
+        '201':
+          description: succeed
+        '400':
+          description: Bad Request
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+        '409':
+          description: Conflict
+        '500':
+          description: Internal Server Error
+  '/channels/{channel_id}/InstantiatedChaincodes':
+    get:
+      tags:
+        - channel
+      summary: instantiated Chaincodes list in a channel
+      description: instantiated Chaincodes list in a channel
+      consumes:
+        - application/json
+      parameters:
+        - name: channel_id
+          in: path
+          description: channel UUID
+          required: true
+          type: string
+      responses:
+        '200':
+          description: OK
+          schema:
+            type: object
+            required:
+              - chaincode_ids
+            properties:
+              chaincode_ids:
+                type: array
+                items:
+                  description: chaincode uuids
+                example:
+                  - 2480265b420e4d91a395d9db4a7787ad
+                  - 2cc71f2d53dd4fdab532a08b5731fe91
+        '401':
+          description: Unauthorized
+  '/channels/{channel_id}/chaincodeOperation':
+    post:
+      tags:
+        - channel
+      summary: chaincode operation in a channel
+      description: chaincode operation in a channel
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - name: channel_id
+          in: path
+          description: channel UUID
+          required: true
+          type: string
+        - name: body
+          in: body
+          required: true
+          description: request body
+          schema:
+            type: object
+            required:
+              - chaincode_operation
+            properties:
+              chaincode_operation:
+                $ref: '#/definitions/ChaincodeOperation'
+      responses:
+        '201':
+          description: succeed
+        '400':
+          description: Bad Request
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+        '409':
+          description: Conflict
+        '500':
+          description: Internal Server Error
+  '/blocks/{channel_id}':
+    get:
+      tags:
+        - channel
+      summary: get blocks in a channel by time
+      description: get blocks in a channel by time
+      consumes:
+        - application/json
+      parameters:
+        - name: channel_id
+          in: path
+          description: channel UUID
+          required: true
+          type: string
+        - name: number
+          in: query
+          description: number of latest blocks
+          required: true
+          type: string
+        - name: time_begin
+          in: query
+          description: time begin
+          required: true
+          type: string
+        - name: time_end
+          in: query
+          description: time end
+          required: true
+          type: string
+      responses:
+        '200':
+          description: OK
+          schema:
+            type: object
+            required:
+              - blocks
+            properties:
+              blocks:
+                $ref: '#/definitions/blocks'
+        '401':
+          description: Unauthorized
+  '/txrealtime/{channel_id}/minutes':
+    get:
+      tags:
+        - channel
+      summary: get number of blocks in the last few minutes
+      description: get number of blocks in the last few minutes
+      consumes:
+        - application/json
+      parameters:
+        - name: channel_id
+          in: path
+          description: channel UUID
+          required: true
+          type: string
+        - name: minutes
+          in: query
+          description: recent minutes
+          required: true
+          type: string
+      responses:
+        '200':
+          description: OK
+          schema:
+            type: object
+            required:
+              - transactions
+              - channelName
+              - success
+            properties:
+              transactions:
+                $ref: '#/definitions/blocknumber'
+              channelName:
+                type: string
+                description: channel name
+                example: ABS
+              success:
+                type: string
+                enum:
+                  - false
+                  - true
+                description: success
+                example: true
+        '401':
+          description: Unauthorized
+  /chaincodes:
+    post:
+      tags:
+        - chaincode
+      summary: upload chaincode
+      description: upload chaincode
+      consumes:
+        - multipart/form-data
+      parameters:
+        - in: formData
+          name: name
+          type: string
+          required: true
+          description: chaincode name
+        - in: formData
+          name: description
+          type: string
+          required: false
+          description: chaincode description
+        - in: formData
+          name: version
+          type: string
+          required: true
+          description: chaincode version
+        - in: formData
+          name: language
+          type: string
+          enum:
+            - golang
+            - node
+          required: true
+          description: chaincode version
+        - in: formData
+          name: md5
+          type: string
+          required: true
+          description: md5 of chaincode
+        - name: cc_file
+          in: formData
+          type: file
+          required: true
+          description: the chaincode file to upload
+      responses:
+        '201':
+          description: succeed
+        '400':
+          description: Bad Request
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+        '409':
+          description: Conflict
+        '500':
+          description: Internal Server Error
+    get:
+      tags:
+        - chaincode
+      summary: chaincode list
+      description: chaincode list
+      consumes:
+        - application/json
+      responses:
+        '200':
+          description: OK
+          schema:
+            type: object
+            required:
+              - chaincodes
+            properties:
+              chaincodes:
+                $ref: '#/definitions/Chaincodes'
+        '401':
+          description: Unauthorized
+  '/chaincodes/{chaincode_id}':
+    get:
+      tags:
+        - chaincode
+      summary: get a chaincode
+      description: chaincode
+      consumes:
+        - application/json
+      parameters:
+        - name: chaincode_id
+          in: path
+          description: chaincode UUID
+          required: true
+          type: string
+      responses:
+        '200':
+          description: OK
+          schema:
+            type: object
+            required:
+              - chaincode
+            properties:
+              chaincode:
+                $ref: '#/definitions/Chaincode'
+        '401':
+          description: Unauthorized
+    delete:
+      tags:
+        - chaincode
+      summary: delete a chaincode
+      description: delete a chaincode
+      consumes:
+        - application/json
+      parameters:
+        - name: chaincode_id
+          in: path
+          description: chaincode UUID
+          required: true
+          type: string
+      responses:
+        '204':
+          description: Not Content
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
+        '409':
+          description: Conflict
+  '/chaincodes/{chaincode_id}/install':
+    post:
+      tags:
+        - chaincode
+      summary: install chaincode two peers
+      description: install chaincode two peers
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - name: chaincode_id
+          in: path
+          description: chaincode uuid
+          required: true
+          type: string
+        - name: body
+          in: body
+          required: true
+          description: request body
+          schema:
+            type: object
+            required:
+              - install
+            properties:
+              install:
+                $ref: '#/definitions/InstallChaincode'
+      responses:
+        '201':
+          description: succeed
+        '400':
+          description: Bad Request
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+        '409':
+          description: Conflict
+        '500':
+          description: Internal Server Error
+  '/chaincodes/{chaincode_id}/instantiate':
+    post:
+      tags:
+        - chaincode
+      summary: instantiate chaincode in a channel
+      description: instantiate chaincode in a channel
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - name: chaincode_id
+          in: path
+          description: chaincode uuid
+          required: true
+          type: string
+        - name: body
+          in: body
+          required: true
+          description: request body
+          schema:
+            type: object
+            required:
+              - instantiate
+            properties:
+              instantiate:
+                $ref: '#/definitions/InstantiateChaincode'
+      responses:
+        '201':
+          description: succeed
+        '400':
+          description: Bad Request
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+        '409':
+          description: Conflict
+        '500':
+          description: Internal Server Error
+  /orgusers:
+    get:
+      tags:
+        - orguser
+      summary: orguser list
+      description: orguser list
+      consumes:
+        - application/json
+      responses:
+        '200':
+          description: OK
+          schema:
+            type: object
+            required:
+              - orgusers
+            properties:
+              orgusers:
+                $ref: '#/definitions/Orgusers'
+        '401':
+          description: Unauthorized
+    post:
+      tags:
+        - orguser
+      summary: create a orguser
+      description: create a orguser
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - name: body
+          in: body
+          required: true
+          description: request body
+          schema:
+            type: object
+            required:
+              - orguser
+            properties:
+              orguser:
+                $ref: '#/definitions/CreateOrguser'
+      responses:
+        '201':
+          description: Created
+          schema:
+            type: object
+            required:
+              - orguser
+            properties:
+              orguser:
+                $ref: '#/definitions/Orguser'
+    put:
+      tags:
+        - orguser
+      summary: update orguser password
+      description: update orguser password
+      produces:
+        - application/json
+      consumes:
+        - application/json
+      parameters:
+        - name: password
+          in: query
+          required: true
+          description: orguser password
+          type: string
+      responses:
+        '200':
+          description: OK
+        '400':
+          description: Failed
+        '401':
+          description: Unauthorized
+        '404':
+          description: Nod Found
+    delete:
+      tags:
+        - orguser
+      summary: delete a orguser
+      description: delete a orguser
+      consumes:
+        - application/json
+      parameters:
+        - name: name
+          in: query
+          description: orguser name to delete
+          type: string
+          required: true
+        - name: reason
+          in: query
+          description: orguser delete reason
+          type: string
+          required: true
+          enum:
+            - unspecified
+            - keycompromise
+            - cacompromise
+            - affiliationchange
+            - superseded
+            - cessationofoperation
+            - certificatehold
+            - removefromcrl
+            - privilegewithdrawn
+            - aacompromise
+      responses:
+        '204':
+          description: Not Content
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
+        '409':
+          description: Conflict
+  '/orguser/{orguser_name}':
+    get:
+      tags:
+        - orguser
+      summary: get a orguser
+      description: get a orguser
+      consumes:
+        - application/json
+      parameters:
+        - name: orguser_name
+          in: path
+          description: orguser name
+          required: true
+          type: string
+      responses:
+        '200':
+          description: OK
+          schema:
+            type: object
+            required:
+              - orguser
+            properties:
+              orguser:
+                $ref: '#/definitions/Orguser'
+        '401':
+          description: Unauthorized
+    put:
+      tags:
+        - orguser
+      summary: update orguser active state
+      description: update orguser active state
+      produces:
+        - application/json
+      consumes:
+        - application/json
+      parameters:
+        - name: orguser_name
+          in: path
+          description: orguser name
+          required: true
+          type: string
+        - name: active
+          in: query
+          required: true
+          description: orguser active state
+          type: string
+          enum:
+            - true
+            - false
+      responses:
+        '200':
+          description: OK
+          schema:
+            type: object
+            required:
+              - orguser
+            properties:
+              orguser:
+                $ref: '#/definitions/Orguser'
+        '401':
+          description: Unauthorized
+        '404':
+          description: Nod Found
+  /affiliation:
+    post:
+      tags:
+        - affiliation
+      summary: creat a affiliation
+      description: creat a affiliation
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - name: body
+          in: body
+          required: true
+          description: request body
+          schema:
+            type: object
+            required:
+              - name
+            properties:
+              name:
+                type: string
+                description: affiliation name
+                example: org1.department1
+      responses:
+        '200':
+          description: OK
+        '400':
+          description: Failed
+        '401':
+          description: Unauthorized
+    get:
+      tags:
+        - affiliation
+      summary: get affiliation
+      description: get affiliation
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      responses:
+        '200':
+          description: OK
+          schema:
+            type: object
+            required:
+              - affiliation
+            properties:
+              affiliation:
+                type: array
+                description: affiliation
+                items:
+                  type: string
+                example:
+                  - ''
+                  - org1
+                  - org1.department1
+    put:
+      tags:
+        - affiliation
+      summary: update affiliation
+      description: update affiliation
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - name: body
+          in: body
+          required: true
+          description: request body
+          schema:
+            type: object
+            required:
+              - affiliation
+            properties:
+              affiliation:
+                $ref: '#/definitions/updateAppliation'
+      responses:
+        '200':
+          description: OK
+          schema:
+            type: object
+            required:
+              - affiliation
+            properties:
+              affiliation:
+                type: array
+                description: affiliation
+                items:
+                  type: string
+                example:
+                  - ''
+                  - org1
+                  - org1.department1
+  '/affiliation/{affiliation_name}':
+    delete:
+      tags:
+        - affiliation
+      summary: delete a affiliation
+      description: delete a affiliation
+      consumes:
+        - application/json
+      parameters:
+        - name: affiliation_name
+          in: path
+          description: affiliation name
+          required: true
+          type: string
+      responses:
+        '200':
+          description: OK
+        '401':
+          description: Unauthorized
+definitions:
+  K8SCredential:
+    type: object
+    properties:
+      cred_type:
+        type: string
+        enum:
+          - account
+          - cert
+          - config
+        example: cert
+      certificate:
+        type: string
+        example: >-
+          -----BEGIN CERTIFICATE-----
+          MIIDZTCCAk2gAwIBAgIJAMGTHGMLozeHMA0GCSqGSIb3DQEBCwUAMBIxEDAOBgNV
+          BAMMB2t1YmUtY2EwHhcNMTgwODAxMDUzMjAyWhcNMzIwNDA5MDUzMjAyWjAWMRQw
+          EgYDVQQDDAtrOHMtc2VydmVyMTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoC
+          ggEBAJY+YcryAx/NnR7x7lc+ANwseSrJEgAIlZ2v1JmbGxxWcobxpz9j1nr7RoVd
+          C9lwiSZBfyu6gsarS8QdtO0MYHBNwmE6VvxFqYCJEjMPYIuEnT5kwXaxlJ4hYMoW
+          q99LBjujAOlmSj4JCGxYSSvrAJca05BZu5SC0lYXTQVJT0L7vHu4uRZJuTE2JT/2
+          NyG02J2ATN5wcFCjUn5craVCsHGs7wZhA8MsgBrOlkFecNfpLCBpK0fMOx9+yxSB
+          XbeXIdWfbnmG6hJMEH6i3L2t/1fnx6e1g8v3KFZYfP+km9X9f0js9fLnO7dwuHts
+          +WDGIo1v3TM6qFJ6PFZ6WnvLIm0CAwEAAaOBuTCBtjAJBgNVHRMEAjAAMAsGA1Ud
+          DwQEAwIF4DCBmwYDVR0RBIGTMIGQggprdWJlcm5ldGVzghJrdWJlcm5ldGVzLmRl
+          ZmF1bHSCFmt1YmVybmV0ZXMuZGVmYXVsdC5zdmOCHmt1YmVybmV0ZXMuZGVmYXVs
+          dC5zdmMuY2xvdWRvc4Ika3ViZXJuZXRlcy5kZWZhdWx0LnN2Yy5jbHVzdGVyLmxv
+          Y2FshwTAqABkhwQKZAABhwTAqABNMA0GCSqGSIb3DQEBCwUAA4IBAQCVxqfEK+6Y
+          h4YpFhuZA2LGC39cXSlx+Y1RQ3fLgSJTyQOonfJusbVsjF9lx+1JdKlHE8t6Kbwn
+          amR+BpZUxU0WgHpzI/6bRETa0eQzrl2lJ1eZUC8QKsXDB1SbAHwmi18gP4SCglpY
+          oop3hyyMY9DpPJXQRMJipz8SUaaIR+ak7lyZKCG+d0htLfh974UHEufEo0bzdAMZ
+          NYFbwCAlvoe+G/ptQygxDWc5t4kWC0+3dmC+xNzE5TeCUBiJAR9p8rSKz9MThj2O
+          JZjwehCQ1YuLItjy/uCrImlP4nNZb24phPhkU+7QCKMqaYgACOeVeB1T6iTLRUvA
+          fdSGqNJ+A/2k -----END CERTIFICATE-----
+      private_key:
+        type: string
+        example: >-
+          -----BEGIN RSA PRIVATE KEY-----
+          MIIEowIBAAKCAQEAlj5hyvIDH82dHvHuVz4A3Cx5KskSAAiVna/UmZsbHFZyhvGn
+          P2PWevtGhV0L2XCJJkF/K7qCxqtLxB207QxgcE3CYTpW/EWpgIkSMw9gi4SdPmTB
+          drGUniFgyhar30sGO6MA6WZKPgkIbFhJK+sAlxrTkFm7lILSVhdNBUlPQvu8e7i5
+          Fkm5MTYlP/Y3IbTYnYBM3nBwUKNSflytpUKwcazvBmEDwyyAGs6WQV5w1+ksIGkr
+          R8w7H37LFIFdt5ch1Z9ueYbqEkwQfqLcva3/V+fHp7WDy/coVlh8/6Sb1f1/SOz1
+          8uc7t3C4e2z5YMYijW/dMzqoUno8Vnpae8sibQIDAQABAoIBAFov4Cwe0llI58Qn
+          ndao1YNU/vb7894pSQZ7AbejL8b27ZCrhqW6nIj+RPrRO8eukeVw85GgR9hSAw0a
+          d/zDrTA8vS34Azcz6efKYC5eUKnvVSSa/rbtKjUx/BPTQCCtvHQYCPgR+wb6DSBc
+          bq/6RURvSggglUU0smYTXpyJwRaHcsOlZP/AvO5iT6zotW5q/G+pekTapLx9Wter
+          zHO/rmLaijBSq7TdeeiGhHlDbAjkCPXTCJcUe3U4agd4ZGT+W3AkyL7x2rf2TktO
+          OCs/MAxXxA/ar7tBYJzp1sixZwPEzDAsMKqh9DWYTLQOorD3fgdgdywB4yatMlmL
+          UnESTlECgYEAx63Gnv2To2nnltMVkH/kxOY/N9yASPWTrmrbX7djMUoJWNvIxrAx
+          bXAoNNVGOSWOIbZgPGYiJC0C5yx3TaPTiyf6QoPR5eV1WnliowqSbkbTYTY+o04e
+          wAzf+0NJKum42k+yA5DrDLX2v9s+glX6wJJ4OCPUFiUObEEBza/DCfsCgYEAwJ8K
+          H3onhGIv7qlQxUztjMMB0V4nlhCTvrKbLUqJgeXAmklUdSUJmvhRszv+J1J2aWI5
+          4P542fL0DBjAMSbTYruzHiPQfhyJn36Y1Utbu+NmLqNy+aZDDRCUkYuTpALc6s3q
+          K/5hFNlcmFB1Hf91Gf152ow0hZNTBq0Hm67tALcCgYBnv/8ntRH1Ip3WXC8kOY+g
+          TxIh8EwnnJHzWkpJ3XuIrLNWnDwiIIJOHqyFZxtprf2/vocaWub6bPjJLO2ARdMw
+          xsDdtqhlD2h+bfu2Q1P6QIqsRAcfywNnPklSwI9P4MjPhgE0oSPAIvvmjABasFnt
+          nS0h3lvgdbicvto1CVIJ6QKBgGYcaUtigExnmK1WSKEvNMboIbCRzz54LzpqiGSs
+          HNUlrMKdmQ44wizK8tSnOwYxauBW2AP0IrC3YLSA8nGb+XdftYaGyeHw0uwgOnjn
+          6AtkcyjKMQszHlxwq7G0YmIRuncnDbqgsWpSCAoerNdoMvXCL7Sxmq4s+ViSpXPc
+          eXtlAoGBAJhl2L/orqbwhVflZX3kIT1j74kPOaHNM5zxQh4BROhr2qyOGJ//+kLO
+          iENnOCfFgCfMEl6hntDABVnwGc+Igp4wNzWlt9PL7Do/h6PcRAb8mne1T+IDxHQJ
+          IpcRScJBDIUfWTqb12Xm1y2orqD1ma+6C6wlpPTWtWJQHusOis6b -----END RSA
+          PRIVATE KEY-----
+      metadata:
+        type: string
+        example: ''
+      use_ssl:
+        type: boolean
+        example: false
+  Hosts:
+    type: array
+    items:
+      $ref: '#/definitions/Host'
+  Host:
+    type: object
+    properties:
+      id:
+        type: string
+        description: host uuid
+        example: 23cb678a47294041b186c3d06a55203c
+      description:
+        type: string
+        example: k8s host
+      name:
+        type: string
+        description: host name
+        example: k8shost
+      host_type:
+        type: string
+        description: host type
+        enum:
+          - docker
+          - kubernetes
+        example: kubernetes
+      host_address:
+        type: string
+        description: 'ip:port used to access this host'
+        example: '192.68.0.77:6443'
+      k8s_credential:
+        $ref: '#/definitions/K8SCredential'
+      nfs_server:
+        type: string
+        example: 192.168.0.107
+      capacity:
+        type: integer
+        description: how many fabric network can deploy onto this host
+        example: 1
+      schedulable:
+        type: boolean
+        example: true
+  UpdateHost:
+    type: object
+    properties:
+      name:
+        type: string
+        description: host name
+        example: k8shost
+      description:
+        type: string
+        example: k8s host
+      capacity:
+        type: integer
+        description: how many fabric network can deploy onto this host
+        example: 1
+      schedulable:
+        type: boolean
+        example: true
+  CreateHost:
+    type: object
+    required:
+      - name
+      - host_type
+      - host_address
+    properties:
+      name:
+        type: string
+        description: host name
+        example: k8shost
+      description:
+        type: string
+        example: k8s host
+      host_type:
+        type: string
+        description: host type
+        enum:
+          - docker
+          - kubernetes
+        example: kubernetes
+      host_address:
+        type: string
+        description: 'address:port userd to access this host'
+        example: '192.68.0.77:6443'
+      k8s_credential:
+        $ref: '#/definitions/K8SCredential'
+      nfs_server:
+        type: string
+        example: 192.168.0.107
+      capacity:
+        type: integer
+        description: how many fabric network can deploy onto this host
+        example: 1
+      schedulable:
+        type: boolean
+        example: true
+  CreateBlockchainNetwork:
+    type: object
+    required:
+      - name
+      - host_id
+      - orderer_orgs
+      - peer_orgs
+    properties:
+      name:
+        type: string
+        description: network name
+        example: test-network
+      description:
+        type: string
+        example: blockchain-network for bank
+      fabric_version:
+        type: string
+        description: 'fabric version, now only v1.1 is supported'
+        example: v1.1
+      orderer_orgs:
+        type: array
+        description: orderer org uuids
+        items:
+          type: string
+        example:
+          - 23cb678a47294041b186c3d06a55203c
+          - e7e099ec3a304d198993e9205e15b4e8
+      peer_orgs:
+        type: array
+        description: peer organization uuids
+        items:
+          type: string
+        example:
+          - 2480265b420e4d91a395d9db4a7787ad
+          - 2cc71f2d53dd4fdab532a08b5731fe91
+      host_id:
+        type: string
+        description: the host uuid
+        example: 76cb678a47294041b186c3d06a55203c
+      consensus_type:
+        type: string
+        enum:
+          - solo
+          - kafka
+        example: kafka
+  UpdateBlockchainNetwork:
+    type: object
+    properties:
+      name:
+        type: string
+        description: network name
+        example: test-network
+      description:
+        type: string
+        example: blockchain-network for bank
+      peer_orgs:
+        type: array
+        description: peer organization uuids
+        items:
+          type: string
+        example:
+          - 2480265b420e4d91a395d9db4a7787ad
+          - 2cc71f2d53dd4fdab532a08b5731fe91
+          - 23cb678a47294041b186c3d06a55203c
+  BlockchainNetworks:
+    type: array
+    items:
+      $ref: '#/definitions/BlockchainNetwork'
+  BlockchainNetwork:
+    type: object
+    properties:
+      id:
+        type: string
+        description: blockchain_network uuid
+        example: 23cb678a47294041b186c3d06a55203c
+      name:
+        type: string
+        description: blockchain_network name
+        example: test-blockchain_network
+      description:
+        type: string
+        example: blockchain-network for bank
+      fabric_version:
+        type: string
+        description: 'fabric version, now only v1.1 is supported'
+        example: v1.1
+      orderer_orgs:
+        type: array
+        description: orderer org uuids
+        items:
+          type: string
+        example:
+          - 23cb678a47294041b186c3d06a55203c
+          - e7e099ec3a304d198993e9205e15b4e8
+      peer_orgs:
+        type: array
+        description: peer organization uuids
+        items:
+          type: string
+        example:
+          - 2480265b420e4d91a395d9db4a7787ad
+          - 2cc71f2d53dd4fdab532a08b5731fe91
+      host_id:
+        type: string
+        description: the host uuid
+        example: 76cb678a47294041b186c3d06a55203c
+      consensus_type:
+        type: string
+        enum:
+          - solo
+          - kafka
+        example: kafka
+  Organizations:
+    type: array
+    items:
+      $ref: '#/definitions/Organization'
+  Organization:
+    type: object
+    properties:
+      id:
+        type: string
+        description: organization uuid
+        example: 13557c997c904a49a1ff331077cea563
+      name:
+        type: string
+        description: org name
+        example: org1
+      description:
+        type: string
+        description: org description
+        example: org1 is for bank1
+      type:
+        type: string
+        description: type of organization
+        enum:
+          - peer
+          - orderer
+      domain:
+        type: string
+        description: org domain name
+        example: example.org
+      enableNodeOUs:
+        type: boolean
+        example: true
+      ca:
+        $ref: '#/definitions/CA'
+      peerNum:
+        type: integer
+        description: 'peer node number of an org, only needed when type is "peer"'
+        example: 2
+      ordererHostnames:
+        type: array
+        description: 'hostnames of orderer nodes, only needed when type is "orderer"'
+        items:
+          type: string
+      blockchain_network_id:
+        type: string
+        description: blockchain_network uuid the org belongs to
+        example: ''
+  CA:
+    type: object
+    description: org ca info
+    properties:
+      country:
+        type: string
+        description: country name
+        example: US
+      province:
+        type: string
+        description: province name
+        example: California
+      locality:
+        type: string
+        description: locality
+        example: San Francisco
+  UpdateOrg:
+    type: object
+    properties:
+      description:
+        type: string
+        description: org description
+        example: org1 is for bank1
+      peerNum:
+        type: integer
+        description: 'peer node number of an org, only needed when type is "peer"'
+        example: 3
+  CreateOrg:
+    type: object
+    required:
+      - name
+      - domain
+      - type
+    properties:
+      name:
+        type: string
+        description: org name
+        example: org1
+      description:
+        type: string
+        description: org description
+        example: org1 is for bank1
+      type:
+        type: string
+        description: type of organization
+        enum:
+          - peer
+          - orderer
+      domain:
+        type: string
+        description: org domain name
+        example: example.org
+      enableNodeOUs:
+        type: boolean
+        example: true
+      ca:
+        $ref: '#/definitions/CA'
+      peerNum:
+        type: integer
+        description: 'peer node number of an org, only needed when type is "peer"'
+        example: 2
+      ordererHostnames:
+        type: array
+        description: 'hostnames of orderer nodes, only needed when type is "orderer"'
+        items:
+          type: string
+  UpdateUser:
+    type: object
+    properties:
+      name:
+        type: string
+        description: user name
+        example: org1user
+      role:
+        type: string
+        enum:
+          - baas_admin
+          - org_admin
+          - org_user
+        example: org_admin
+  CreateUser:
+    type: object
+    required:
+      - name
+      - role
+      - organization_id
+      - network_id
+    properties:
+      name:
+        type: string
+        description: user name
+        example: org1user
+      role:
+        type: string
+        enum:
+          - baas_admin
+          - org_admin
+          - org_user
+        example: baas_admin
+      organization_id:
+        type: string
+        description: organization the user belongs to
+        example: 2480265b420e4d91a395d9db4a7787ad
+      network_id:
+        type: string
+        description: blockchain_network the user using
+        example: e7e099ec3a304d198993e9205e15b4e8
+  User:
+    type: object
+    properties:
+      id:
+        type: string
+        description: user uuid
+        example: e7e099ec3a304d198993e9205e15b4e8
+      name:
+        type: string
+        description: user name
+        example: org1user
+      role:
+        type: string
+        enum:
+          - baas_admin
+          - org_admin
+          - org_user
+        example: baas_admin
+      organization_id:
+        type: string
+        description: organization the user belongs to
+        example: 2480265b420e4d91a395d9db4a7787ad
+      network_id:
+        type: string
+        description: blockchain_network the user using
+  Users:
+    type: array
+    items:
+      $ref: '#/definitions/User'
+  Channels:
+    type: array
+    items:
+      $ref: '#/definitions/Channel'
+  Channel:
+    type: object
+    properties:
+      id:
+        type: string
+        description: channel uuid
+        example: f93099ec3a304d198993e9205e15b4e8
+      name:
+        type: string
+        description: channel name
+        example: mychannel
+      orderer_url:
+        type: string
+        description: orderer node this channel use
+        example: orderer.example.com
+      peer_orgs:
+        type: array
+        description: peer organization uuids
+        items:
+          type: string
+        example:
+          - 2480265b420e4d91a395d9db4a7787ad
+          - 2cc71f2d53dd4fdab532a08b5731fe91
+      description:
+        type: string
+        description: channel description
+        example: channel for transfer bussiness
+      creator_id:
+        type: string
+        description: user who create the channel
+        example: e93099ec3a304d198993e9205e15b4e8
+      creator_name:
+        type: string
+        description: user who create the channel
+        example: Admin@org1.h3c.com
+      blockchain_network_id:
+        type: string
+        description: blockchain_network uuid the channel belongs to
+        example: 2cc71f2d53dd4fdab532a08b5731fe91
+      create_ts:
+        type: string
+        example: '2018-11-21T02:47:50.164Z'
+  CreateChannel:
+    type: object
+    required:
+      - name
+      - peerOrgs
+      - orderer_url
+    properties:
+      name:
+        type: string
+        description: channel name
+        example: mychannel
+      description:
+        type: string
+        description: channel description
+        example: channel for transfer bussiness
+      orderer_url:
+        type: string
+        description: orderer node this channel use
+        example: orderer.example.com
+      peer_orgs:
+        type: array
+        description: peer organization uuids
+        items:
+          type: string
+        example:
+          - 2480265b420e4d91a395d9db4a7787ad
+          - 2cc71f2d53dd4fdab532a08b5731fe91
+  ChannelPeers:
+    type: array
+    items:
+      $ref: '#/definitions/ChannelPeer'
+  ChannelPeer:
+    type: object
+    description: peer attributes
+    properties:
+      name:
+        type: string
+        description: peer name
+        example: peer0.org1.example.com
+      organization_id:
+        type: string
+        description: the organization uuid of this peer node
+        example: 68c71f2d53dd4fdab532a08b5731fe91
+      channel_id:
+        type: string
+        description: the channel uuid of this peer node
+        example: 72c5345d53dd4fdab532a08b5731fe91
+      role:
+        type: string
+        description: peer role
+        example: endorser
+  PeerNamesAndInstallTimes:
+    type: array
+    items:
+      $ref: '#/definitions/PeerNameAndInstallTime'
+  PeerNameAndInstallTime:
+    type: object
+    description: peer name and installing time of chaincode
+    properties:
+      peer_name:
+        type: string
+        example: peer0.org1.example.com
+      install_ts:
+        type: string
+        example: '2018-11-21T06:15:21.943Z'
+  PeerNames:
+    type: array
+    items:
+      type: string
+      example: peer0.org1.example.com
+    example:
+      - peer0.org1.example.com
+      - peer1.org1.example.com
+  InstantiateChaincodeDeprecated:
+    type: object
+    description: chaincode instantiate
+    required:
+      - peers
+      - chaincodeName
+      - chaincodeLanguage
+      - chaincodeVersion
+      - args
+    properties:
+      peers:
+        type: array
+        description: peer list
+        items:
+          type: string
+          example: peer0.org1.example.com
+      chaincodeName:
+        type: string
+        description: chaincode name
+        example: mycc
+      chaincodeVersion:
+        type: string
+        description: chaincode version
+        example: v1
+      chaincodeLanguage:
+        type: string
+        enum:
+          - golang
+          - node
+        example: golang
+      args:
+        type: string
+        description: chaincode args
+        example: '["a", "100", "b", "200"]'
+      endorsementPolicy:
+        type: string
+        description: chaincode endorsementPolicy
+        example: 'OR (''Org1MSP.peer'', ''Org2MSP.peer'')'
+  InstallChaincode:
+    type: object
+    description: chaincode install
+    required:
+      - peers
+    properties:
+      peers:
+        type: array
+        description: peer list
+        items:
+          type: string
+          example: peer0.org1.example.com
+  Chaincodes:
+    type: array
+    items:
+      $ref: '#/definitions/Chaincode'
+  Chaincode:
+    type: object
+    description: chaincode object
+    properties:
+      id:
+        type: string
+        description: chaincode uuid
+        example: f93099ec3a304d198993e9205e15b4e8
+      name:
+        type: string
+        description: chaincode name
+        example: mycc
+      description:
+        type: string
+        description: chaincode description
+        example: assets management
+      version:
+        type: string
+        description: chaincode version
+        example: v1
+      language:
+        type: string
+        enum:
+          - golang
+          - node
+        example: golang
+      creator_id:
+        type: string
+        description: user who create the channel
+        example: e93099ec3a304d198993e9205e15b4e8
+      creator_name:
+        type: string
+        description: user who create the channel
+        example: Admin@org1.h3c.com
+      blockchain_network_id:
+        type: string
+        description: blockchain_network uuid the channel belongs to
+        example: 2cc71f2d53dd4fdab532a08b5731fe91
+      peers:
+        $ref: '#/definitions/PeerNamesAndInstallTimes'
+      channel_ids:
+        type: array
+        description: channel ids where the chaincode is instantiated
+        items:
+          type: string
+        example:
+          - 2480265b420e4d91a395d9db4a7787ad
+          - 2cc71f2d53dd4fdab532a08b5731fe91
+      md5:
+        type: string
+        description: md5 of chaincode zip package
+        example: ac5b9b49e3a589258275f47e41d85859
+      install_times:
+        type: integer
+        example: 1
+      create_ts:
+        type: string
+        description: upload time of this chaincode
+        example: '2018-11-21T02:47:50.164Z'
+  InstantiateChaincode:
+    type: object
+    description: chaincode instantiate
+    required:
+      - channel_id
+      - args
+    properties:
+      channel_id:
+        type: string
+        description: channel uuid
+        example: 9230265b420e4d91a395d9db4a7787ad
+      functionName:
+        type: string
+        description: function name
+        example: ''
+      args:
+        type: string
+        description: chaincode args
+        example: 'a,100,b,200'
+      endorsementPolicy:
+        type: string
+        description: chaincode endorsementPolicy
+        example: 'OR (''Org1MSP.peer'', ''Org2MSP.peer'')'
+  ChaincodeOperation:
+    type: object
+    description: chaincode operations
+    required:
+      - operation
+      - functionName
+      - chaincodeName
+      - args
+    properties:
+      operation:
+        type: string
+        description: operation name
+        enum:
+          - invoke
+          - query
+        example: invoke
+      functionName:
+        type: string
+        description: function name
+        example: invoke
+      args:
+        type: string
+        description: chaincode args
+        example: 'a,100,b,200'
+      chaincodeId:
+        type: string
+        description: chaincode name
+        example: 2480265b420e4d91a395d9db4a7787ad
+  Orgusers:
+    type: array
+    items:
+      $ref: '#/definitions/Orguser'
+  Orguser:
+    type: object
+    description: orguser object
+    properties:
+      id:
+        type: string
+        description: orguser uuid
+        example: f93099ec3a304d198993e9205e15b4e8
+      name:
+        type: string
+        description: orguser name
+        example: org1user
+      creater_id:
+        type: string
+        description: creater uuid
+        example: e7e099ec3a304d198993e9205e456fgh
+      roles:
+        type: string
+        enum:
+          - org_admin
+          - org_user
+        example: org_admin
+      ancestors:
+        type: string
+        description: Orguser created ancestor
+        example: Admin
+      orgname:
+        type: string
+        description: Orguser's organization name
+        example: org1
+      network_id:
+        type: string
+        description: network_Id
+        example: 2480265b420e4d91a395d9db4a773423
+      active:
+        type: string
+        enum:
+          - true
+          - false
+        example: true
+      delegate_roles:
+        type: string
+        enum:
+          - org_admin
+          - org_user
+        example: org_admin
+      affiliation_mgr:
+        type: string
+        enum:
+          - true
+          - false
+        example: true
+      revoker:
+        type: string
+        enum:
+          - true
+          - false
+        example: true
+      gencrl:
+        type: string
+        enum:
+          - true
+          - false
+        example: true
+      create_time:
+        type: string
+        example: '2019-02-21T08:01:19.083Z'
+      expiration_date:
+        type: string
+        example: 8760h
+  CreateOrguser:
+    type: object
+    required:
+      - name
+      - role
+      - password
+      - delegateRoles
+      - affiliation
+      - affiliationMgr
+      - revoker
+      - gencrl
+    properties:
+      name:
+        type: string
+        description: orguser name
+        example: org1user
+      role:
+        type: string
+        description: orguser role
+        enum:
+          - org_admin
+          - org_user
+        example: org_admin
+      password:
+        type: string
+        description: orguser password
+        example: 666666
+      delegateRoles:
+        type: string
+        enum:
+          - org_admin
+          - org_user
+        description: orguser delegateRoles
+        example: org_admin
+      affiliation:
+        type: string
+        description: orguser affiliation
+        example: org1.department1
+      affiliationMgr:
+        type: string
+        enum:
+          - true
+          - false
+        description: orguser affiliationMgr
+        example: true
+      revoker:
+        type: string
+        enum:
+          - true
+          - false
+        description: orguser affiliationMgr
+        example: true
+      gencrl:
+        type: string
+        enum:
+          - true
+          - false
+        description: orguser affiliationMgr
+        example: true
+  updateAppliation:
+    type: object
+    required:
+      - sourceName
+      - targetName
+    properties:
+      sourceName:
+        type: string
+        description: source affiliation name
+        example: org1
+      targetName:
+        type: string
+        description: target affiliation name
+        example: org2
+  Operator_logs:
+    type: array
+    items:
+      $ref: '#/definitions/Operator_log'
+  Operator_log:
+    type: object
+    properties:
+      opDate:
+        type: string
+        description: time this operation happens
+        example: '2019-02-21T08:01:19.083Z'
+      opName:
+        type: string
+        description: interface called
+        example: blockchain_network_create
+      opObject:
+        type: string
+        description: api resource name
+        example: network
+      opResult:
+        $ref: '#/definitions/OperationRes'
+      operator:
+        type: string
+        enum:
+          - org_admin
+          - org_user
+        description: orguser delegateRoles
+        example: org_admin
+  OperationRes:
+    type: object
+    properties:
+      resDes:
+        type: string
+        enum:
+          - OK
+          - ERROR
+        description: description of operation result
+        example: ERROR
+      resCode:
+        type: integer
+        description: error code of this operation
+        example: 400
+      errorMsg:
+        type: string
+        description: error reason
+        example: ' _ is not allowed in org name'
+  write:
+    type: object
+    required:
+      - key
+      - is_delete
+      - value
+    properties:
+      key:
+        type: string
+        description: key
+        example: a
+      is_delete:
+        type: string
+        enum:
+          - true
+          - false
+        description: is_delete
+        example: false
+      value:
+        type: string
+        description: value
+        example: 165
+  version:
+    type: object
+    required:
+      - block_num
+      - tx_num
+    properties:
+      block_num:
+        type: string
+        description: block number
+        example: 14
+      tx_num:
+        type: string
+        description: transaction number
+        example: 0
+  read:
+    type: object
+    required:
+      - key
+      - version
+    properties:
+      name:
+        type: string
+        description: key
+        example: a
+      version:
+        $ref: '#/definitions/version'
+  reads:
+    type: array
+    items:
+      $ref: '#/definitions/read'
+  writes:
+    type: array
+    items:
+      $ref: '#/definitions/write'
+  rwset:
+    type: object
+    required:
+      - namespace
+      - reads
+      - writes
+    properties:
+      namespace:
+        type: string
+        description: chaincode name
+        example: ABS
+      reads:
+        $ref: '#/definitions/reads'
+      writes:
+        $ref: '#/definitions/writes'
+  rwsets:
+    type: array
+    items:
+      $ref: '#/definitions/rwset'
+  chaincode:
+    type: object
+    required:
+      - name
+      - version
+    properties:
+      name:
+        type: string
+        description: chaincode name
+        example: ABS
+      version:
+        type: string
+        description: chaincode version
+        example: 1.0.0
+  action:
+    type: object
+    required:
+      - creatorMSP
+      - proposal_hash
+      - rwsets
+      - chaincode
+      - endorsements
+    properties:
+      creatorMSP:
+        type: string
+        description: creator MSP
+        example: org1MSP
+      proposal_hash:
+        type: string
+        description: proposal hash
+        example: ce062ebb052924c3d65f490a55d84c0b883cb918d4d2520d1ecc12ddc341cbd6
+      rwsets:
+        $ref: '#/definitions/rwsets'
+      chaincode:
+        $ref: '#/definitions/chaincode'
+      endorsements:
+        type: array
+        description: endorsements
+        items:
+          type: string
+        example:
+          - org1MSP
+          - org2MSP
+  actions:
+    type: array
+    items:
+      $ref: '#/definitions/action'
+  transaction:
+    type: object
+    required:
+      - time
+      - id
+      - creatorMSP
+      - channelName
+      - typeString
+      - actions
+    properties:
+      time:
+        type: string
+        description: time of the transaction creation
+        example: 'Mon Mar 11 2019 16:04:24 GMT+0800 (CST)'
+      id:
+        type: string
+        description: transaction id
+        example: b343dcb41300038ce1e868de92aecf313219b7681018d8838ec81e42d489cdd6
+      creatorMSP:
+        type: string
+        description: creator MSP
+        example: Org1MSP
+      channelName:
+        type: string
+        description: channel name
+        example: asset record
+      typeString:
+        type: string
+        enum:
+          - MESSAGE
+          - CONDFIG
+          - CONFIG_UPDATE
+          - ENDORSER_TRANSACTION
+          - ORERER_TRANSACTION
+          - DELIVER_SEEK_INFO
+          - CHNINCODE_PACKAGE
+        description: type of the transaction
+        example: ENDORSER_TRANSACTION
+      actions:
+        $ref: '#/definitions/actions'
+  transactions:
+    type: array
+    items:
+      $ref: '#/definitions/transaction'
+  block:
+    type: object
+    required:
+      - currentBlockHash
+      - dataHash
+      - number
+      - previousHash
+      - transaction
+    properties:
+      currentBlockHash:
+        type: string
+        description: hash of the current block
+        example: 1cd444fc7770fdb84d06d65044ffa89963135ccf822093b342e2ba93216f3546
+      dataHash:
+        type: string
+        description: hash of the data
+        example: 11a3914ea3e342b1c75476aa01d327178371d1d7b979ba679f35a833af3c38b7
+      number:
+        type: string
+        description: number of the current block
+        example: 15
+      previousHash:
+        type: string
+        description: hash of the previous block
+        example: 9640ea86e413b4d2c48d3e210150da8691f59d3606c87a1b83a7f1d39f1cbce2
+      transaction:
+        $ref: '#/definitions/transactions'
+  blocks:
+    type: array
+    items:
+      $ref: '#/definitions/block'
+  blocknumber:
+    type: object
+    required:
+      - time
+      - count
+    properties:
+      time:
+        type: string
+        description: current time
+        example: 'Tue Mar 19 2019 16:24:00 GMT+0800 (CST)'
+      count:
+        type: string
+        description: number of blocks per minute
+        example: 0

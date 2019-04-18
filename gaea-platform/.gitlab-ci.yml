@@ -1,0 +1,12 @@
+stages:
+   - build
+   - test
+   - deploy
+b1:
+  stage: build
+  script:
+    - uname -a
+    - make clean
+    - make docker
+  tags:
+    - shell

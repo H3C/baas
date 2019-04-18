@@ -1,0 +1,95 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: zoo
+  namespace: $networkName
+spec:
+  ports:
+  - port: 2181
+    name: client
+  - port: 2888
+    name: peer
+  - port: 3888
+    name: leader-election
+  clusterIP: None
+  selector:
+    app: zookeeper
+
+---
+apiVersion: apps/v1beta1
+kind: StatefulSet
+metadata:
+  name: zoo
+  namespace: $networkName
+spec:
+  serviceName: "zoo"
+  replicas: 3
+  template:
+    metadata:
+      labels:
+        app: zookeeper
+    spec:
+      terminationGracePeriodSeconds: 10
+      containers:
+        - name: zookeeper
+          image: hyperledger/fabric-zookeeper:0.4.12
+          ports:
+            - containerPort: 2181
+              name: client
+            - containerPort: 2888
+              name: peer
+            - containerPort: 3888
+              name: leader-election
+          # command:
+          # - sh
+          # - -c
+          # - "start-zookeeper \
+          #   --servers=5 \
+          #   --data_dir=/var/lib/zookeeper/data \
+          #   --data_log_dir=/var/lib/zookeeper/data/log \
+          #   --conf_dir=/opt/zookeeper/conf \
+          #   --client_port=2181 \
+          #   --election_port=3888 \
+          #   --server_port=2888 \
+          #   --tick_time=2000 \
+          #   --init_limit=10 \
+          #   --sync_limit=5 \
+          #   --heap=512M \
+          #   --max_client_cnxns=60 \
+          #   --snap_retain_count=3 \
+          #   --purge_interval=12 \
+          #   --max_session_timeout=40000 \
+          #   --min_session_timeout=4000 \
+          #   --log_level=INFO"
+          # readinessProbe:
+          #   exec:
+          #     command:
+          #     - sh
+          #     - -c
+          #     - "zookeeper-ready 2181"
+          #   initialDelaySeconds: 10
+          #   timeoutSeconds: 60
+          # livenessProbe:
+          #   exec:
+          #     command:
+          #     - sh
+          #     - -c
+          #     - "zookeeper-ready 2181"
+          #   initialDelaySeconds: 10
+          #   timeoutSeconds: 60
+          volumeMounts:
+            - name: datadir
+              mountPath: /var/lib/zookeeper
+            # There's defaults in this folder, such as logging config
+            #- name: conf
+            #  mountPath: /conf
+            - name: host-time
+              mountPath: /etc/localtime
+      volumes:
+        #- name: conf
+        #  emptyDir: {}
+        - name: datadir
+          emptyDir: {}
+        - name: host-time
+          hostPath:
+            path: /etc/localtime

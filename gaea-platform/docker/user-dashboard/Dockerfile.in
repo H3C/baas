@@ -1,0 +1,28 @@
+# Copyright IBM Corp, All Rights Reserved.
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+FROM node:8.9
+MAINTAINER h3c "@h3c.com"
+
+COPY user-dashboard/src /var/www
+RUN cd /var/www &&  npm run build
+WORKDIR /var/www
+EXPOSE 8081
+
+RUN mkdir -p /opt/fabric_tools/v1_1 && mkdir -p /opt/fabric_tools/v1_4
+COPY jq-linux64 /usr/bin/jq
+RUN chmod +x /usr/bin/jq
+ENV FABRIC_VERSION 1.0.5
+COPY hyperledger-fabric-linux-amd64-1.1.0.tar.gz /tmp
+COPY hyperledger-fabric-linux-amd64-1.4.0.tar.gz /tmp
+RUN cd /tmp \
+ && tar -zxvf hyperledger-fabric-linux-amd64-1.1.0.tar.gz && cp bin/* /opt/fabric_tools/v1_1 && mv bin/configtxgen /usr/local/bin/configtxgen
+RUN cd /tmp \
+ && tar -zxvf hyperledger-fabric-linux-amd64-1.4.0.tar.gz && cp bin/* /opt/fabric_tools/v1_4 && mv bin/configtxgen /usr/local/bin/configtxgen
+COPY user-dashboard/fabric/fabric /etc/hyperledger/fabric
+ENV MONGO_PORT 27017
+COPY start.sh /root/start.sh
+RUN chmod +x /root/start.sh
+
+CMD ["/bin/bash","/root/start.sh"]

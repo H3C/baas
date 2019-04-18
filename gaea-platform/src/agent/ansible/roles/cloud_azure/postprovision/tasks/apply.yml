@@ -1,0 +1,2 @@
+---
+- include_tasks: ../../../cloud_os/postprovision/tasks/apply.yml

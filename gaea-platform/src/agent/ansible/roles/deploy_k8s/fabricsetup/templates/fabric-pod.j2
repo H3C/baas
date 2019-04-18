@@ -1,0 +1,404 @@
+# Hyperledger fabric deployment file.
+#
+# Example usage: kubectl create -f <this_file>
+
+{% if fabric.baseimage_tag == 'stable' or fabric.baseimage_tag == 'latest' %}
+{% set project_version = fabric.baseimage_tag %}
+{% else %}
+{% set tag = fabric.baseimage_tag.split('-') %}
+{% set project_version = tag[1] %}
+{% endif %}
+{% if fabric.repo.username | default('') | length > 0 and fabric.repo.password | default('') | length > 0 %}
+{% set creds = True %}
+{% else %}
+{% set creds = False %}
+{% endif %}
+{% for zookeeper in zookeeperls %}
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: {{ zookeeper }}
+  labels:
+    k8s-app: {{ zookeeper }}
+    type: zookeeper
+spec:
+{% if creds %}
+  imagePullSecrets:
+  - name: regcred
+{% endif %}
+  restartPolicy: OnFailure
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 1
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+            - key: type
+              operator: In
+              values:
+                - zookeeper
+          topologyKey: kubernetes.io/hostname
+  containers:
+    - name: {{ zookeeper }}
+      image: {{ fabric.repo.url }}fabric-zookeeper:{{ fabric.helper_tag }}
+{% if fabric.helper_tag == 'latest' or 'stable' in fabric.helper_tag %}
+      imagePullPolicy: Always
+{% else %}
+      imagePullPolicy: IfNotPresent
+{% endif %}
+      env:
+        - { name: "ZOO_MY_ID", value: "{{ zoo_ids[zookeeper] }}" }
+        - { name: "ZOO_SERVERS", value: "{{ znodes | trim }}" }
+        - { name: "ZOO_TICK_TIME", value: "2000" }
+        - { name: "ZOO_INIT_LIMIT", value: "10" }
+        - { name: "ZOO_SYNC_LIMIT", value: "2" }
+{% include './resource.j2' %}
+---
+kind: Service
+apiVersion: v1
+metadata:
+  labels:
+    k8s-app: {{ zookeeper }}
+  name: {{ zookeeper }}
+spec:
+  selector:
+    k8s-app: {{ zookeeper }}
+  ports:
+    - { name: "port1", port: 2888 }
+    - { name: "port2", port: 3888 }
+    - { name: "port3", port: 2181 }
+{% endfor %}
+
+{% for kafka in kafkals %}
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: {{ kafka }}
+  labels:
+    k8s-app: {{ kafka }}
+    type: kafka
+spec:
+{% if creds %}
+  imagePullSecrets:
+  - name: regcred
+{% endif %}
+  restartPolicy: OnFailure
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 1
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+            - key: type
+              operator: In
+              values:
+                - kafka
+          topologyKey: kubernetes.io/hostname
+  containers:
+    - name: {{ kafka }}
+      image: {{ fabric.repo.url }}fabric-kafka:{{ fabric.helper_tag }}
+{% if fabric.helper_tag == 'latest' or 'stable' in fabric.helper_tag %}
+      imagePullPolicy: Always
+{% else %}
+      imagePullPolicy: IfNotPresent
+{% endif %}
+      env:
+        - { name: "KAFKA_MESSAGE_MAX_BYTES", value: "103809024" }
+        - { name: "KAFKA_MAX_REQUEST_SIZE", value: "104857600" }
+        - { name: "KAFKA_REPLICA_FETCH_MAX_BYTES", value: "103809024" }
+        - { name: "KAFKA_UNCLEAN_LEADER_ELECTION_ENABLE", value: "true" }
+        - { name: "KAFKA_BROKER_ID", value: "{{ kafka_ids[kafka] }}" }
+        - { name: "KAFKA_MIN_INSYNC_REPLICAS", value: "1" }
+        - { name: "KAFKA_DEFAULT_REPLICATION_FACTOR", value: "{{ kafka_ids | length }}" }
+        - { name: "KAFKA_ZOOKEEPER_CONNECT", value: "{{ zkparam | trim | replace(' ', ',') }}" }
+{% include './resource.j2' %}
+---
+kind: Service
+apiVersion: v1
+metadata:
+  labels:
+    k8s-app: {{ kafka }}
+  name: {{ kafka }}
+spec:
+  selector:
+    k8s-app: {{ kafka }}
+  ports:
+    - { name: "port1", port: 9092 }
+    - { name: "port2", port: 9093 }
+{% endfor %}
+
+{% if allcas is defined and (allcas | length > 0) %}
+{% for ca in allcas %}
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: {{ ca.name }}
+  labels:
+    k8s-app: {{ ca.name }}
+    type: ca
+spec:
+{% if creds %}
+  imagePullSecrets:
+  - name: regcred
+{% endif %}
+  restartPolicy: OnFailure
+  volumes:
+    - name: task-pv-storage
+      persistentVolumeClaim:
+        claimName: fabriccerts
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 1
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+            - key: type
+              operator: In
+              values:
+                - ca
+          topologyKey: kubernetes.io/hostname
+  containers:
+    - name: {{ ca.name }}
+      image: {{ fabric.repo.url }}fabric-ca:{{ fabric.ca.image_tag }}
+{% if fabric.ca.image_tag == 'latest' or 'stable' in fabric.ca.image_tag %}
+      imagePullPolicy: Always
+{% else %}
+      imagePullPolicy: IfNotPresent
+{% endif %}
+      env:
+        - { name: "FABRIC_CA_HOME", value: "/etc/hyperledger/fabric-ca-server-config//keyfiles/{{ ca.org }}/ca" }
+        - { name: "FABRIC_CA_SERVER_CA_NAME", value: "{{ ca.name}}" }
+        - { name: "FABRIC_CA_SERVER_CA_KEYFILE", value: "/etc/hyperledger/fabric-ca-server-config/keyfiles/{{ ca.org }}/ca/ca_private.key" }
+        - { name: "FABRIC_CA_SERVER_CA_CERTFILE", value: "/etc/hyperledger/fabric-ca-server-config/keyfiles/{{ ca.org }}/ca/ca.{{ ca.org }}-cert.pem" }
+{% if fabric.tls %}
+        - { name: "FABRIC_CA_SERVER_TLS_ENABLED", value: "true" }
+        - { name: "FABRIC_CA_SERVER_TLS_KEYFILE", value: "/etc/hyperledger/fabric-ca-server-config/keyfiles/{{ ca.org }}/tlsca/tlsca_private.key" }
+        - { name: "FABRIC_CA_SERVER_TLS_CERTFILE", value: "/etc/hyperledger/fabric-ca-server-config/keyfiles/{{ ca.org }}/tlsca/tlsca.{{ ca.org }}-cert.pem" }
+{% endif %}
+{% include './resource.j2' %}
+      volumeMounts:
+        - { mountPath: "/etc/hyperledger/fabric-ca-server-config", name: "task-pv-storage" }
+      command: ["fabric-ca-server"]
+      args:  ["start", "-b", "{{ fabric.ca.admin }}:{{ fabric.ca.adminpw }}", "-d"]
+---
+kind: Service
+apiVersion: v1
+metadata:
+  labels:
+    k8s-app: {{ ca.name }}
+  name: {{ ca.name }}
+spec:
+  selector:
+    k8s-app: {{ ca.name }}
+{% if fabric.k8s.exposeserviceport %}
+  type: NodePort
+{% endif %}
+  ports:
+    - name: port1
+      port: 7054
+
+{% endfor %}
+{% endif %}
+
+{% if allpeers is defined and (allpeers | length > 0) %}
+{% for peer in allpeers %}
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: {{ peer.name }}
+  labels:
+    k8s-app: {{ peer.name }}
+    type: peer
+spec:
+{% if creds %}
+  imagePullSecrets:
+  - name: regcred
+{% endif %}
+  restartPolicy: OnFailure
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 1
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+            - key: type
+              operator: In
+              values:
+                - peer
+          topologyKey: kubernetes.io/hostname
+  volumes:
+    - name: task-pv-storage
+      persistentVolumeClaim:
+        claimName: fabriccerts
+    - name: rundind
+      hostPath:
+        path: /var/run/dind/
+  containers:
+{% if fabric.peer_db == 'CouchDB' %}
+    - name: couchdb-{{ peer.name }}
+      image: {{ fabric.repo.url }}fabric-couchdb:{{ fabric.helper_tag }}
+{% if fabric.helper_tag == 'latest' or 'stable' in fabric.helper_tag %}
+      imagePullPolicy: Always
+{% else %}
+      imagePullPolicy: IfNotPresent
+{% endif %}
+      securityContext:
+        privileged: true
+{% endif %}
+    - name: {{ peer.name }}
+      image: {{ fabric.repo.url }}fabric-peer:{{ fabric.baseimage_tag }}
+{% if project_version == 'latest' or 'stable' in project_version %}
+      imagePullPolicy: Always
+{% else %}
+      imagePullPolicy: IfNotPresent
+{% endif %}
+      securityContext:
+        privileged: true
+      env:
+        - { name: "CORE_VM_ENDPOINT", value: "unix:///var/run/docker.sock" }
+        - { name: "FABRIC_CFG_PATH", value: "/etc/hyperledger/fabric/keyfiles/{{ peer.org }}/peers/{{ peer.name }}.{{ peer.org }}" }
+        - { name: "CORE_LOGGING_LEVEL", value: "{{ fabric.logging_level | default('ERROR') }}" }
+        - { name: "CORE_PEER_ENDORSER_ENABLED", value: "true" }
+        - { name: "CORE_PEER_GOSSIP_USELEADERELECTION",
+            value: "{{ allpeers|selectattr('org','equalto',peer.org)|list|selectattr('role','equalto','leader')|list|length|int==0 }}" }
+        - { name: "CORE_PEER_GOSSIP_ORGLEADER", value: "{{ (peer.role == "leader") | ternary('true','false') }}" }
+        - { name: "CORE_PEER_PROFILE_ENABLED", value: "true" }
+        - { name: "CORE_PEER_TLS_ENABLED", value: "{{ fabric.tls | lower }}" }
+{% if fabric.tls %}
+        - { name: "CORE_PEER_TLS_CERT_FILE", value: "/etc/hyperledger/fabric/keyfiles/{{ peer.org }}/peers/{{ peer.name }}.{{ peer.org }}/tls/server.crt" }
+        - { name: "CORE_PEER_TLS_KEY_FILE", value: "/etc/hyperledger/fabric/keyfiles/{{ peer.org }}/peers/{{ peer.name }}.{{ peer.org }}/tls/server.key" }
+        - { name: "CORE_PEER_TLS_ROOTCERT_FILE", value: "/etc/hyperledger/fabric/keyfiles/{{ peer.org }}/peers/{{ peer.name }}.{{ peer.org }}/tls/ca.crt" }
+{% endif %}
+        - { name: "CORE_PEER_ID", value: "{{ peer.name }}" }
+        - { name: "CORE_PEER_GOSSIP_EXTERNALENDPOINT", value: "{{ peer.name }}:7051" }
+        - { name: "CORE_PEER_ADDRESS", value: "{{ peer.name }}:7051" }
+        - { name: "CORE_PEER_LISTENADDRESS", value: "{{ peer.name }}:7051" }
+{% if project_version is version_compare('1.1.0','>=') or 'stable' in project_version or project_version == 'latest' %}
+        - { name: "CORE_PEER_CHAINCODEADDRESS", value: "{{ peer.name }}:7052" }
+        - { name: "CORE_PEER_CHAINCODELISTENADDRESS", value: "0.0.0.0:7052" }
+{% else %}
+        - { name: "CORE_PEER_CHAINCODELISTENADDRESS", value: "{{ peer.name }}:7052" }
+{% endif %}
+        - { name: "CORE_PEER_LOCALMSPID", value: "{{ peer.org }}" }
+        - { name: "CORE_PEER_MSPCONFIGPATH", value: "/etc/hyperledger/fabric/keyfiles/{{ peer.org }}/peers/{{ peer.name }}.{{ peer.org }}/msp" }
+{% if fabric.peer_db == 'CouchDB' %}
+        - { name: "CORE_LEDGER_STATE_STATEDATABASE", value: "CouchDB" }
+        - { name: "CORE_LEDGER_STATE_COUCHDBCONFIG_COUCHDBADDRESS", value: "localhost:5984" }
+{% endif %}
+{% include './resource.j2' %}
+      volumeMounts:
+        - { mountPath: "/etc/hyperledger/fabric", name: "task-pv-storage" }
+        - { mountPath: "/var/run", name: "rundind" }
+      command: ["peer"]
+      args: ["node", "start"]
+---
+kind: Service
+apiVersion: v1
+metadata:
+  labels:
+    k8s-app: {{ peer.name }}
+  name: {{ peer.name }}
+spec:
+  selector:
+    k8s-app: {{ peer.name }}
+{% if fabric.k8s.exposeserviceport %}
+  type: NodePort
+{% endif %}
+  ports:
+  - name: port1
+    port: 7051
+  - name: port2
+    port: 7052
+  - name: port3
+    port: 7053
+{% endfor %}
+{% endif %}
+
+{% if allorderers is defined and (allorderers | length > 0) %}
+{% for orderer in allorderers %}
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: {{ orderer.name }}
+  labels:
+    k8s-app: {{ orderer.name }}
+    type: orderer
+spec:
+{% if creds %}
+  imagePullSecrets:
+  - name: regcred
+{% endif %}
+  restartPolicy: OnFailure
+  volumes:
+    - name: task-pv-storage
+      persistentVolumeClaim:
+        claimName: fabriccerts
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 1
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+            - key: type
+              operator: In
+              values:
+                - orderer
+          topologyKey: kubernetes.io/hostname
+  containers:
+    - name: {{ orderer.name }}
+      image: {{ fabric.repo.url }}fabric-orderer:{{ fabric.baseimage_tag }}
+{% if project_version == 'latest' or 'stable' in project_version %}
+      imagePullPolicy: Always
+{% else %}
+      imagePullPolicy: IfNotPresent
+{% endif %}
+      env:
+        - { name: "ORDERER_GENERAL_LOGLEVEL", value: "{{ fabric.logging_level | default('ERROR') | lower }}" }
+        - { name: "ORDERER_GENERAL_LISTENADDRESS", value: "0.0.0.0" }
+        - { name: "ORDERER_GENERAL_GENESISMETHOD", value: "file" }
+        - { name: "ORDERER_GENERAL_GENESISFILE", value: "/var/hyperledger/orderer/keyfiles/genesis.block" }
+        - { name: "ORDERER_GENERAL_LOCALMSPID", value: "{{ orderer.org }}" }
+        - { name: "ORDERER_GENERAL_LOCALMSPDIR", value: "/var/hyperledger/orderer/keyfiles/{{ orderer.org }}/orderers/{{ orderer.name }}.{{ orderer.org }}/msp" }
+        - { name: "ORDERER_GENERAL_TLS_CLIENTAUTHENABLED", value: "false" }
+        - { name: "ORDERER_GENERAL_TLS_ENABLED", value: "{{ fabric.tls | lower }}" }
+{% if fabric.tls %}
+        - { name: "ORDERER_GENERAL_TLS_PRIVATEKEY", value: "/var/hyperledger/orderer/keyfiles/{{ orderer.org }}/orderers/{{ orderer.name }}.{{ orderer.org }}/tls/server.key" }
+        - { name: "ORDERER_GENERAL_TLS_CERTIFICATE", value: "/var/hyperledger/orderer/keyfiles/{{ orderer.org }}/orderers/{{ orderer.name }}.{{ orderer.org }}/tls/server.crt" }
+        - { name: "ORDERER_GENERAL_TLS_ROOTCAS", value: "[/var/hyperledger/orderer/keyfiles/{{ orderer.org }}/orderers/{{ orderer.name }}.{{ orderer.org }}/tls/ca.crt]" }
+{% endif %}
+        - { name: "ORDERER_KAFKA_RETRY_SHORTINTERVAL", value: "1s" }
+        - { name: "ORDERER_KAFKA_RETRY_SHORTTOTAL", value: "30s" }
+        - { name: "ORDERER_KAFKA_VERBOSE", value: "true" }
+{% include './resource.j2' %}
+      volumeMounts:
+        - { mountPath: "/var/hyperledger/orderer", name: "task-pv-storage" }
+      command: ["orderer"]
+---
+kind: Service
+apiVersion: v1
+metadata:
+  labels:
+    k8s-app: {{ orderer.name }}
+  name: {{ orderer.name }}
+spec:
+  selector:
+    k8s-app: {{ orderer.name }}
+{% if fabric.k8s.exposeserviceport %}
+  type: NodePort
+{% endif %}
+  ports:
+    - name: port1
+      port: 7050
+
+{% endfor %}
+{% endif %}

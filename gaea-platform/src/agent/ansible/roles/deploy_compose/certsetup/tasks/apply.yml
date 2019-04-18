@@ -1,0 +1,123 @@
+---
+- name: Reuse common code
+  include_tasks: "{{ playbook_dir }}/../common/config_apply.yml"
+
+- name: Ensure certificate directory is clean
+  file:
+    path: "{{ fabricworkdir }}/keyfiles"
+    state: "{{ item }}"
+  with_items:
+    - "absent"
+    - "directory"
+
+- name: Create crypto-config file
+  template:
+    src: "{{ playbook_dir }}/../deploy_compose/certsetup/templates/crypto-config.j2"
+    dest: "{{ fabricworkdir }}/crypto-config.yml"
+
+- name: Create the certificate files
+  command: "{{ fabricpath }}/build/bin/cryptogen generate --config crypto-config.yml --output keyfiles"
+  args:
+    chdir: "{{ fabricworkdir }}"
+
+- name: Combine all orgs into one location
+  shell: >-
+    if [ -d '{{ item }}' ]; then mv {{ item }}/* . && rm -rf {{ item }}; fi
+  args:
+    chdir: "{{ fabricworkdir }}/keyfiles"
+  with_items:
+    - "peerOrganizations"
+    - "ordererOrganizations"
+
+- name: Create connection profiles
+  template:
+    src: "{{ playbook_dir }}/../deploy_compose/certsetup/templates/connection.j2"
+    dest: "{{ fabricworkdir }}/keyfiles/{{ item }}/connection.json"
+  with_items: "{{ allorgs }}"
+  tags: "composer"
+
+- name: Create endorsement policy file
+  template:
+    src: "{{ playbook_dir }}/../deploy_compose/certsetup/templates/policy.j2"
+    dest: "{{ fabricworkdir }}/keyfiles/policy.json"
+  tags: "composer"
+
+- name: Rename admin private key
+  shell: >-
+    ls *_sk | cat -n | while read n f; do mv "$f" "admin_private.key"; done
+  args:
+    chdir: "{{ fabricworkdir }}/keyfiles/{{ item }}/users/Admin@{{ item }}/msp/keystore"
+  with_items: "{{ allorgs }}"
+  tags: "composer"
+
+- name: Rename ca private key
+  shell: >-
+    ls *_sk|cat -n|while read n f; do mv "$f" "ca_private.key"; done
+  args:
+    chdir: "{{ fabricworkdir }}/keyfiles/{{ item }}/ca"
+  with_items: "{{ allorgs }}"
+  tags: "composer"
+
+- name: Rename ca tls private key
+  shell: >-
+    ls *_sk|cat -n|while read n f; do mv "$f" "tlsca_private.key"; done
+  args:
+    chdir: "{{ fabricworkdir }}/keyfiles/{{ item }}/tlsca"
+  with_items: "{{ allorgs }}"
+  tags: "composer"
+
+- name: Upload bna file
+  copy:
+    src: "{{ item }}"
+    dest: "{{ fabricworkdir }}/keyfiles/"
+  with_fileglob:
+      - "{{ playbook_dir }}/../../secrets/networks/*.bna"
+  tags: "composer"
+
+- name: Create core.yml file for every peer
+  template:
+    src: "{{ playbook_dir }}/../deploy_compose/certsetup/templates/core.j2"
+    dest: "{{ fabricworkdir }}/keyfiles/{{ item.org }}/peers/{{ item.name }}.{{ item.org }}/core.yaml"
+  with_items: "{{ allpeers }}"
+
+- name: Create config tx file
+  template:
+    src: "{{ playbook_dir }}/../deploy_compose/certsetup/templates/configtx.j2"
+    dest: "{{ fabricworkdir }}/configtx.yml"
+
+- name: Create the gensis block and channel transaction
+  shell: >-
+    export FABRIC_CFG_PATH={{ fabricworkdir }} &&
+    {{ fabricpath }}/build/bin/configtxgen -profile OrdererGenesis
+    -outputBlock keyfiles/genesis.block -channelID orderersystemchannel &&
+    {{ fabricpath }}/build/bin/configtxgen -profile OrgChannel
+    -outputCreateChannelTx keyfiles/firstchannel.tx -channelID firstchannel
+  args:
+    chdir: "{{ fabricworkdir }}"
+  when: allorderers | length > 0
+
+- name: Define the anchor peer for organizations
+  shell: >-
+    export FABRIC_CFG_PATH={{ fabricworkdir }} &&
+    {{ fabricpath }}/build/bin/configtxgen -profile OrgChannel
+    -outputAnchorPeersUpdate keyfiles/{{ item }}.anchor.tx
+    -channelID firstchannel -asOrg {{ item }}
+  args:
+    chdir: "{{ fabricworkdir }}"
+  with_items: "{{ peerorgs }}"
+
+- name: Duplicate genesis and transaction block to each peer
+  shell: >-
+    cp {{ fabricworkdir }}/keyfiles/genesis.block
+    {{ fabricworkdir }}/keyfiles/{{ item.org }}/peers/{{ item.name }}.{{ item.org }} &&
+    cp {{ fabricworkdir }}/keyfiles/firstchannel.tx
+    {{ fabricworkdir }}/keyfiles/{{ item.org }}/peers/{{ item.name }}.{{ item.org }}
+  args:
+    chdir: "{{ fabricworkdir }}"
+  when: allorderers | length > 0
+  with_items: "{{ allpeers }}"
+
+- name: Create a zip file of all certificates
+  archive:
+    path: "{{ fabricworkdir }}/keyfiles"
+    dest: "{{ fabricworkdir }}/certs.tgz"
