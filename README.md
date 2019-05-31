@@ -12,6 +12,8 @@ cd ../../../user-dashboard/src/
 
 npm install
 
+npm run build
+
 cd packages/fabric-1.0/
 
 npm install
