@@ -73,4 +73,16 @@ export async function addChainCode(params) {
   });
 }
 
+export async function upgradeCC(params) {
+    const upgrade=params.upgrade;
+    const id = params.id;
+    console.log(upgrade);
+    return request(`/v2/chaincodes/${id}/upgrade`, {
+        method: 'POST',
+        body: {
+            upgrade,
+        },
+    });
+}
+
 

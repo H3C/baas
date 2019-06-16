@@ -15,8 +15,8 @@ class LogController extends Controller {
 
   async deposit() {
     const { ctx } = this;
-    const { opName, opObject, opResult, operator, opDate } = ctx.request.body.operator_log;
-    const result = await ctx.service.log.deposit(opName, opObject, opResult, operator, opDate);
+    const { opName, opObject, opSource, opResult, operator, opDate } = ctx.request.body.operator_log;
+    const result = await ctx.service.log.deposit(opName, opObject, opSource, opResult, operator, opDate);
     ctx.status = result ? 200 : 400;
   }
 }

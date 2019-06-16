@@ -304,6 +304,7 @@ class NetworkOnDocker(BlockchainNetworkBase):
                                                            service_port = host_port,
                                                            service_name = orderer_service_name,
                                                            service_type = 'orderer',
+                                                           org_name = org_name,
                                                            network = modelv2.BlockchainNetwork.objects.get(id=net_id)
                                                            )
                 orderer_service_endpoint.save()
@@ -353,6 +354,7 @@ class NetworkOnDocker(BlockchainNetworkBase):
                                                                        service_port=host_ports[i],
                                                                        service_name=peer_service_name,
                                                                        service_type='peer',
+                                                                       org_name= org_name,
                                                                        peer_port_proto= PEER_PORT_GRPC if i == 0 else PEER_PORT_EVENT,
                                                                        network=modelv2.BlockchainNetwork.objects.get(id=net_id)
                                                                        )
@@ -375,6 +377,7 @@ class NetworkOnDocker(BlockchainNetworkBase):
                                                                        service_port=host_port,
                                                                        service_name=ca_service_name,
                                                                        service_type='ca',
+                                                                       org_name=org_name,
                                                                        network=modelv2.BlockchainNetwork.objects.get(id=net_id)
                                                                        )
             ca_service_endpoint.save()
@@ -452,6 +455,7 @@ class NetworkOnDocker(BlockchainNetworkBase):
                                                            service_port = host_port,
                                                            service_name = orderer_service_name,
                                                            service_type = 'orderer',
+                                                           org_name = org_name,
                                                            network = modelv2.BlockchainNetwork.objects.get(id=net_id)
                                                            )
                 orderer_service_endpoint.save()
@@ -477,6 +481,7 @@ class NetworkOnDocker(BlockchainNetworkBase):
                                                                        service_port=couch_host_port,
                                                                        service_name=couchdb_service_name,
                                                                        service_type='couchdb',
+                                                                       org_name=org_name,
                                                                        network=modelv2.BlockchainNetwork.objects.get(id=net_id)
                                                                        )
                 peer_service_endpoint.save()
@@ -501,6 +506,7 @@ class NetworkOnDocker(BlockchainNetworkBase):
                                                                        service_port=host_ports[i],
                                                                        service_name=peer_service_name,
                                                                        service_type='peer',
+                                                                       org_name=org_name,
                                                                        peer_port_proto= PEER_PORT_GRPC if i == 0 else PEER_PORT_EVENT,
                                                                        network=modelv2.BlockchainNetwork.objects.get(id=net_id)
                                                                        )
@@ -523,6 +529,7 @@ class NetworkOnDocker(BlockchainNetworkBase):
                                                                        service_port=host_port,
                                                                        service_name=ca_service_name,
                                                                        service_type='ca',
+                                                                       org_name=org_name,
                                                                        network=modelv2.BlockchainNetwork.objects.get(id=net_id)
                                                                        )
             ca_service_endpoint.save()

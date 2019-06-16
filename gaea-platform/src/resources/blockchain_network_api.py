@@ -330,3 +330,51 @@ def blockchain_network_delete(blockchain_network_id):
 
         raise InternalServerError(msg=error_msg)
 
+@bp_blockchain_network_api.route('/blockchain_networks/<blockchain_network_id>/nodeCpuInfo/<node_name>', methods=['GET'])
+def blockchain_network_node_cpuinfo_query(blockchain_network_id, node_name):
+    request_debug(r, logger)
+    network_handler = BlockchainNetworkHandler()
+    filters = dict((key, int(r.args.get(key))) for key in r.args)
+    try:
+        result = network_handler.get_node_cpuinfo(blockchain_network_id, node_name, filters)
+        return make_ok_gaea_resp(resource='node_cpuinfo', result=result)
+    except Exception as e:
+        msg = "blockchain_network get node cpu info failed, reason {}".format(e)
+        logger.error(msg)
+        raise InternalServerError(msg=msg)
+
+@bp_blockchain_network_api.route('/blockchain_networks/<blockchain_network_id>/nodeMemInfo/<node_name>', methods=['GET'])
+def blockchain_network_node_meminfo_query(blockchain_network_id, node_name):
+    request_debug(r, logger)
+    network_handler = BlockchainNetworkHandler()
+    filters = dict((key, int(r.args.get(key))) for key in r.args)
+    try:
+        result = network_handler.get_node_meminfo(blockchain_network_id, node_name, filters)
+        return make_ok_gaea_resp(resource='node_meminfo', result=result)
+    except Exception as e:
+        msg = "blockchain_network get node memory info failed, reason {}".format(e)
+        logger.error(msg)
+        raise InternalServerError(msg=msg)
+
+@bp_blockchain_network_api.route('/blockchain_networks/<blockchain_network_id>/nodeNetInfo/<node_name>', methods=['GET'])
+def blockchain_network_node_netinfo_query(blockchain_network_id, node_name):
+    request_debug(r, logger)
+    network_handler = BlockchainNetworkHandler()
+    filters = dict((key, int(r.args.get(key))) for key in r.args)
+    try:
+        result = network_handler.get_node_netinfo(blockchain_network_id, node_name, filters)
+        return make_ok_gaea_resp(resource='node_netinfo', result=result)
+    except Exception as e:
+        msg = "blockchain_network get node net info failed, reason {}".format(e)
+        logger.error(msg)
+        raise InternalServerError(msg=msg)
+
+
+
+
+
+
+
+
+
+

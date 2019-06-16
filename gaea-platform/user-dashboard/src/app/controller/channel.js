@@ -27,6 +27,14 @@ class ChannelController extends Controller {
 
     ctx.body = await ctx.service.channel.getPeers();
   }
+  
+  async changePeerRole() {
+    const { ctx } = this;
+    
+    const result = await ctx.service.channel.changePeerRole();
+    ctx.status = result.success ? 200 : 400;
+    ctx.body = result;
+  }
 
   async create() {
     const { ctx } = this;
@@ -101,6 +109,26 @@ class ChannelController extends Controller {
 
   }
 
+  async removeOrgFromChannel() {
+      const { ctx } = this;
+      const result = await ctx.service.channel.removeOrgFromChannel();
+      ctx.status = result.success ? 200 : 400;
+      ctx.body = result;
+  }
+  
+  async applyForLeaveChannel() {
+      const { ctx } = this;
+      const result = await ctx.service.channel.applyForLeaveChannel();
+      ctx.status = result.success ? 200 : 400;
+      ctx.body = result;
+  }
+  
+  async getLeaveChannelsigners() {
+      const { ctx } = this;
+      const result = await ctx.service.channel.getLeaveChannelsigners();
+      ctx.status = result.success ? 200 : 400;
+      ctx.body = result;
+  }
 }
 
 module.exports = ChannelController;

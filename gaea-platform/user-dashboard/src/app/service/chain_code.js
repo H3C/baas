@@ -40,6 +40,7 @@ class ChainCodeService extends Service {
     // network = getOrg().network_id
     const userName = ctx.user.username;
     const opName = 'chaincode_store';
+   const opSource = ctx.ip;
     const opObject = 'chaincode';
     const opDate = new Date();
     const opDetails = {};
@@ -48,13 +49,16 @@ class ChainCodeService extends Service {
     opDetails.description = fields.description;
     opDetails.language = fields.language;
     opDetails.md5 = fields.md5;
+    const result = {};
     if (userName.split('@')[0] !== 'Admin') {
-      const result = {};
       const userInfo = await ctx.model.OrgUser.findOne({ username: userName });
       if (userInfo === null) {
         const err_message = `user ${userName} can not found in db`;
-        await ctx.service.log.deposit(opName, opObject, userName, opDate, 400, opDetails, {}, err_message);
-        throw new Error(err_message);
+        result.success = false;
+        result.code = 400;
+        result.message = err_message;
+        await ctx.service.log.deposit(opName, opObject, opSource, userName, opDate, 400, opDetails, {}, err_message);
+        return result;
       }
       const userCreateTime = userInfo.create_time;
       const userExpirationDateStr = userInfo.expiration_date;
@@ -64,7 +68,7 @@ class ChainCodeService extends Service {
         result.success = false;
         result.code = 400;
         result.message = err_message;
-        await ctx.service.log.deposit(opName, opObject, userName, opDate, result.code, opDetails, {}, err_message);
+        await ctx.service.log.deposit(opName, opObject, opSource, userName, opDate, result.code, opDetails, {}, err_message);
         return result;
       }
       if (userInfo.roles === 'org_user') {
@@ -72,9 +76,9 @@ class ChainCodeService extends Service {
         console.log(err_message);
 
         result.success = false;
-        result.code = 403;
+        result.code = 400;
         result.message = err_message;
-        await ctx.service.log.deposit(opName, opObject, userName, opDate, result.code, opDetails, {}, err_message);
+        await ctx.service.log.deposit(opName, opObject, opSource, userName, opDate, result.code, opDetails, {}, err_message);
         return result;
       }
     }
@@ -98,9 +102,11 @@ class ChainCodeService extends Service {
       await awaitWriteStream(stream.pipe(writeStream));
     } catch (err) {
       await sendToWormhole(stream);
-      ctx.status = 500;
-      await ctx.service.log.deposit(opName, opObject, userName, opDate, ctx.status, opDetails, {}, err.message);
-      ctx.throw(500, err.message);
+      result.success = false;
+      result.code = 400;
+      result.message = err.message;
+      await ctx.service.log.deposit(opName, opObject, opSource, userName, opDate, 400, opDetails, {}, err.message);
+      return result;
     }
     // const zip = AdmZip(zipFile);
     // zip.extractAllTo(chainCodePath, true);
@@ -108,10 +114,13 @@ class ChainCodeService extends Service {
     const md5 = fields.md5;
     const new_md5 = await this.calcFileMd5(zipFile, md5);
     if (new_md5 !== md5) {
-      ctx.status = 400;
       const errorMsg = "md5 of uploaded file doesn't match";
-      await ctx.service.log.deposit(opName, opObject, userName, opDate, ctx.status, opDetails, {}, errorMsg);
-      ctx.throw(400, errorMsg);
+      result.success = false;
+      result.code = 400;
+      result.message = errorMsg;
+      await ctx.service.log.deposit(opName, opObject, opSource, userName, opDate, 400, opDetails, {}, errorMsg);
+      return result;
+
     }
 
     const curTime = new Date();
@@ -127,7 +136,7 @@ class ChainCodeService extends Service {
       blockchain_network_id: networkId,
       create_ts: curTime,
     });
-    await ctx.service.log.deposit(opName, opObject, userName, opDate, 200, opDetails, {}, '');
+    await ctx.service.log.deposit(opName, opObject, opSource, userName, opDate, 200, opDetails, {}, '');
     return {
       id: chainCodeModel._id.toString(),
       success: true,
@@ -239,12 +248,12 @@ class ChainCodeService extends Service {
     const channel_peers = {};
 
     for (let i = 0, len = peerNames.length; i < len; i++) {
-      const pr = peerNames[i];
+      const pr = peerNames[i].name;
       channel_peers[pr] = {
-        chaincodeQuery: true,
-        endorsingPeer: true,
-        eventSource: true,
-        ledgerQuery: true,
+        chaincodeQuery: peerNames[i].roles.chaincodeQuery,
+        endorsingPeer: peerNames[i].roles.endorsingPeer,
+        eventSource: peerNames[i].roles.eventSource,
+        ledgerQuery: peerNames[i].roles.ledgerQuery,
       };
     }
     channels[channel.name] = {
@@ -280,6 +289,7 @@ class ChainCodeService extends Service {
     const orgName = userName.split('@')[1].split('.')[0];
     const result = {};
     const opName = 'chaincode_install';
+   const opSource = ctx.ip;
     const opObject = 'chaincode';
     const opDate = new Date();
     const opDetails = install_peers;
@@ -288,8 +298,11 @@ class ChainCodeService extends Service {
       const userInfo = await ctx.model.OrgUser.findOne({ username: userName });
       if (userInfo === null) {
         const err_message = `user ${userName} can not found in db`;
-        await ctx.service.log.deposit(opName, opObject, userName, opDate, 400, opDetails, {}, err_message);
-        throw new Error(err_message);
+        result.success = false;
+        result.code = 400;
+        result.message = err_message;
+        await ctx.service.log.deposit(opName, opObject, opSource, userName, opDate, result.code, opDetails, {}, err_message);
+        return result;
       }
       const userCreateTime = userInfo.create_time;
       const userExpirationDateStr = userInfo.expiration_date;
@@ -299,7 +312,7 @@ class ChainCodeService extends Service {
         result.success = false;
         result.code = 400;
         result.message = err_message;
-        await ctx.service.log.deposit(opName, opObject, userName, opDate, result.code, opDetails, {}, err_message);
+        await ctx.service.log.deposit(opName, opObject, opSource, userName, opDate, result.code, opDetails, {}, err_message);
         return result;
       }
       if (userInfo.roles === 'org_user') {
@@ -307,9 +320,9 @@ class ChainCodeService extends Service {
         console.log(err_message);
 
         result.success = false;
-        result.code = 403;
+        result.code = 400;
         result.message = err_message;
-        await ctx.service.log.deposit(opName, opObject, userName, opDate, result.code, opDetails, {}, err_message);
+        await ctx.service.log.deposit(opName, opObject, opSource, userName, opDate, result.code, opDetails, {}, err_message);
         return result;
       }
     }
@@ -322,10 +335,12 @@ class ChainCodeService extends Service {
         method: 'GET',
       });
     } catch (e) {
-      ctx.status = 500;
       console.log(e.message);
-      await ctx.service.log.deposit(opName, opObject, userName, opDate, ctx.status, opDetails, {}, e.message);
-      ctx.throw(500, e.message);
+      result.success = false;
+      result.code = 400;
+      result.message = e.message;
+      await ctx.service.log.deposit(opName, opObject, opSource, userName, opDate, 400, opDetails, {}, e.message);
+      return result;
     }
     let data = JSON.parse(orgResponse.data.toString());
     const organization = data.organizations[0];
@@ -333,7 +348,7 @@ class ChainCodeService extends Service {
     const orgFullName = `${orgName}.${orgDomain}`;
     const networkId = organization.blockchain_network_id;
     const networkRootDir = `${config.fabricDir}/${networkId}`;
-    const keyValueStorePath = `${networkRootDir}/client-kvs`;
+    const keyValueStorePath = `${networkRootDir}/crypto-config/peerOrganizations/${orgFullName}/ca/${userName}`;
     fs.ensureDirSync(keyValueStorePath);
 
     const chainCodeDir = `${networkRootDir}/chainCode/${chainCodeId}/`;
@@ -345,10 +360,12 @@ class ChainCodeService extends Service {
     opDetails.cur_md5 = cur_md5;
     opDetails.networkId = networkId;
     if (cur_md5 !== origMd5) {
-      ctx.status = 403;
       const errMsg = 'chainCode has been changed, refuse to install';
-      await ctx.service.log.deposit(opName, opObject, userName, opDate, ctx.status, opDetails, {}, errMsg);
-      ctx.throw(403, errMsg);
+      result.success = false;
+      result.code = 400;
+      result.message = errMsg;
+      await ctx.service.log.deposit(opName, opObject, opSource, userName, opDate, 400, opDetails, {}, errMsg);
+      return result;
     }
     const zip = AdmZip(chainCodeFilePath);
     const chainCodeTmpDir = `${networkRootDir}/chainCode/${chainCodeId}/tmpExtract/`;
@@ -357,11 +374,15 @@ class ChainCodeService extends Service {
     const chainCodeSrcTmpDir = commonFs.readdirSync(`${chainCodeTmpDir}`)[0];
     const chainCodeSrcTmpPath = path.join(chainCodeTmpDir, chainCodeSrcTmpDir);
     if (!fs.statSync(chainCodeSrcTmpPath).isDirectory()) {
-      ctx.status = 400;
-      const err_message = 'chaincode source files should be put in a directory and then compress to zip, please check.'
+      const err_message = 'chaincode source files should be put in a directory and then compress to zip, please check.';
+      result.success = false;
+      result.code = 400;
+      result.message = err_message;
       console.log(err_message);
-      await ctx.service.log.deposit(opName, opObject, userName, opDate, ctx.status, opDetails, {}, err_message);
-      ctx.throw(400, err_message);
+
+      await ctx.service.log.deposit(opName, opObject, opSource, userName, opDate, 400, opDetails, {}, err_message);
+      return result;
+
     }
 
     let chainCodePath; // for golang, it is a directory name, in fact.
@@ -386,8 +407,12 @@ class ChainCodeService extends Service {
       });
     } catch (e) {
       console.log(e.message);
-      await ctx.service.log.deposit(opName, opObject, userName, opDate, 500, opDetails, {}, e.message);
-      ctx.throw(500, e.message);
+      result.success = false;
+      result.code = 400;
+      result.message = e.message;
+      await ctx.service.log.deposit(opName, opObject, opSource, userName, opDate, 400, opDetails, {}, e.message);
+      return result;
+
     }
     data = JSON.parse(networkResponse.data.toString());
     const networkEndpoints = data.service_endpoints;
@@ -420,7 +445,7 @@ class ChainCodeService extends Service {
         credentialStore: {
           path: keyValueStorePath,
           cryptoStore: {
-            path: `${keyValueStorePath}/${orgName}`,
+            path: keyValueStorePath,
           },
           wallet: 'wallet',
         },
@@ -429,9 +454,10 @@ class ChainCodeService extends Service {
 
     console.log(network);
 
+
     try {
       const curTime = new Date();
-      await ctx.installChainCode(network, orgName, chainCodeData, chainCodePath, body);
+      await ctx.installChainCode(network, orgName, chainCodeData, chainCodePath, body, userName);
       // chainCode install complete and succeed
       const install_peer_tmp = [];
       for (let i = 0; i < install_peers.length; i++) {
@@ -443,10 +469,11 @@ class ChainCodeService extends Service {
 
 
     } catch (err) {
-      ctx.status = 500;
-      console.log(err.message);
-      await ctx.service.log.deposit(opName, opObject, userName, opDate, ctx.status, opDetails, {}, err.message);
-      ctx.throw(500, err.message);
+      result.success = false;
+      result.code = 400;
+      result.message = err.message;
+      await ctx.service.log.deposit(opName, opObject, opSource, userName, opDate, 400, opDetails, {}, err.message);
+      return result;
     } finally {
       // For install, chainCode need be put under gopath/src temporary
       if (chainCodeData.language === 'golang') {
@@ -459,7 +486,7 @@ class ChainCodeService extends Service {
     result.success = true;
     result.code = 200;
     result.message = 'install ChainCode Success';
-    await ctx.service.log.deposit(opName, opObject, userName, opDate, result.code, opDetails, {}, result.message);
+    await ctx.service.log.deposit(opName, opObject, opSource, userName, opDate, result.code, opDetails, {}, result.message);
     return result;
   }
 
@@ -468,6 +495,7 @@ class ChainCodeService extends Service {
     const userName = ctx.user.username;
     const result = {};
     const opName = 'chaincode_instantiate';
+    const opSource = ctx.ip;
     const opObject = 'chaincode';
     const opDate = new Date();
     const opDetails = ctx.request.body.instantiate;
@@ -476,8 +504,11 @@ class ChainCodeService extends Service {
       const userInfo = await ctx.model.OrgUser.findOne({ username: userName });
       if (userInfo === null) {
         const err_message = `user ${userName} can not found in db`;
-        await ctx.service.log.deposit(opName, opObject, userName, opDate, 400, opDetails, {}, err_message);
-        throw new Error(err_message);
+        result.success = false;
+        result.code = 400;
+        result.message = err_message;
+        await ctx.service.log.deposit(opName, opObject, opSource, userName, opDate, 400, opDetails, {}, err_message);
+        return result;
       }
       const userCreateTime = userInfo.create_time;
       const userExpirationDateStr = userInfo.expiration_date;
@@ -486,7 +517,7 @@ class ChainCodeService extends Service {
         const err_message = userName + ' certificate has become invalid , need to reenroll';
         result.success = false;
         result.code = 400;
-        await ctx.service.log.deposit(opName, opObject, userName, opDate, 400, opDetails, {}, err_message);
+        await ctx.service.log.deposit(opName, opObject, opSource, userName, opDate, 400, opDetails, {}, err_message);
         result.message = err_message;
         return result;
       }
@@ -495,9 +526,9 @@ class ChainCodeService extends Service {
         console.log(err_message);
 
         result.success = false;
-        result.code = 403;
+        result.code = 400;
         result.message = err_message;
-        await ctx.service.log.deposit(opName, opObject, userName, opDate, result.code, opDetails, {}, err_message);
+        await ctx.service.log.deposit(opName, opObject, opSource, userName, opDate, result.code, opDetails, {}, err_message);
         return result;
       }
     }
@@ -512,7 +543,7 @@ class ChainCodeService extends Service {
 
     const peersInChannel = [];
     for (let i = 0, len = peerNames_database.length; i < len; i++) {
-      peersInChannel.push(peerNames_database[i]);
+      peersInChannel.push(peerNames_database[i].name);
     }
 
     let orgResponse = {};
@@ -522,9 +553,11 @@ class ChainCodeService extends Service {
         method: 'GET',
       });
     } catch (e) {
-      console.log(e.message);
-      await ctx.service.log.deposit(opName, opObject, userName, opDate, 500, opDetails, {}, e.message);
-      ctx.throw(500, e.message);
+      result.success = false;
+      result.code = 400;
+      result.message = e.message;
+      await ctx.service.log.deposit(opName, opObject,  opSource, userName, opDate, 400, opDetails, {}, e.message);
+      return result;
     }
     let data = JSON.parse(orgResponse.data.toString());
     const organization = data.organizations[0];
@@ -537,7 +570,7 @@ class ChainCodeService extends Service {
     }
     const networkId = organization.blockchain_network_id;
     const networkRootDir = `${config.fabricDir}/${networkId}`;
-    const keyValueStorePath = `${networkRootDir}/crypto-config/peerOrganizations/${orgAndDomain}/ca/Admin@${orgAndDomain}`;
+    const keyValueStorePath = `${networkRootDir}/crypto-config/peerOrganizations/${orgAndDomain}/ca/${userName}`;
     fs.ensureDirSync(keyValueStorePath);
     let networkResponse = {};
     try {
@@ -547,8 +580,12 @@ class ChainCodeService extends Service {
       });
     } catch (e) {
       console.log(e.message);
-      await ctx.service.log.deposit(opName, opObject, userName, opDate, 500, opDetails, {}, e.message);
-      ctx.throw(500, e.message);
+      result.success = false;
+      result.code = 400;
+      result.message = e.message;
+      await ctx.service.log.deposit(opName, opObject, opSource, userName, opDate, 400, opDetails, {}, e.message);
+      return result;
+
     }
     data = JSON.parse(networkResponse.data.toString());
     const networkEndpoints = data.service_endpoints;
@@ -598,19 +635,105 @@ class ChainCodeService extends Service {
       // after instantiate success,update chaincode "channel"
       await ctx.model.ChainCode.update({ _id: chainCodeId }, { $addToSet: { 'channel_ids': channel_id } });
     } catch (e) {
-      ctx.status = 500;
       console.log(e.message);
-      await ctx.service.log.deposit(opName, opObject, userName, opDate, 500, opDetails, {}, e.message);
-      ctx.throw(500, e.message);
+      result.success = false;
+      result.code = 400;
+      result.message = e.message;
+      await ctx.service.log.deposit(opName, opObject, opSource, userName, opDate, 400, opDetails, {}, e.message);
+      return result;
     }
 
     result.success = true;
     result.code = 200;
     result.message = 'instantiate ChainCode Success';
-    await ctx.service.log.deposit(opName, opObject, userName, opDate, 200, opDetails, {}, result.message);
+    await ctx.service.log.deposit(opName, opObject, opSource, userName, opDate, 200, opDetails, {}, result.message);
     return result;
   }
 
+  async upgradeChainCode(){
+    const { ctx, config } = this;
+    const userName = ctx.user.username;
+    const opSource = ctx.ip;
+    const result = {};
+    const opName = 'chaincode_upgrade';
+    const opObject = 'chaincode';
+    const opDate = new Date();
+    const opDetails = ctx.request.body.upgrade;
+    opDetails.chaincoid_id = ctx.params.chaincode_id;
+    if (userName.split('@')[0] !== 'Admin') {
+        const userInfo = await ctx.model.OrgUser.findOne({ username: userName });
+        if (userInfo === null) {
+            const err_message = `user ${userName} can not found in db`;
+            result.success = false;
+            result.code = 400;
+            result.message = err_message;
+            await ctx.service.log.deposit(opName, opObject, opSource, userName, opDate, 400, opDetails, {}, err_message);
+            return result;
+        }
+        if (userInfo.roles === 'org_user') {
+            const err_message = '403 forbidden, the operator user\'s role is org_user, upgradeChainCode only can be operated by org_admin';
+            console.log(err_message);
+
+            result.success = false;
+            result.code = 400;
+            result.message = err_message;
+            await ctx.service.log.deposit(opName, opObject, opSource, userName, opDate, 400, opDetails, {}, err_message);
+            return result;
+        }
+    }
+    const orgName = userName.split('@')[1].split('.')[0];
+    const chainCodeId = ctx.params.chaincode_id;
+    const body = ctx.request.body.upgrade;
+    const channelId = body.channel_id;
+    let chainCodeData;
+
+    try {
+      const channelInfo = await ctx.model.Channel.findOne({ _id: channelId });
+      const networkType = channelInfo.version;
+      const network = await ctx.service.channel.generateNetwork(channelId,networkType);
+      chainCodeData = await ctx.model.ChainCode.findOne({ _id: chainCodeId });
+      const peers = [];
+      const peersForNetwork = [];
+      for (let i = 0; i < chainCodeData.peers.length; i++) {
+        for (let j = 0; j < channelInfo.peers_inChannel.length; j++) {
+          if (chainCodeData.peers[i].peer_name === channelInfo.peers_inChannel[j].name) {
+            peers.push(channelInfo.peers_inChannel[j].name);
+            peersForNetwork.push(channelInfo.peers_inChannel[j]);
+            break;
+          }
+        }
+      }
+      await ctx.service.channel.generateNetworkAddPeersV1_1(channelId, network, peersForNetwork);
+
+      await ctx.upgradeChainCode(network, orgName, channelInfo, chainCodeData, body, userName, peers);
+
+      // after instantiate success,update chaincode "channel"
+      await ctx.model.ChainCode.update({ _id: chainCodeId }, { $addToSet: { 'channel_ids': channelId } });
+    } catch (e) {
+      result.success = false;
+      result.code = 400;
+      result.message = e.message;
+      await ctx.service.log.deposit(opName, opObject, opSource, userName, opDate, 400, opDetails, {}, e.message);
+      return result;
+    }
+
+      //将数据库里对应低版本的链码中channelid给删除了。以保证在升级后的实例化链码列表中只看到升级后版本的链码。
+    let chaincodes = await ctx.model.ChainCode.find({ name: chainCodeData.name ,blockchain_network_id: chainCodeData.blockchain_network_id});
+    for(var each in chaincodes){
+      if(chaincodes[each].version != chainCodeData.version){
+        const channels = chaincodes[each].channel_ids;
+        const index = channels.indexOf(channelId);
+        channels.splice(index,1);
+        await ctx.model.ChainCode.update({ _id: chaincodes[each]._id }, { $set: { 'channel_ids': channels } });
+      }
+    }
+
+    result.success = true;
+    result.code = 200;
+    result.message = 'instantiate ChainCode Success';
+    await ctx.service.log.deposit(opName, opObject, opSource, userName, opDate, 200, opDetails, {}, result.message);
+    return result;
+  }
 
   async getNetworkIdbyOrgname(userOrgName) {
     const { ctx } = this;
@@ -719,6 +842,7 @@ class ChainCodeService extends Service {
     };
     const userName = ctx.req.user.username;
     const opName = 'chaincode_delete_byId';
+   const opSource = ctx.ip;
     const opObject = 'chaincode';
     const opDate = new Date();
     const opDetails = {};
@@ -731,7 +855,7 @@ class ChainCodeService extends Service {
           console.log(err_Reason);
           result.code = 403;
           result.message = err_Reason;
-          await ctx.service.log.deposit(opName, opObject, userName, opDate, result.code, opDetails, {}, err_Reason);
+          await ctx.service.log.deposit(opName, opObject, opSource, userName, opDate, result.code, opDetails, {}, err_Reason);
           return result;
         }
       }
@@ -744,7 +868,7 @@ class ChainCodeService extends Service {
         console.log(err_Reason);
         result.message = err_Reason;
         result.code = 400;
-        await ctx.service.log.deposit(opName, opObject, userName, opDate, result.code, opDetails, {}, err_Reason);
+        await ctx.service.log.deposit(opName, opObject, opSource, userName, opDate, result.code, opDetails, {}, err_Reason);
         return result;
       }
 
@@ -756,13 +880,13 @@ class ChainCodeService extends Service {
       console.log(err_Reason);
       result.message = err_Reason;
       result.code = 400;
-      await ctx.service.log.deposit(opName, opObject, userName, opDate, result.code, opDetails, {}, err_Reason);
+      await ctx.service.log.deposit(opName, opObject, opSource, userName, opDate, result.code, opDetails, {}, err_Reason);
       return result;
     }
     result.success = true;
     result.code = 200;
     result.message = 'deleteChainCodeById Success!';
-    await ctx.service.log.deposit(opName, opObject, userName, opDate, result.code, opDetails, {}, result.message);
+    await ctx.service.log.deposit(opName, opObject, opSource, userName, opDate, result.code, opDetails, {}, result.message);
     return result;
   }
 

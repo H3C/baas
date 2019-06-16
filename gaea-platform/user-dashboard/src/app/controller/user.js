@@ -6,6 +6,15 @@
 const Controller = require('egg').Controller;
 
 class UserController extends Controller {
+
+  async getCookie() {
+      const { ctx } = this;
+      const user = ctx.request.body;
+      const result = await ctx.service.user.getCookie(user);
+      ctx.status = result.success ? 200:400;
+      ctx.body = result;
+  }
+
   async currentUser() {
     const { ctx } = this;
     if (!ctx.isAuthenticated()) {
@@ -18,11 +27,9 @@ class UserController extends Controller {
   async createOrgUser() {
     const { ctx } = this;
     const { name, role, password, delegateRoles, affiliation, affiliationMgr, revoker, gencrl } = ctx.request.body.orguser;
-    const success = await ctx.service.user.createOrguser(name, role, password, delegateRoles, affiliation, affiliationMgr, revoker, gencrl);
-    ctx.status = success ? 200 : 400;
-    // ctx.body = {
-    //   user,
-    // };
+    const result = await ctx.service.user.createOrguser(name, role, password, delegateRoles, affiliation, affiliationMgr, revoker, gencrl);
+    ctx.status = result.success ? 200 : 400;
+    ctx.body = result;
   }
 
   async deleteOrgUser() {
@@ -65,6 +72,13 @@ class UserController extends Controller {
     result = await ctx.service.user.updateOrguserPassword(password);
     ctx.status = result.success ? 200 : 400;
     ctx.body = result;
+  }
+  async updateOrguserInfo() {
+      const { ctx } = this;
+      const information = ctx.request.body.information;
+      let result = await ctx.service.user.updateOrguserInfo(information);
+      ctx.status = result.success ? 200 : 400;
+      ctx.body = result;
   }
 
   async reenrollOrgUser() {

@@ -46,6 +46,11 @@ HOST_STATUS_PENDING = 'pending'
 KAFKA_NODE_NUM = 4
 ZOOKEEPER_NODE_NUM = 3
 
+PROMETHEUS_EXPOSED_PORT = '29090'
+PROMETHEUS_NAMESPACE = 'monitoring'
+PROMETHEUS_NODE_EXPORTER_POD_PORT = '9100'
+
+
 # number of port allocated to each cluster in case collision
 CLUSTER_PORT_STEP = 100
 

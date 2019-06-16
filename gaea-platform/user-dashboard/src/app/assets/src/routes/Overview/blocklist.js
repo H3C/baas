@@ -81,6 +81,14 @@ const messages = defineMessages({
         id: 'Overview.Blocklist.BlockInfo',
         defaultMessage: 'Block Information',
     },
+    peer:{
+        id: 'Overview.Txlist.Peer',
+        defaultMessage: 'Select Node',
+    },
+    selPeer:{
+        id: 'Overview.Txlist.SelPeer',
+        defaultMessage: 'Select Node',
+    },
 });
 
 const currentLocale = getLocale();
@@ -165,7 +173,9 @@ export default class BlockList extends PureComponent {
                 ),
             }],
             channel:'',
-            type: ''
+            type: '',
+            channelSel: '',
+            peerName: ''
         }
     }
 
@@ -212,6 +222,20 @@ export default class BlockList extends PureComponent {
             });
         });
     };
+    
+    onChannelChange = (channel) => {
+        this.props.form.setFieldsValue({peerName: ''});
+        this.setState({
+            'channelSel': channel,
+            'peerName': ''
+        });
+    };
+    
+    onPeerChange = (peer) => {
+        this.setState({
+            'peerName': peer
+        })
+    };
 
     renderSimpleForm() {
         const { form, channelList, submitting } = this.props;
@@ -222,6 +246,17 @@ export default class BlockList extends PureComponent {
                 <span>{channel.name}</span>
             </Option>
         ));
+    
+        const { channelSel } = this.state;
+        const ChannelObj = channelInfo.filter(channel => channel.id === channelSel);
+        const peersInChannel = ChannelObj.length > 0 ? ChannelObj[0].peers : [];
+        const peerOptions = peersInChannel.map(peer => (
+            peer.roles.ledgerQuery ?
+                <Option key={peer.name} value={peer.name}>
+                    <span>{peer.name}</span>
+                </Option> : null
+        ));
+    
         return (
             <Form onSubmit={this.handleSearch} layout="inline">
                 <Row gutter={{ md: 8, lg: 24, xl: 48 }}>
@@ -239,6 +274,7 @@ export default class BlockList extends PureComponent {
                                 <Select
                                     placeholder={ intl.formatMessage(messages.select) }
                                     style={{ width: '100%' }}
+                                    onChange={value => this.onChannelChange(value)}
                                 >
                                     {channelOptions}
                                 </Select>
@@ -254,6 +290,29 @@ export default class BlockList extends PureComponent {
                                 message:  intl.formatMessage(messages.inputQuery) ,
                                 }],
                             })(<Input placeholder={ intl.formatMessage(messages.input) } />)}
+                        </FormItem>
+                    </Col>
+                </Row>
+                <Row gutter={{ md: 8, lg: 24, xl: 48 }}>
+                    <Col md={8} sm={24}>
+                        <FormItem label={ intl.formatMessage(messages.peer) }>
+                            {getFieldDecorator('peerName',
+                                {
+                                    initialValue: this.state.peerName,
+                                    rules: [{
+                                        required: true,
+                                        message:  intl.formatMessage(messages.selPeer) ,
+                                    }],
+                                })
+                            (
+                                <Select
+                                    placeholder={ intl.formatMessage(messages.select) }
+                                    style={{ width: '100%' }}
+                                    onChange={value => this.onPeerChange(value)}
+                                >
+                                    {peerOptions}
+                                </Select>
+                            )}
                         </FormItem>
                     </Col>
                     <Col md={8} sm={24}>
@@ -319,7 +378,8 @@ export default class BlockList extends PureComponent {
         if (typeof(blocks.channel) !== 'undefined') {
             this.setState({
                 channel: blocks.channel,
-                number: blocks.number
+                number: blocks.number,
+                peerName: blocks.peerName
             });
         }
 

@@ -100,8 +100,14 @@ export const getRouterData = app => {
     '/ChannelDetail/instantList': {
         component: dynamicWrapper(app, ["ChannelInstant",'InstantChainCode',"chain"], () => import('../routes/ChannelDetail/instantList')),
     },
+    '/Channel/InstantiateForUpgrade': {
+        component: dynamicWrapper(app, ["ChannelList","ChainCodeList","ChainCodeDetail","Identities","InstantChainCode"], () => import('../routes/ChannelDetail/InstantiateForUpgrade')),
+    },
     '/Channel/OrgExpand': {
         component: dynamicWrapper(app, ["OrgExpand", "chain"], () => import('../routes/Channel/OrgExpand')),
+    },
+    '/Channel/LeaveChannel': {
+        component: dynamicWrapper(app, ["LeaveChannel"], () => import('../routes/Channel/LeaveChannel')),
     },
     '/Channel/NewOrgInvitation': {
         component: dynamicWrapper(app, ['OrgExpand','ChannelList'], () => import('../routes/Channel/NewOrgInvitation')),
@@ -135,10 +141,15 @@ export const getRouterData = app => {
     "/OrgUser-management/NewOrgUser": {
         component: dynamicWrapper(app, ['OrgUserList',], () => import("../routes/OrgUser-management/NewOrgUser")),
     },
+    "/OrgUser-management/UserDetail": {
+        component: dynamicWrapper(app, ['OrgUserList',], () => import("../routes/OrgUser-management/UserDetail")),
+    },
     '/log-management': {
         component: dynamicWrapper(app, ['loglist'], () => import('../routes/LogManagement/loglist')),
     },
-
+    '/persenal': {
+        component: dynamicWrapper(app, ['OrgUserList'], () => import('../routes/OrgUser-management/PersonalCenter')),
+    },
     "/exception/403": {
       component: dynamicWrapper(app, [], () =>
         import("../routes/Exception/403")

@@ -29,6 +29,9 @@ module.exports = {
   get instantiateChainCode() {
     return this.app.instantiateChainCode;
   },
+  get upgradeChainCode() {
+      return this.app.upgradeChainCode;
+  },
   get installChainCode() {
     return this.app.installChainCode;
   },
@@ -117,4 +120,10 @@ module.exports = {
   get applyUpdate() {
       return this.app.applyUpdate;
     },
+  get removeOrgFromChannel() {
+      return this.app.removeOrgFromChannel;
+  },
+  get generateCRL() {
+      return this.app.generateCRL;
+  }
 };

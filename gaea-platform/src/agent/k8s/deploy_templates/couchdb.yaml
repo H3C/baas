@@ -24,6 +24,8 @@ spec:
            subPath: $dataPath
          - mountPath: /etc/localtime
            name: host-time
+         - mountPath: /etc/timezone
+           name: time-zone
       volumes:
        - name: couchdata
          persistentVolumeClaim:
@@ -31,6 +33,9 @@ spec:
        - name: host-time
          hostPath:
             path: /etc/localtime
+       - name: time-zone
+         hostPath:
+            path: /etc/timezone
 ---
 apiVersion: v1
 kind: Service

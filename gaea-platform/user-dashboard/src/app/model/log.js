@@ -7,6 +7,7 @@ module.exports = app => {
   const LogSchema = new Schema({
     opName: { type: String },
     opObject: { type: String },
+    opSource: { type: String },
     opResult: { type: Schema.Types.Mixed },
     operator: { type: String },
     opDate: { type: Date },

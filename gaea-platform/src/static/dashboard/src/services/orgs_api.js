@@ -5,6 +5,10 @@ export async function queryOrgList() {
     return request(`/v2/organizations`);
 }
 
+export async function queryOrgByName(params) {
+    return request(`/v2/organizations?name=${params.name}`);
+}
+
 export async function createOrg(params) {
     try {
         const res = request('/v2/organizations', {

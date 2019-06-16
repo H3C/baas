@@ -8,6 +8,8 @@ import { Link } from 'dva/router';
 import styles from './index.less';
 import { getLang, getLocale } from '../../utils/utils';
 import reqwest from 'reqwest';
+import Gaea from '../../../public/Gaea.png';
+import Ver from '../../../package.json';
 import { defineMessages, IntlProvider } from "react-intl";
 
 const currentLocale = getLocale();
@@ -37,6 +39,18 @@ const messages = defineMessages({
             id: 'Head.DiffPassword',
             defaultMessage: '两次输入的密码不一致',
         },
+        abortGaea: {
+            id: 'Head.AbortGaea',
+            defaultMessage: '关于Gaea',
+        },
+        version: {
+            id: 'Head.Version',
+            defaultMessage: '版本',
+        },
+        newBeginning: {
+            id: 'Head.NewBeginning',
+            defaultMessage: '新起点 新未来',
+        },
         logOut: {
             id: 'Head.LogOut',
             defaultMessage: '退出登录',
@@ -51,13 +65,11 @@ const CreateForm = Form.create()(props => {
     form,
     handleAdd,
     handleModalVisible,
-    isClose
   } = props;
 
   const okHandle = () => {
     form.validateFields((err, fieldsValue) => {
       if (err) return;
-      form.resetFields();
       handleAdd(fieldsValue);
     });
   };
@@ -65,24 +77,25 @@ const CreateForm = Form.create()(props => {
     const formItemLayout = {
         labelCol: {
             xs: { span: 24 },
-            sm: { span: 8 },
+            sm: { span: 12 },
         },
         wrapperCol: {
             xs: { span: 24 },
-            sm: { span: 16 },
+            sm: { span: 12 },
         },
     };
 
     return (
-        isClose ? null :
     <Modal
       title={intl.formatMessage(messages.menus.changePassword)}
       visible={modalVisible}
       onOk={okHandle}
       onCancel={() => handleModalVisible(false)}
+      width={600}
+      destroyOnClose={true}
     >
-        <Form {...formItemLayout}>
-          <FormItem label={intl.formatMessage(messages.menus.inputNewPassword) + ':'} >
+        <Form {...formItemLayout} style={{ width: 500}}>
+          <FormItem {...formItemLayout} label={intl.formatMessage(messages.menus.inputNewPassword) + ':'} >
             {form.getFieldDecorator('newPassword', {
               initialValue: '',
               rules: [
@@ -93,7 +106,7 @@ const CreateForm = Form.create()(props => {
               ],
             })(<Input type="password" placeholder={intl.formatMessage(messages.menus.inputNewPassword)} />)}
           </FormItem>
-          <FormItem label={intl.formatMessage(messages.menus.inputNewPasswordAgain) + ':'} >
+          <FormItem {...formItemLayout} label={intl.formatMessage(messages.menus.inputNewPasswordAgain) + ':'} >
             {form.getFieldDecorator('againPassword', {
               initialValue: '',
               rules: [
@@ -116,7 +129,6 @@ export default class GlobalHeader extends PureComponent {
         super(props);
         this.state = {
             modalVisible: false,
-            isClose: false
         };
     };
 
@@ -143,7 +155,36 @@ export default class GlobalHeader extends PureComponent {
     handleModalVisible = (flag) => {
         this.setState({
             modalVisible: flag,
-            isClose: !flag
+        });
+    };
+
+    abortGaea = () => {
+        Modal.info({
+            title: intl.formatMessage(messages.menus.abortGaea),
+            content: (
+                <div>
+                    <Row gutter={4}>
+                        <Col span={7}>
+                            <img width='60px' src={Gaea} />
+                        </Col>
+                        <Col span={17}>
+                            <Row>
+                                <Col span={6}>
+                                    {intl.formatMessage(messages.menus.version)}
+                                </Col>
+                                <Col span={18}>
+                                    {Ver.version}
+                                </Col>
+                            </Row>
+                            <Row>
+                                <Col><h3>{intl.formatMessage(messages.menus.newBeginning)}</h3></Col>
+                            </Row>
+                        </Col>
+                    </Row>
+                </div>
+            ),
+            onOk() {}
+
         });
     };
 
@@ -161,14 +202,12 @@ export default class GlobalHeader extends PureComponent {
                     this.setState({
                         submitting: false,
                         modalVisible: false,
-                        isClose: true
                     });
                 },
 
                 error: () => {
                     this.setState({
                         submitting:false,
-                        isClose: false
                     });
                 }
             });
@@ -180,7 +219,7 @@ export default class GlobalHeader extends PureComponent {
 
     render() {
         const { collapsed, isMobile, logo, onMenuClick } = this.props;
-        const {  modalVisible, isClose } = this.state;
+        const {  modalVisible } = this.state;
         const parentMethods = {
             handleAdd: this.handleAdd,
             handleModalVisible: this.handleModalVisible,
@@ -190,6 +229,9 @@ export default class GlobalHeader extends PureComponent {
             <Menu className={styles.menu} selectedKeys={[]} >
                 <Menu.Item  key="password"  onClick={() =>this.handleModalVisible(true) } >
                     <Icon type="key" />{intl.formatMessage(messages.menus.changePassword)}
+                </Menu.Item>
+                <Menu.Item  key="abort"  onClick={this.abortGaea} >
+                    <Icon type="info" />{intl.formatMessage(messages.menus.abortGaea)}
                 </Menu.Item>
                 <Menu.Item key="logout" onClick={onMenuClick}>
                     <Icon type="logout" />{intl.formatMessage(messages.menus.logOut)}
@@ -226,7 +268,7 @@ export default class GlobalHeader extends PureComponent {
             <Spin size="small" style={{ marginLeft: 8 }} />
           )}
         </div>
-        <CreateForm {...parentMethods} modalVisible={modalVisible} isClose={isClose} />
+        <CreateForm {...parentMethods} modalVisible={modalVisible} />
       </div>
     );
   }

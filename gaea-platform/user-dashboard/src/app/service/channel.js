@@ -189,16 +189,20 @@ class ChannelService extends Service {
         if (peerInfors[infor].service_type === 'peer') {
           const name = peerInfors[infor].service_name.split('.').slice(0)[1];
           if (name === orgNameForUser && peerInfors[infor].peer_port_proto === 'grpc') {
-            peerNames.push(peerInfors[infor].service_name);
+            peerNames.push({
+                name:peerInfors[infor].service_name,
+                ip: peerInfors[infor].service_ip + ':' + peerInfors[infor].service_port
+            });
           }
         }
       }
       const allPeers = [];
       for (const peer in peerNames) {
         allPeers.push({
-          name: peerNames[peer],
+          name: peerNames[peer].name,
+            ip: peerNames[peer].ip,
           channel_id: '',
-          role: '',
+          roles: '',
           organization_id: data.organizations[0].id,
         });
       }
@@ -215,23 +219,108 @@ class ChannelService extends Service {
     const channel = await ctx.model.Channel.findOne({ _id: channel_id });
     const userName = ctx.user.username;
     const orgName = userName.split('@')[1].split('.')[0];
+    let success = true;
+    let message = '';
 
     if (channel === null) {
-      ctx.status = 400;
+      return {
+          peers: [],
+          success: false
+      }
     }
+    
+    const networkId = channel.blockchain_network_id;
+    const endportsUrl = `http://operator-dashboard:8071/v2/blockchain_networks/${networkId}/serviceendpoints`;
+    const response = await ctx.curl(endportsUrl, {
+        method: 'GET',
+    });
+    if (response.status !== 200) {
+        message = 'get serviceendpoints fail';
+        success = false;
+    }
+    
+    const endportsInfor = JSON.parse(response.data.toString());
+    const peerInfors = endportsInfor.service_endpoints;
     const allPeers = [];
     const peers = channel.peers_inChannel;
+    
     for (let peer = 0; peer < peers.length; peer++) {
-      const org = peers[peer].split('.')[1];
+      const org = peers[peer].name.split('.')[1];
       if (org === orgName) {
+          let ip = '';
+          for (const infor in peerInfors) {
+              if (peerInfors[infor].service_type === 'peer') {
+                  const name = peerInfors[infor].service_name;
+                  if (name === peers[peer].name && peerInfors[infor].peer_port_proto === 'grpc') {
+                      ip = peerInfors[infor].service_ip + ':' + peerInfors[infor].service_port;
+                  }
+              }
+          }
+          
         allPeers.push({
-          name: peers[peer],
+          name: peers[peer].name,
           channel_id,
-          role: '',
+          roles: peers[peer].roles,
+            ip: ip
         });
       }
     }
     return { peers: allPeers };
+  }
+  
+  async changePeerRole() {
+      const { ctx } = this;
+      const peerInfo = ctx.request.body.peer;
+      const channelId = ctx.request.body.channel_id;
+      const userName = ctx.user.username;
+      const orgName = userName.split('@')[1].split('.')[0];
+      
+      if (orgName !== peerInfo.name.split('.')[1]) {
+          return {
+              success: false,
+              message: 'The peer doesn\'t belong to you.'
+          }
+      }
+      
+      if (userName.split('@')[0] !== 'Admin') {
+          return {
+              success: false,
+              message: 'Authorization failure,please contact the administrator.'
+          }
+      }
+      
+      const channelInfo = await ctx.model.Channel.findOne({ _id: channelId });
+      let targetPeer = '';
+      let i = 0;
+      
+      for (; i < channelInfo.peers_inChannel.length; i++) {
+          if (channelInfo.peers_inChannel[i].name === peerInfo.name) {
+              targetPeer = channelInfo.peers_inChannel[i];
+              break;
+          }
+      }
+      
+      if (targetPeer === '') {
+          return {
+              success: false,
+              message: 'Can\'t find the peer in channel ' + channelId
+          }
+      }
+      
+      targetPeer.roles.chaincodeQuery = peerInfo.roles.chaincodeQuery;
+      targetPeer.roles.endorsingPeer = peerInfo.roles.endorsingPeer;
+      targetPeer.roles.ledgerQuery = peerInfo.roles.ledgerQuery;
+    
+      channelInfo.peers_inChannel[i] = targetPeer;
+    
+      await ctx.model.Channel.findOneAndUpdate(
+          { _id: channelId }, { peers_inChannel: channelInfo.peers_inChannel },
+          { upsert: true });
+      
+      return {
+          success: true,
+          peer: targetPeer
+      }
   }
 
   async serviceEndpointsDataCreate(channelId) {
@@ -424,40 +513,42 @@ class ChannelService extends Service {
     for (const keys in serviceEndpoints) {
 
       if ((serviceEndpoints[keys].service_type === 'peer') && (peer_orgsName.includes(serviceEndpoints[keys].service_name.split('.').slice(1).join('.')) === true)) {
-
-        if (peersServiceName.includes(serviceEndpoints[keys].service_name) === true) {
-          const orgName = serviceEndpoints[keys].service_name.split('.').slice(1)[0];
-          const orgNameDomain = serviceEndpoints[keys].service_name.split('.').slice(1).join('.');
-          peerNames.push(serviceEndpoints[keys].service_name);
-
-          peers[serviceEndpoints[keys].service_name] = {
-
-            eventUrl: `grpcs://${serviceEndpoints[keys].event}`,
-
-            grpcOptions: {
-              'ssl-target-name-override': serviceEndpoints[keys].service_name,
-            },
-            tlsCACerts: {
-              path: `/opt/fabric/${networkId}/crypto-config/peerOrganizations/${orgNameDomain}/peers/${serviceEndpoints[keys].service_name}/tls/ca.crt`,
-            },
-            // for 1.4
-            url: `grpcs://${serviceEndpoints[keys].grpc}`,
-          };
-
-
-          network.config.organizations[`${orgName}`].peers = peerNames;
-
-          // let peerId = parseInt(serviceEndpoints[keys].service_name.split('.').slice(0)[0].charAt(serviceEndpoints[keys].service_name.split('.').slice(0)[0].length - 1));
-          channelsPeers[serviceEndpoints[keys].service_name] = {
-            chaincodeQuery: true,
-            endorsingPeer: true, // peerId === 0,
-            eventSource: true, // peerId === 0,
-            ledgerQuery: true,
-          };
-
-        }
+          let exist = false;
+          let index = 0;
+          for (;index < peersServiceName.length;index++) {
+              if (peersServiceName[index].name === serviceEndpoints[keys].service_name) {
+                  exist = true;
+                  break;
+              }
+          }
+          if (exist) {
+              const orgName = serviceEndpoints[keys].service_name.split('.').slice(1)[0];
+              const orgNameDomain = serviceEndpoints[keys].service_name.split('.').slice(1).join('.');
+              peerNames.push(serviceEndpoints[keys].service_name);
+    
+              peers[serviceEndpoints[keys].service_name] = {
+                eventUrl: `grpcs://${serviceEndpoints[keys].event}`,
+                grpcOptions: {
+                  'ssl-target-name-override': serviceEndpoints[keys].service_name,
+                },
+                tlsCACerts: {
+                  path: `/opt/fabric/${networkId}/crypto-config/peerOrganizations/${orgNameDomain}/peers/${serviceEndpoints[keys].service_name}/tls/ca.crt`,
+                },
+                url: `grpcs://${serviceEndpoints[keys].grpc}`,
+              };
+    
+    
+              network.config.organizations[`${orgName}`].peers = peerNames;
+    
+              // let peerId = parseInt(serviceEndpoints[keys].service_name.split('.').slice(0)[0].charAt(serviceEndpoints[keys].service_name.split('.').slice(0)[0].length - 1));
+              channelsPeers[serviceEndpoints[keys].service_name] = {
+                  chaincodeQuery: peersServiceName[index].roles.chaincodeQuery,
+                  endorsingPeer: peersServiceName[index].roles.endorsingPeer,
+                  eventSource: true,
+                  ledgerQuery: peersServiceName[index].roles.ledgerQuery
+              };
+          }
       }
-
     }
 
     network.config.channels[`${channel.name}`].peers = channelsPeers;
@@ -621,10 +712,8 @@ class ChannelService extends Service {
         const peerId = parseInt(serviceEndpoints[keys].service_name.split('.').slice(0)[0].charAt(serviceEndpoints[keys].service_name.split('.').slice(0)[0].length - 1));
         channelsPeers[serviceEndpoints[keys].service_name] = {
           chaincodeQuery: true,
-          // endorsingPeer: peerId === 0,
-          endorsingPeer: true,
-          // eventSource: peerId === 0,
-          eventSource: true,
+          endorsingPeer: peerId === 0,
+          eventSource: peerId === 0,
           ledgerQuery: true,
         };
 
@@ -681,6 +770,7 @@ class ChannelService extends Service {
     // channels.peers = channelsPeers;
     const channelsConfig = {};
     channelsConfig[`${channel.name}`] = channels;
+
     network = Object.assign(network, {
       config: {
         version: '1.0',
@@ -694,11 +784,373 @@ class ChannelService extends Service {
         channels: channelsConfig,
       },
     });
-
     console.log(network);
     return network;
   }
 
+  async generateNetworkFabricV1_4(channelId) {
+    const { ctx, config } = this;
+    const userName = ctx.req.user.username;
+    await this.serviceEndpointsDataCreate(channelId);
+
+    const channel = await ctx.model.Channel.findOne({ _id: channelId });
+    const peer_orgs = channel.peer_orgsName;
+    const orgDomain = channel.creator_name.split('@')[1];
+    const serviceEndpoints = await ctx.model.ServiceEndpoint.find({ channel: channelId });
+    const networkId = serviceEndpoints[0].networkid;
+    const channels = {
+      orderers: [],
+    };
+    const orderers = {};
+    let orgConfigSequence = 0;
+    const peerOrgs = {};
+    const orgMspNames = [];
+    const caAddress = {};
+      // const keyValueStorePath = `/opt/fabric/${networkId}/client-kvs`;
+    let keyValueStorePath = `${config.fabricDir}/${networkId}/crypto-config/peerOrganizations/${orgDomain}/ca/${userName}`;
+    const channelsPeers = {};
+    let network = {};
+    const peerNames = [];
+    const organizations = {};
+    const certificateAuthorities = {};
+
+    const peer_orgsName = [];
+    for (let i = 0; i < peer_orgs.length; i++) {
+        peer_orgsName.push(peer_orgs[i].name);
+    }
+
+    for (const keys in serviceEndpoints) {
+        if (serviceEndpoints[keys].service_type === 'ca') {
+            caAddress[serviceEndpoints[keys].service_name.split('.').slice(1).join('.')] = `${serviceEndpoints[keys].service_ip}:${serviceEndpoints[keys].service_port}`;
+        }
+    }
+
+    for (const keys in serviceEndpoints) {
+       if (serviceEndpoints[keys].service_type === 'orderer') {
+            const orderUrl = `${serviceEndpoints[keys].service_ip}:${serviceEndpoints[keys].service_port}`;
+            const ordererDomain = serviceEndpoints[keys].service_name.split('.').slice(1).join('.');
+            orderers[serviceEndpoints[keys].service_name] = {
+                grpcOptions: { 'ssl-target-name-override': serviceEndpoints[keys].service_name },
+                tlsCACerts: { path: `/opt/fabric/${networkId}/crypto-config/ordererOrganizations/${ordererDomain}/orderers/${serviceEndpoints[keys].service_name}/tls/ca.crt` },
+                url: `grpcs://${orderUrl}`,
+            };
+
+            channels.orderers.push(serviceEndpoints[keys].service_name);
+        } else if ((serviceEndpoints[keys].service_type === 'peer') && (peer_orgsName.includes(serviceEndpoints[keys].service_name.split('.').slice(1).join('.')) === true)) {
+            peerNames.push(serviceEndpoints[keys].service_name);
+
+            if (orgMspNames.includes(serviceEndpoints[keys].org_config_name) === false) {
+                orgConfigSequence += 1;
+                peerOrgs[orgConfigSequence] = {};
+                orgMspNames.push(serviceEndpoints[keys].org_config_name);
+            }
+
+            const orgNameDomain = serviceEndpoints[keys].service_name.split('.').slice(1).join('.');
+            const orgName = serviceEndpoints[keys].service_name.split('.').slice(1)[0];
+            /*
+                    peers[serviceEndpoints[keys].service_name] = {
+                      eventUrl: `grpcs://${serviceEndpoints[keys].event}`,
+                      grpcOptions: {
+                        'ssl-target-name-override': serviceEndpoints[keys].service_name,
+                      },
+                      tlsCACerts: {
+                        path: `/opt/fabric/${networkId}/crypto-config/peerOrganizations/${orgNameDomain}/peers/${serviceEndpoints[keys].service_name}/tls/ca.crt`,
+                      },
+                      url: `grpcs://${serviceEndpoints[keys].grpc}`,
+                    };
+            */
+            const peerId = parseInt(serviceEndpoints[keys].service_name.split('.').slice(0)[0].charAt(serviceEndpoints[keys].service_name.split('.').slice(0)[0].length - 1));
+            channelsPeers[serviceEndpoints[keys].service_name] = {
+                chaincodeQuery: true,
+                endorsingPeer: peerId === 0,
+                eventSource: peerId === 0,
+                ledgerQuery: true,
+            };
+            const admin_sk = fs.readdirSync(`/opt/fabric/${networkId}/crypto-config/peerOrganizations/${orgNameDomain}/users/Admin@${orgNameDomain}/msp/keystore`);
+            organizations[`${orgName}`] = {
+                adminPrivateKey: {
+                    path: `/opt/fabric/${networkId}/crypto-config/peerOrganizations/${orgNameDomain}/users/Admin@${orgNameDomain}/msp/keystore/${admin_sk[0]}`,
+                },
+                certificateAuthorities: [`ca-${orgName}`],
+                mspid: serviceEndpoints[keys].org_config_mspid,
+                // peers: peerNames,
+                signedCert: {
+                    path: `/opt/fabric/${networkId}/crypto-config/peerOrganizations/${orgNameDomain}/users/Admin@${orgNameDomain}/msp/signcerts/Admin@${orgNameDomain}-cert.pem`,
+                },
+            };
+
+          certificateAuthorities[`ca-${orgName}`] = {
+              caName: `ca-${orgName}`,
+              httpOptions: {
+                  verify: false,
+              },
+              registrar: [
+                  {
+                      enrollId: 'admin',
+                      enrollSecret: 'adminpw',
+                  },
+              ],
+              tlsCACerts: {
+                  path: `/opt/fabric/${networkId}/crypto-config/peerOrganizations/${orgNameDomain}/ca/ca.${orgNameDomain}-cert.pem`,
+              },
+              url: `https://${caAddress[orgNameDomain]}`,
+          };
+       }
+    }
+    const orgName = userName.split('@')[1].split('.')[0];
+    const orgAndDomain = userName.split('@')[1];
+    keyValueStorePath = `${config.fabricDir}/${networkId}/crypto-config/peerOrganizations/${orgAndDomain}/ca/${userName}`;
+    network[`${orgName}`] = {
+        'x-type': 'hlfv1',
+        name: `${channel.name}-${orgName}`,
+        description: `org${orgConfigSequence}`,
+        version: '1.0',
+        client: {
+            organization: `${orgName}`,
+            credentialStore: {
+                path: keyValueStorePath,
+                cryptoStore: {
+                    //path: keyValueStorePath,
+                    path: keyValueStorePath,
+                },
+                wallet: 'wallet',
+            },
+        },
+    };
+
+      // channels.peers = channelsPeers;
+    const channelsConfig = {};
+    channelsConfig[`${channel.name}`] = channels;
+    network = Object.assign(network, {
+        config: {
+            version: '1.0',
+            'x-type': 'hlfv1',
+            name: `${channel.name}`,
+            description: `${channel.name}`,
+            orderers,
+            certificateAuthorities,
+            organizations,
+            // peers,
+            channels: channelsConfig,
+        },
+    });
+
+    console.log(network);
+    return network;
+  }
+    
+    async generateNetworkForSignup(channelId, signedusers) {
+        const { ctx, config } = this;
+        
+        await this.serviceEndpointsDataCreate(channelId);
+        const userName = ctx.req.user.username;
+        const curOrg = userName.split('@')[1].split('.')[0];
+        const channel = await ctx.model.Channel.findOne({ _id: channelId });
+        const peer_orgs = channel.peer_orgsName;
+        const orgDomain = channel.creator_name.split('@')[1];
+        const serviceEndpoints = await ctx.model.ServiceEndpoint.find({ channel: channelId });
+        const networkId = serviceEndpoints[0].networkid;
+        const channels = {
+            orderers: [],
+        };
+        const orderers = {};
+        let orgConfigSequence = 0;
+        const peerOrgs = {};
+        const orgMspNames = [];
+        const caAddress = {};
+        let keyValueStorePath = `${config.fabricDir}/${networkId}/crypto-config/peerOrganizations/${orgDomain}/ca/Admin@${orgDomain}`;
+        let network = {};
+        const organizations = {};
+        const certificateAuthorities = {};
+        
+        const peer_orgsName = [];
+        for (let i = 0; i < peer_orgs.length; i++) {
+            peer_orgsName.push(peer_orgs[i].name);
+        }
+        
+        for (const keys in serviceEndpoints) {
+            if (serviceEndpoints[keys].service_type === 'ca') {
+                caAddress[serviceEndpoints[keys].service_name.split('.').slice(1).join('.')] = `${serviceEndpoints[keys].service_ip}:${serviceEndpoints[keys].service_port}`;
+            }
+        }
+        
+        for (const keys in serviceEndpoints) {
+            if (serviceEndpoints[keys].service_type === 'orderer') {
+                const orderUrl = `${serviceEndpoints[keys].service_ip}:${serviceEndpoints[keys].service_port}`;
+                const ordererDomain = serviceEndpoints[keys].service_name.split('.').slice(1).join('.');
+                orderers[serviceEndpoints[keys].service_name] = {
+                    grpcOptions: { 'ssl-target-name-override': serviceEndpoints[keys].service_name },
+                    tlsCACerts: { path: `/opt/fabric/${networkId}/crypto-config/ordererOrganizations/${ordererDomain}/orderers/${serviceEndpoints[keys].service_name}/tls/ca.crt` },
+                    url: `grpcs://${orderUrl}`,
+                };
+                
+                channels.orderers.push(serviceEndpoints[keys].service_name);
+            } else if ((serviceEndpoints[keys].service_type === 'peer') && (peer_orgsName.includes(serviceEndpoints[keys].service_name.split('.').slice(1).join('.')) === true)) {
+                const orgNameDomain = serviceEndpoints[keys].service_name.split('.').slice(1).join('.');
+                const orgName = serviceEndpoints[keys].service_name.split('.').slice(1)[0];
+                let usertmp = '';
+                if (curOrg === orgName) {
+                    if (userName.split('@')[0] === 'Admin') {
+                        usertmp = 'admin'
+                    }
+                    else {
+                        usertmp = userName
+                    }
+                }
+                else {
+                    for (let index = 0; index < signedusers.length;index++) {
+                        if (signedusers[index].split('@')[1].split('.')[0] === orgName) {
+                            if (signedusers[index].split('@')[0] === 'Admin') {
+                                usertmp = 'admin'
+                            }
+                            else {
+                                usertmp = signedusers[index];
+                            }
+                            break;
+                        }
+                    }
+                }
+                
+                if (orgMspNames.includes(serviceEndpoints[keys].org_config_name) === false) {
+                    orgConfigSequence += 1;
+                    peerOrgs[orgConfigSequence] = {};
+                    orgMspNames.push(serviceEndpoints[keys].org_config_name);
+                }
+                
+                const admin_sk = fs.readdirSync(`/opt/fabric/${networkId}/crypto-config/peerOrganizations/${orgNameDomain}/users/Admin@${orgNameDomain}/msp/keystore`);
+                organizations[`${orgName}`] = {
+                    adminPrivateKey: {
+                        path: `/opt/fabric/${networkId}/crypto-config/peerOrganizations/${orgNameDomain}/users/Admin@${orgNameDomain}/msp/keystore/${admin_sk[0]}`,
+                    },
+                    certificateAuthorities: [`ca-${orgName}`],
+                    mspid: serviceEndpoints[keys].org_config_mspid,
+                    signedCert: {
+                        path: `/opt/fabric/${networkId}/crypto-config/peerOrganizations/${orgNameDomain}/users/Admin@${orgNameDomain}/msp/signcerts/Admin@${orgNameDomain}-cert.pem`,
+                    },
+                };
+                
+                certificateAuthorities[`ca-${orgName}`] = {
+                    caName: `ca-${orgName}`,
+                    httpOptions: {
+                        verify: false,
+                    },
+                    registrar: [
+                        {
+                            enrollId: 'admin',
+                            enrollSecret: 'adminpw',
+                        },
+                    ],
+                    tlsCACerts: {
+                        path: `/opt/fabric/${networkId}/crypto-config/peerOrganizations/${orgNameDomain}/ca/ca.${orgNameDomain}-cert.pem`,
+                    },
+                    url: `https://${caAddress[orgNameDomain]}`,
+                };
+                keyValueStorePath = `${config.fabricDir}/${networkId}/crypto-config/peerOrganizations/${orgNameDomain}/ca/${usertmp}`;
+                network[`${orgName}`] = {
+                    'x-type': 'hlfv1',
+                    name: `${channel.name}-${orgName}`,
+                    description: `org${orgConfigSequence}`,
+                    version: '1.0',
+                    client: {
+                        organization: `${orgName}`,
+                        credentialStore: {
+                            path: keyValueStorePath,
+                            cryptoStore: {
+                                path: keyValueStorePath,
+                            },
+                            wallet: 'wallet',
+                        },
+                    },
+                };
+            }
+        }
+        
+        const channelsConfig = {};
+        channelsConfig[`${channel.name}`] = channels;
+        
+        network = Object.assign(network, {
+            config: {
+                version: '1.0',
+                'x-type': 'hlfv1',
+                name: `${channel.name}`,
+                description: `${channel.name}`,
+                orderers,
+                certificateAuthorities,
+                organizations,
+                // peers,
+                channels: channelsConfig,
+            },
+        });
+        console.log(network);
+        return network;
+    }
+    
+    async networkAddPeersForSignup(channelId, network, peersServiceName) {
+        const { ctx } = this;
+        
+        const channel = await ctx.model.Channel.findOne({ _id: channelId });
+        const peer_orgs = channel.peer_orgsName;
+        const serviceEndpoints = await ctx.model.ServiceEndpoint.find({ channel: channelId });
+        const networkId = serviceEndpoints[0].networkid;
+        
+        const peer_orgsName = [];
+        const peers = {};
+        const peerNames = [];
+        const channelsPeers = {};
+        for (let i = 0; i < peer_orgs.length; i++) {
+            peer_orgsName.push(peer_orgs[i].name);
+        }
+        
+        for (const keys in serviceEndpoints) {
+            
+            if ((serviceEndpoints[keys].service_type === 'peer') && (peer_orgsName.includes(serviceEndpoints[keys].service_name.split('.').slice(1).join('.')) === true)) {
+                let exist = false;
+                let index = 0;
+                for (;index < peersServiceName.length;index++) {
+                    if (peersServiceName[index].name === serviceEndpoints[keys].service_name) {
+                        exist = true;
+                        break;
+                    }
+                }
+                if (exist) {
+                    const orgName = serviceEndpoints[keys].service_name.split('.').slice(1)[0];
+                    const orgNameDomain = serviceEndpoints[keys].service_name.split('.').slice(1).join('.');
+                    peerNames.push(serviceEndpoints[keys].service_name);
+                    
+                    peers[serviceEndpoints[keys].service_name] = {
+                        eventUrl: `grpcs://${serviceEndpoints[keys].event}`,
+                        grpcOptions: {
+                            'ssl-target-name-override': serviceEndpoints[keys].service_name,
+                        },
+                        tlsCACerts: {
+                            path: `/opt/fabric/${networkId}/crypto-config/peerOrganizations/${orgNameDomain}/peers/${serviceEndpoints[keys].service_name}/tls/ca.crt`,
+                        },
+                        url: `grpcs://${serviceEndpoints[keys].grpc}`,
+                    };
+                    if (typeof(network.config.organizations[`${orgName}`]) === 'undefined') {
+                        network.config.organizations[`${orgName}`] = {};
+                    }
+                    network.config.organizations[`${orgName}`].peers = peerNames;
+                    
+                    // let peerId = parseInt(serviceEndpoints[keys].service_name.split('.').slice(0)[0].charAt(serviceEndpoints[keys].service_name.split('.').slice(0)[0].length - 1));
+                    channelsPeers[serviceEndpoints[keys].service_name] = {
+                        chaincodeQuery: peersServiceName[index].roles.chaincodeQuery,
+                        endorsingPeer: peersServiceName[index].roles.endorsingPeer,
+                        eventSource: true,
+                        ledgerQuery: peersServiceName[index].roles.ledgerQuery
+                    };
+                }
+            }
+        }
+        
+        network.config.channels[`${channel.name}`].peers = channelsPeers;
+        
+        network.config.peers = peers;
+        
+        console.log(network);
+        return network;
+    }
+    
   async configtxYamlAddChannelProfile(peerOrgsDict, name, fabricFilePath, version) {
     try {
       const Va = version.split('-').slice(1)[0];
@@ -744,8 +1196,10 @@ class ChannelService extends Service {
       case 'fabric-1.0':
         return await this.generateNetworkFabricV1_0(channelId);
       case 'fabric-1.1':
-      default:
         return await this.generateNetworkFabricV1_1(channelId);
+      case 'fabric-1.4':
+      default:
+        return await this.generateNetworkFabricV1_4(channelId);
     }
   }
 
@@ -770,9 +1224,9 @@ class ChannelService extends Service {
         ctx.logger.error('run failed');
         throw new Error('\r\n create configtx.yaml failed');
       }
-      const network = await this.generateNetwork(channel._id.toString());
+      const network = await this.generateNetwork(channel._id.toString(), fabricVersion);
 
-      if (fabricVersion === 'fabric-1.1') {
+      if (fabricVersion === 'fabric-1.1' || fabricVersion === 'fabric-1.4' ) {
         await ctx.getRegisteredUserV1_1(network, `${orgName}Admin`, orgName, true);
       }
 
@@ -791,16 +1245,20 @@ class ChannelService extends Service {
     const { ctx, config } = this;
     const userName = ctx.req.user.username;
     const opName = 'channel_create';
+    const opSource = ctx.ip;
     const opObject = 'channel';
     const opDate = new Date();
+    const result = {};
     const opDetails = ctx.request.body.channel;
     if (userName.split('@')[0] !== 'Admin') {
-      const result = {};
       const userInfo = await ctx.model.OrgUser.findOne({ username: userName });
       if (userInfo === null) {
         const err_message = `user ${userName} can not found in db`;
-        await ctx.service.log.deposit(opName, opObject, userName, opDate, 400, opDetails, {}, err_message);
-        throw new Error(err_message);
+        result.message = err_message;
+        result.success = false;
+        result.code = 400;
+        await ctx.service.log.deposit(opName, opObject, opSource, userName, opDate, 400, opDetails, {}, err_message);
+        return result;
       }
       const userCreateTime = userInfo.create_time;
       const userExpirationDateStr = userInfo.expiration_date;
@@ -810,7 +1268,7 @@ class ChannelService extends Service {
         result.success = false;
         result.code = 400;
         result.message = err_message;
-        await ctx.service.log.deposit(opName, opObject, userName, opDate, result.code, opDetails, {}, err_message);
+        await ctx.service.log.deposit(opName, opObject, opSource, userName, opDate, result.code, opDetails, {}, err_message);
         return result;
       }
       if (userInfo.roles === 'org_user') {
@@ -818,9 +1276,9 @@ class ChannelService extends Service {
         console.log(err_message);
 
         result.success = false;
-        result.code = 403;
+        result.code = 400;
         result.message = err_message;
-        await ctx.service.log.deposit(opName, opObject, userName, opDate, result.code, opDetails, {}, err_message);
+        await ctx.service.log.deposit(opName, opObject, opSource, userName, opDate, result.code, opDetails, {}, err_message);
         return result;
       }
     }
@@ -895,7 +1353,7 @@ class ChannelService extends Service {
       resChannel.success = false;
       resChannel.code = 400;
     }
-    await ctx.service.log.deposit(opName, opObject, userName, opDate, resChannel.code, opDetails, {}, resChannel.message);
+    await ctx.service.log.deposit(opName, opObject, opSource, userName, opDate, resChannel.code, opDetails, {}, resChannel.message);
     return resChannel;
   }
 
@@ -903,6 +1361,7 @@ class ChannelService extends Service {
       const { ctx, config } = this;
       const channelId = ctx.params.channel_id;
       const channeldb = await ctx.model.Channel.findOne({ _id: channelId });
+      const networkType = channeldb.version;
       const userName = ctx.req.user.username;
       const curOrg = userName.split('@')[1].split('.')[0];
       const inviteOrg = {
@@ -910,7 +1369,7 @@ class ChannelService extends Service {
 
       try {
           const channelName = channeldb.name;
-          const network = await this.generateNetwork(channeldb._id.toString());
+          const network = await this.generateNetwork(channeldb._id.toString(),networkType);
           const peersForChannel = channeldb.peers_inChannel;
           await this.generateNetworkAddPeersV1_1(channelId, network, peersForChannel);
           const organizations = ctx.request.body.peer_orgs;
@@ -969,10 +1428,8 @@ class ChannelService extends Service {
       };
       try {
           const channelName = channeldb.name;
-
-          const network = await this.generateNetwork(channeldb._id.toString());
+          const networkType = channeldb.version;
           const peersForChannel = channeldb.peers_inChannel;
-          await this.generateNetworkAddPeersV1_1(channelId, network, peersForChannel);
 
           const organizations = ctx.request.body.peer_orgs;
           var peer_orgsName = [];
@@ -983,6 +1440,11 @@ class ChannelService extends Service {
           });
           for (const each in organizations) {
               const newOrgId = organizations[each];
+              const ChannelSign = await ctx.model.ChannelSign.findOne({ channelid: channelId, orgid:newOrgId});
+              const network = await this.generateNetworkForSignup(channeldb._id.toString(), ChannelSign.signatures);
+    
+              await this.networkAddPeersForSignup(channelId, network, peersForChannel);
+    
               let orgResponse;
               try {
                   const orgUrl = `http://operator-dashboard:8071/v2/organizations?name=${OrgName}`;
@@ -1034,8 +1496,6 @@ class ChannelService extends Service {
               var signatures = [];
               var signers = [];
 
-              var ChannelSign = await ctx.model.ChannelSign.findOne({ channelid: channelId, orgid:newOrgId});
-
               var signedusers = ChannelSign.signatures;
               signers = ChannelSign.signers;
               signedusers.push(userName);
@@ -1086,7 +1546,7 @@ class ChannelService extends Service {
   async join() {
     const { ctx } = this;
     const peersServiceName = ctx.request.body.peers;
-    const peers = [];
+    //const peers = [];
     const channelId = ctx.params.channel_id;
     const channelInfo = await ctx.model.Channel.findOne({ _id: channelId });
     const channelName = channelInfo.name;
@@ -1096,18 +1556,22 @@ class ChannelService extends Service {
     };
     const userName = ctx.req.user.username;
     const opName = 'channel_join';
+   const opSource = ctx.ip;
     const opObject = 'channel';
     const opDate = new Date();
+    const result = {};
     const opDetails = ctx.request.body.peers;
     opDetails.channel_id = channelId;
     const orgName = userName.split('@')[1].split('.')[0];
     if (userName.split('@')[0] !== 'Admin') {
-      const result = {};
       const userInfo = await ctx.model.OrgUser.findOne({ username: userName });
       if (userInfo === null) {
         const error_message = `user ${userName} can not found in db`;
-        await ctx.service.log.deposit(opName, opObject, userName, opDate, 400, opDetails, {}, error_message);
-        throw new Error(error_message);
+        result.success = false;
+        result.code = 400;
+        result.message = error_message;
+        await ctx.service.log.deposit(opName, opObject, opSource, userName, opDate, 400, opDetails, {}, error_message);
+        return result;
       }
       const userCreateTime = userInfo.create_time;
       const userExpirationDateStr = userInfo.expiration_date;
@@ -1117,7 +1581,7 @@ class ChannelService extends Service {
         result.success = false;
         result.code = 400;
         result.message = error_message;
-        await ctx.service.log.deposit(opName, opObject, userName, opDate, result.code, opDetails, {}, error_message);
+        await ctx.service.log.deposit(opName, opObject, opSource, userName, opDate, result.code, opDetails, {}, error_message);
         return result;
       }
 
@@ -1125,42 +1589,58 @@ class ChannelService extends Service {
         const error_message = '403 forbidden, the operator user\'s role is org_user, join channel only can be operated by org_admin';
         console.log(error_message);
         result.success = false;
-        result.code = 403;
+        result.code = 400;
         result.message = error_message;
-        await ctx.service.log.deposit(opName, opObject, userName, opDate, result.code, opDetails, {}, error_message);
+        await ctx.service.log.deposit(opName, opObject, opSource, userName, opDate, result.code, opDetails, {}, error_message);
         return result;
       }
     }
 
     const networkType = channelInfo.version;
+    const peerNames = [];
     let code;
     let errorMsg = '';
     let each;
     try {
       //for (const each in peersServiceName) {
       for(each =0;each < peersServiceName.length; each++ ){
-        peers.push(peersServiceName[each].split('.').slice(0)[0]);
-        if (peersForChannel.includes(peersServiceName[each]) === false) {
-          peersForChannel.push(peersServiceName[each]);
-        }
+        //peers.push(peersServiceName[each].split('.').slice(0)[0]);
+          let exist = false;
+          for (let index = 0;index < peersForChannel;index++) {
+            if (peersForChannel[index].name === peersServiceName[each].name) {
+              exist = true;
+              break;
+            }
+          }
+          if (!exist) {
+            peersForChannel.push({
+                name: peersServiceName[each].name,
+                roles: {
+                    chaincodeQuery: peersServiceName[each].roles.chaincodeQuery,
+                    endorsingPeer: peersServiceName[each].roles.endorsingPeer,
+                    ledgerQuery: peersServiceName[each].roles.ledgerQuery
+                }
+            });
+            peerNames.push(peersServiceName[each].name);
+          }
       }
-      const network = await this.generateNetwork(channelInfo._id.toString());
+      const network = await this.generateNetwork(channelInfo._id.toString(),networkType);
       await this.generateNetworkAddPeersV1_1(channelInfo._id.toString(), network, peersForChannel);
-      await ctx.joinChannel(network, channelName, peersServiceName, orgName, networkType, userName);
+      await ctx.joinChannel(network, channelName, peerNames, orgName, networkType, userName);
       await ctx.model.Channel.findOneAndUpdate(
         { _id: channelId }, { peers_inChannel: peersForChannel },
         { upsert: true });
       joinPeers.success = true;
-      code = 200;
+      joinPeers.code = 200;
 
     } catch (err) {
       console.log(err.message);
       joinPeers.success = false;
-      code = 400;
+      joinPeers.code = 400;
       errorMsg = err.message;
     }
-    await ctx.service.log.deposit(opName, opObject, userName, opDate, code, opDetails, {}, errorMsg);
 
+    await ctx.service.log.deposit(opName, opObject, opSource, userName, opDate, joinPeers.code, opDetails, {}, errorMsg);
     return joinPeers;
   }
 
@@ -1186,24 +1666,28 @@ class ChannelService extends Service {
         return result1;
       }
     }
-    const network = await this.generateNetworkFabricV1_1(channelId);
 
     const channelInfo = await ctx.model.Channel.findOne({ _id: channelId });
     const chainCode = await ctx.model.ChainCode.findOne({ _id: chaincodeId });
     const peers = [];
-
+    const peerName = [];
+    const networkType = channelInfo.version;
+    const network = await this.generateNetwork(channelId,networkType);
     // 找到通道内安装链码的节点
     for (let i = 0; i < chainCode.peers.length; i++) {
       for (let j = 0; j < channelInfo.peers_inChannel.length; j++) {
-        if (chainCode.peers[i].peer_name === channelInfo.peers_inChannel[j]) {
+        if (chainCode.peers[i].peer_name === channelInfo.peers_inChannel[j].name
+            && channelInfo.peers_inChannel[j].roles.chaincodeQuery
+        ) {
           peers.push(channelInfo.peers_inChannel[j]);
+          peerName.push(channelInfo.peers_inChannel[j].name);
           break;
         }
       }
     }
 
     await this.generateNetworkAddPeersV1_1(channelId, network, peers);
-    const result = await ctx.queryChainCode(network, peers, channelInfo.name, chainCode.name, functionName, args, userName, orgName, channelInfo.version);
+    const result = await ctx.queryChainCode(network, peerName, channelInfo.name, chainCode.name, functionName, args, userName, orgName, channelInfo.version);
     if (!result.success) {
       console.log(result.message);
     }
@@ -1214,42 +1698,51 @@ class ChannelService extends Service {
     const { ctx } = this;
     const userName = ctx.req.user.username;
     const opName = 'chaincode_invoke';
-    const opObject = 'channel';
+    const opSource = ctx.ip;
+    const opObject = 'chaincode';
     const opDate = new Date();
+    const result1 = {};
     const opDetails = ctx.request.body.chaincode_operation;
     opDetails.channel_id = channelId;
     const orgName = userName.split('@')[1].split('.')[0];
-    const network = await this.generateNetworkFabricV1_1(channelId);
     if (userName.split('@')[0] !== 'Admin') {
       const userInfo = await ctx.model.OrgUser.findOne({ username: userName });
       if (userInfo === null) {
         const err_message = `user ${userName} can not found in db`;
-        await ctx.service.log.deposit(opName, opObject, userName, opDate, 400, opDetails, {}, err_message);
-        throw new Error(err_message);
+        result1.success = false;
+        result1.code = 400;
+        result1.message = err_message;
+        await ctx.service.log.deposit(opName, opObject, opSource, userName, opDate, 400, opDetails, {}, err_message);
+        return result1;
+
       }
       const userCreateTime = userInfo.create_time;
       const userExpirationDateStr = userInfo.expiration_date;
       const ifValidity = await ctx.service.user.getCertiExpirationState(userCreateTime, userExpirationDateStr);
       if (ifValidity === false) {
         const err_message = userName + ' certificate has become invalid , need to reenroll';
-        const result1 = {};
         result1.success = false;
         result1.code = 400;
         result1.message = err_message;
-        await ctx.service.log.deposit(opName, opObject, userName, opDate, 400, opDetails, {}, err_message);
+        await ctx.service.log.deposit(opName, opObject, opSource, userName, opDate, 400, opDetails, {}, err_message);
         return result1;
       }
     }
     const channelInfo = await ctx.model.Channel.findOne({ _id: channelId });
     const chainCode = await ctx.model.ChainCode.findOne({ _id: chaincodeId });
     const peers = [];
-
+    const peerName = [];
+    const networkType = channelInfo.version;
+    const network = await this.generateNetwork(channelId,networkType);
     // 找到通道内安装链码的节点
     for (let i = 0; i < chainCode.peers.length; i++) {
       for (let j = 0; j < channelInfo.peers_inChannel.length; j++) {
-        if (chainCode.peers[i].peer_name === channelInfo.peers_inChannel[j]) {
-          peers.push(channelInfo.peers_inChannel[j]);
-          break;
+        if (chainCode.peers[i].peer_name === channelInfo.peers_inChannel[j].name) {
+            if (channelInfo.peers_inChannel[j].roles.endorsingPeer) {
+                peers.push(channelInfo.peers_inChannel[j]);
+                peerName.push(channelInfo.peers_inChannel[j].name);
+                break;
+            }
         }
       }
     }
@@ -1257,15 +1750,189 @@ class ChannelService extends Service {
     await this.generateNetworkAddPeersV1_1(channelId, network, peers);
     let code = 200;
     // the peer must be the endorsing peer.
-    const result = await ctx.invokeChainCode(network, peers, channelInfo.name, chainCode.name, functionName, args, userName, orgName, channelInfo.version);
+    const result = await ctx.invokeChainCode(network, peerName, channelInfo.name, chainCode.name, functionName, args, userName, orgName, channelInfo.version);
     if (!result.success) {
       console.log(result.message);
       code = 400;
     }
 
-    await ctx.service.log.deposit(opName, opObject, userName, opDate, code, opDetails, {}, result.message);
+    await ctx.service.log.deposit(opName, opObject, opSource, userName, opDate, code, opDetails, {}, result.message);
     return result;
   }
+    
+    async removeOrgFromChannel() {
+        const { ctx, config } = this;
+        const channelId = ctx.params.channel_id;
+        const channeldb = await ctx.model.Channel.findOne({ _id: channelId });
+        const userName = ctx.req.user.username;
+        const OrgName = userName.split('@')[1].split('.')[0];
+        const signOrg = {};
+        
+        try {
+            const channelName = channeldb.name;
+            const targetOrgId = ctx.request.body.peer_org;
+            const ChannelSign = await ctx.model.RemoveOrgFromChannelSign.findOne({ channelid: channelId, orgid:targetOrgId});
+            const network = await this.generateNetworkForSignup(channeldb._id.toString(), ChannelSign.signatures);
+            const peersForChannel = [];
+            channeldb.peers_inChannel.map(peer => {
+                peersForChannel.push(peer);
+            });
+            await this.networkAddPeersForSignup(channelId, network, peersForChannel);
+        
+            const peer_orgsName = [];
+            channeldb.peer_orgsName.map(org => {
+                peer_orgsName.push(
+                    org
+                )
+            });
+    
+            let orgResponse;
+            try {
+                const orgUrl = `http://operator-dashboard:8071/v2/organizations?name=${OrgName}`;
+                orgResponse = await ctx.curl(orgUrl, {
+                    method: 'GET',
+                });
+            } catch (e) {
+                return {
+                    success: false,
+                    message: 'get org infor fail'
+                };
+            }
+    
+            let data;
+            if (orgResponse.status === 200) {
+                data = JSON.parse(orgResponse.data.toString());
+            } else {
+                const e = new Error('get organization fail.');
+                return {
+                    success: false,
+                    message: e
+                };
+            }
+    
+            const curOrgId = data.organizations[0].id;
+    
+            const orgUrl = `http://operator-dashboard:8071/v2/organizations/${targetOrgId}`;
+    
+            orgResponse = await ctx.curl(orgUrl, {
+                method: 'GET',
+            });
+            if (orgResponse.status === 200) {
+                ctx.logger.debug('Successfully to get org information by operate-dashboard');
+            }
+            else{
+                ctx.logger.err('failed to get org information by operate-dashboard');
+                signOrg.success = false;
+                return signOrg;
+            }
+    
+            data = JSON.parse(orgResponse.data.toString());
+            const targetOrgName = data.organization.name;
+    
+            for (let i = 0;i < peer_orgsName.length;i++) {
+                if (peer_orgsName[i].id === targetOrgId) {
+                    peer_orgsName.splice(i, 1);
+                    break;
+                }
+            }
+            const resPeers = [];
+            for (let i = 0;i < peersForChannel.length;i++) {
+                if (peersForChannel[i].name.split('.')[1] !== targetOrgName) {
+                    resPeers.push(peersForChannel[i]);
+                }
+            }
+    
+            const signedusers = ChannelSign.signatures;
+            const signers = ChannelSign.signers;
+            signedusers.push(userName);
+            signers.push(curOrgId);
+    
+            const peerOrgNumber = channeldb.peer_orgsName.length;
+            const signnumber = signers.length * 2;
+            
+            //有一半以上组织签名，并且本组织同意退出当前通道，则执行退出
+            if(signnumber > peerOrgNumber && signers.includes(targetOrgId)){
+                const networkType = 'fabric-1.4';
+                await ctx.removeOrgFromChannel(network, channelName, OrgName, curOrgId, userName, channeldb, config, targetOrgId, targetOrgName, signedusers, networkType);
+        
+                await ctx.model.RemoveOrgFromChannelSign.deleteOne({ channelid: channelId,orgid:targetOrgId});
+                await ctx.model.Channel.updateOne({ _id: channelId },{$set:{peer_orgsName:peer_orgsName, peers_inChannel: resPeers}});
+                console.log('-------------remove-----------------');
+            } else {
+                await ctx.model.RemoveOrgFromChannelSign.updateOne({ channelid: channelId , orgid:targetOrgId},{$set:{signers:signers,signatures:signedusers,orgid:targetOrgId}});
+            }
+        
+            ctx.logger.debug('Successfully had configtxlator compute the updated config object');
+        }
+        catch(err) {
+            ctx.logger.error('Failed to update the channel: ' + err.stack ? err.stack : err);
+            ctx.status = 500;
+            signOrg.success = false;
+            console.log(err);
+            ctx.throw(500, err.message);
+        }
+        signOrg.success = true;
+        return signOrg;
+    }
+    
+    async applyForLeaveChannel() {
+        const { ctx } = this;
+        const channelId = ctx.params.channel_id;
+        const channeldb = await ctx.model.Channel.findOne({ _id: channelId });
+        const userName = ctx.req.user.username;
+        const curOrg = userName.split('@')[1].split('.')[0];
+        
+        let orgResponse;
+        try {
+            const orgUrl = `http://operator-dashboard:8071/v2/organizations?name=${curOrg}`;
+            orgResponse = await ctx.curl(orgUrl, {
+                method: 'GET',
+            });
+        } catch (e) {
+            return {
+                success: false,
+                message: 'get org infor fail'
+            };
+        }
+    
+        let data;
+        if (orgResponse.status === 200) {
+            data = JSON.parse(orgResponse.data.toString());
+        } else {
+            return {
+                success: false,
+                message: 'get organization fail.'
+            };
+        }
+    
+        const curOrgId = data.organizations[0].id;
+    
+        await ctx.model.RemoveOrgFromChannelSign.create({
+            channelid: channelId,
+            orgid: curOrgId,
+        });
+        return {
+            success: true
+        };
+    }
+    
+    async getLeaveChannelsigners() {
+        const { ctx } = this;
+        const channelId = ctx.params.channel_id;
+        const orgsigninfo = [];
+        var ChannelSign = await ctx.model.RemoveOrgFromChannelSign.find({ channelid: channelId });
+        
+        for (const each in ChannelSign) {
+            orgsigninfo.push ({
+                orgid:ChannelSign[each].orgid,
+                signinfo:ChannelSign[each].signers,
+            });
+        }
+        return {
+            signlist:orgsigninfo,
+            success: true
+        }
+    }
 }
 
 module.exports = ChannelService;

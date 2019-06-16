@@ -1,12 +1,13 @@
 import { queryOrInvoke } from '../services/InstantChainCode_api';
 import {getPeersForOrg} from "../services/AddPeer";
-import {queryOneChainCode, instantiateCC, queryChainCode} from "../services/chaincode_api";
+import {queryOneChainCode, instantiateCC, upgradeCC, queryChainCode} from "../services/chaincode_api";
 import { message } from 'antd';
 import {queryOneChannel} from "../services/channel_api";
 import {queryOneOrg} from "../services/orgs_api";
 import {queryChannelPeers} from "../services/peerList_api";
 import {queryNetworks} from "../services/network_api";
 import { routerRedux } from 'dva/router';
+import {stringify} from "qs";
 export default {
     namespace: 'InstantChainCode',
 
@@ -55,6 +56,22 @@ export default {
             yield put(
                 routerRedux.push({
                     pathname: 'ChainCodeList',
+                })
+            );
+        },
+
+        *upgrade({ payload, callback }, { call, put }) {
+            const response = yield call(upgradeCC, payload);
+            console.log("id:",payload);
+            if (`${response.success}`=== '200') {
+                message.success('升级链码成功!');
+            }
+            yield put(
+                routerRedux.push({
+                    pathname: 'ChannelDetail',
+                    search: stringify({
+                        id: payload.upgrade.channel_id,
+                    })
                 })
             );
         },

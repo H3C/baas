@@ -13,7 +13,7 @@ import { getRoutes } from "../utils/utils";
 
 const copyright = (
   <Fragment>
-    Copyright <Icon type="copyright" /> Hyperledger Cello
+    Copyright <Icon type="copyright" /> H3C Research
   </Fragment>
 );
 
@@ -21,9 +21,9 @@ class UserLayout extends React.PureComponent {
   getPageTitle() {
     const { routerData, location } = this.props;
     const { pathname } = location;
-    let title = "Cello User Dashboard";
+    let title = "Gaea User Dashboard";
     if (routerData[pathname] && routerData[pathname].name) {
-      title = `${routerData[pathname].name} - Cello User Dashboard`;
+      title = `${routerData[pathname].name} - Gaea User Dashboard`;
     }
     return title;
   }
@@ -142,10 +142,10 @@ class UserLayout extends React.PureComponent {
               <div className={styles.header}>
                 <Link to="/">
                   <img alt="logo" className={styles.logo} src={logo} />
-                  <span className={styles.title}>Cello User Dashboard</span>
+                  <span className={styles.title}>Gaea User Dashboard</span>
                 </Link>
               </div>
-              <div className={styles.desc}>Cello Baas System</div>
+              <div className={styles.desc}>Gaea Baas System</div>
             </div>
             <Switch>
               {getRoutes(match.path, routerData).map(item => (

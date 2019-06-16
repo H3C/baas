@@ -22,6 +22,7 @@ class ExplorerService extends Service {
     async getBlockByNumber() {
         const { ctx } = this;
         const channel_id = ctx.params.channel_id;
+        const tPeer = ctx.params.peerName;
         const number = ctx.request.query.number;
         const channelInfo = await ctx.model.Channel.findOne({_id: channel_id});
         const channelName = channelInfo.name;
@@ -31,19 +32,31 @@ class ExplorerService extends Service {
         const networkType = channelInfo.version;
         const blocks = [];
         let lastBlock;
-        let targetPeer = '';
         let network;
 
         try {
-            network = await ctx.service.channel.generateNetwork(channelInfo._id.toString());
+            network = await ctx.service.channel.generateNetwork(channelInfo._id.toString(),networkType);
             await ctx.service.channel.generateNetworkAddPeersV1_1(channelInfo._id.toString(), network, peersForChannel);
 
-            // 找到通道内的节点
-            if (channelInfo.peers_inChannel.length === 0) {
-                throw 'no peer in the channel';
+            // 校验节点是否合法
+            let bCorrect = false;
+            for (let i = 0;i < channelInfo.peers_inChannel.length;i++) {
+                if (channelInfo.peers_inChannel[i].roles.ledgerQuery) {
+                    if (tPeer === channelInfo.peers_inChannel[i].name) {
+                        bCorrect = true;
+                        break;
+                    }
+                }
             }
-            targetPeer = channelInfo.peers_inChannel[0];
-            lastBlock = await ctx.getLastBlock(network, targetPeer, channelName, userName, orgName, networkType);
+            
+            if (!bCorrect) {
+                return {
+                    success: false,
+                    message: 'get last block fail(getBlockByNumber),target peer error ' + tPeer
+                };
+            }
+            console.log('targetPeer', tPeer);
+            lastBlock = await ctx.getLastBlock(network, tPeer, channelName, userName, orgName, networkType);
         } catch (err) {
             console.log(err.message);
 
@@ -59,7 +72,7 @@ class ExplorerService extends Service {
 
             for (let i = lastBlock.height.low - 1; i >= lastBlock.height.low - maxNumber; i--) {
                 const block = {};
-                const currentBlock = await ctx.getBlockInfoByNumber(network, targetPeer, channelName, userName, orgName, i, networkType);
+                const currentBlock = await ctx.getBlockInfoByNumber(network, tPeer, channelName, userName, orgName, i, networkType);
 
                 if (i === lastBlock.height.low - 1) {
                     block.currentBlockHash = lastBlock.currentBlockHash;
@@ -147,6 +160,7 @@ class ExplorerService extends Service {
     async getTransactionForRealtime() {
         const { ctx } = this;
         const channel_id = ctx.params.channel_id;
+        const tPeer = ctx.params.peerName;
         const minutes = ctx.params.minutes;
         const channelInfo = await ctx.model.Channel.findOne({ _id: channel_id });
         const channelName = channelInfo.name;
@@ -157,20 +171,32 @@ class ExplorerService extends Service {
         const now = new Date();
         const startTime = new Date(`${now.getFullYear()}/${now.getMonth() + 1}/${now.getDate()} ${now.getHours()}:${now.getMinutes()}:0`);
         let lastBlock;
-        let targetPeer = '';
         let network;
         startTime.setTime(startTime.getTime() - ( minutes - 1 ) * 60000);
 
         try {
-            network = await ctx.service.channel.generateNetwork(channelInfo._id.toString());
+            network = await ctx.service.channel.generateNetwork(channelInfo._id.toString(),networkType);
             await ctx.service.channel.generateNetworkAddPeersV1_1(channelInfo._id.toString(), network, peersForChannel);
-
-            // 找到通道内的节点
-            if (channelInfo.peers_inChannel.length === 0) {
-                throw 'no peer in the channel';
+    
+            // 校验节点是否合法
+            let bCorrect = false;
+            for (let i = 0;i < channelInfo.peers_inChannel.length;i++) {
+                if (channelInfo.peers_inChannel[i].roles.ledgerQuery) {
+                    if (tPeer === channelInfo.peers_inChannel[i].name) {
+                        bCorrect = true;
+                        break;
+                    }
+                }
             }
-            targetPeer = channelInfo.peers_inChannel[0];
-            lastBlock = await ctx.getLastBlock(network, targetPeer, channelName, userName, orgName, networkType);
+    
+            if (!bCorrect) {
+                return {
+                    success: false,
+                    message: 'get transaction fail(getTransactionForRealtime),target peer error ' + tPeer
+                };
+            }
+            console.log('targetPeer', tPeer);
+            lastBlock = await ctx.getLastBlock(network, tPeer, channelName, userName, orgName, networkType);
         }
         catch (err) {
             console.log(err.message);
@@ -185,7 +211,7 @@ class ExplorerService extends Service {
 
         try {
             for (let i = lastBlock.height.low - 1; i >= 0; i--) {
-                const currentBlock = await ctx.getBlockInfoByNumber(network, targetPeer, channelName, userName, orgName, i, networkType);
+                const currentBlock = await ctx.getBlockInfoByNumber(network, tPeer, channelName, userName, orgName, i, networkType);
                 const txData = currentBlock.data.data;
 
                 for (let j = 0; j < txData.length; j++) {
@@ -246,6 +272,7 @@ class ExplorerService extends Service {
     async getBlockByTime() {
         const { ctx } = this;
         const channel_id = ctx.params.channel_id;
+        const tPeer = ctx.params.peerName;
         const time_begin = ctx.request.query.times_begin;
         const time_end = ctx.request.query.times_end;
         const channelInfo = await ctx.model.Channel.findOne({_id: channel_id});
@@ -256,21 +283,33 @@ class ExplorerService extends Service {
         const networkType = channelInfo.version;
         const blocks = [];
         let lastBlock;
-        let targetPeer = '';
         let network;
         let low = 0 ,hight,mid;
         let h = 0,l = 0;
 
         try {
-            network = await ctx.service.channel.generateNetwork(channelInfo._id.toString());
+            network = await ctx.service.channel.generateNetwork(channelInfo._id.toString(),networkType);
             await ctx.service.channel.generateNetworkAddPeersV1_1(channelInfo._id.toString(), network, peersForChannel);
-
-            // 找到通道内的节点
-            if (channelInfo.peers_inChannel.length === 0) {
-                throw 'no peer in the channel';
+    
+            // 校验节点是否合法
+            let bCorrect = false;
+            for (let i = 0;i < channelInfo.peers_inChannel.length;i++) {
+                if (channelInfo.peers_inChannel[i].roles.ledgerQuery) {
+                    if (tPeer === channelInfo.peers_inChannel[i].name) {
+                        bCorrect = true;
+                        break;
+                    }
+                }
             }
-            targetPeer = channelInfo.peers_inChannel[0];
-            lastBlock = await ctx.getLastBlock(network, targetPeer, channelName, userName, orgName, networkType);
+    
+            if (!bCorrect) {
+                return {
+                    success: false,
+                    message: 'get transaction fail(getTransactionForRealtime),target peer error ' + tPeer
+                };
+            }
+            console.log('targetPeer', tPeer);
+            lastBlock = await ctx.getLastBlock(network, tPeer, channelName, userName, orgName, networkType);
         } catch (err) {
             console.log(err.message);
 
@@ -281,7 +320,7 @@ class ExplorerService extends Service {
         }
         const Height = lastBlock.height.low - 1;
 
-        const heighBlock = await ctx.getBlockInfoByNumber(network, targetPeer, channelName, userName, orgName, Height, networkType);
+        const heighBlock = await ctx.getBlockInfoByNumber(network, tPeer, channelName, userName, orgName, Height, networkType);
         const tx_height = heighBlock.data.data;
         const time_h = new Date(tx_height[0].payload.header.channel_header.timestamp);
         const time_height = time_h.getTime();
@@ -295,7 +334,7 @@ class ExplorerService extends Service {
             h = Height;
         }
 
-        const lowBlock = await ctx.getBlockInfoByNumber(network, targetPeer, channelName, userName, orgName, low, networkType);
+        const lowBlock = await ctx.getBlockInfoByNumber(network, tPeer, channelName, userName, orgName, low, networkType);
         const tx_low = lowBlock.data.data;
         const time_l = new Date(tx_low[0].payload.header.channel_header.timestamp);
         const time_low = time_l.getTime();
@@ -314,7 +353,7 @@ class ExplorerService extends Service {
         else{
             while(low<hight){
                 mid = parseInt((low+hight)/2);
-                const currentBlock = await ctx.getBlockInfoByNumber(network, targetPeer, channelName, userName, orgName, mid, networkType);
+                const currentBlock = await ctx.getBlockInfoByNumber(network, tPeer, channelName, userName, orgName, mid, networkType);
                 const txData = currentBlock.data.data;
                 const times = new Date(txData[0].payload.header.channel_header.timestamp);
                 const time_tmp = times.getTime();
@@ -343,7 +382,7 @@ class ExplorerService extends Service {
         {
             while(low<hight){
                 mid = parseInt((low+hight)/2);
-                const currentBlock = await ctx.getBlockInfoByNumber(network, targetPeer, channelName, userName, orgName, mid, networkType);
+                const currentBlock = await ctx.getBlockInfoByNumber(network, tPeer, channelName, userName, orgName, mid, networkType);
                 const txData = currentBlock.data.data;
                 const times = new Date(txData[0].payload.header.channel_header.timestamp);
                 const time_tmp = times.getTime();
@@ -371,13 +410,13 @@ class ExplorerService extends Service {
 
             for (let i = h; i >= l; i--) {
                 const block = {};
-                const currentBlock = await ctx.getBlockInfoByNumber(network, targetPeer, channelName, userName, orgName, i, networkType);
+                const currentBlock = await ctx.getBlockInfoByNumber(network, tPeer, channelName, userName, orgName, i, networkType);
 
                 if (i == h){
                     if (i == Height){
                         currentBlockHash = lastBlock.currentBlockHash;
                     }else {
-                        const Block_tmp = await ctx.getBlockInfoByNumber(network, targetPeer, channelName, userName, orgName, h + 1, networkType);
+                        const Block_tmp = await ctx.getBlockInfoByNumber(network, tPeer, channelName, userName, orgName, h + 1, networkType);
                         currentBlockHash = Block_tmp.header.previous_hash
                     }
                 }

@@ -56,7 +56,7 @@ def host_query(host_id):
     else:
         error_msg = "host not found with id=" + host_id
         logger.warning(error_msg)
-        return make_fail_resp(error=error_msg, data=r.form)
+        return make_fail_resp(error=error_msg, data=r.form, code=404)
 
 
 @bp_host_api.route('/host', methods=['POST'])
@@ -172,7 +172,7 @@ def host_create():
                                   opObject=opObject,
                                   opResult=opResult,
                                   operator=operator)
-            return make_fail_resp(error=error_msg, data=r.form)
+            return make_fail_resp(error=error_msg, data=r.form, code=400)
 
         logger.debug("name={}, worker_api={},  capacity={},"
                      "fillup={}, schedulable={}, log={}/{}, k8s_param={}".
@@ -209,7 +209,7 @@ def host_create():
                                        operator = operator,
                                   opDetails = opDetails)
 
-            return make_fail_resp(error=error_msg, data=body)
+            return make_fail_resp(error=error_msg, data=body, code=400)
         else:
             host_type = host_type if host_type \
                 else detect_daemon_type(worker_api)
@@ -239,7 +239,7 @@ def host_create():
                               operator=operator,
                               opDetails=opDetails)
 
-        return make_fail_resp(error=error_msg)
+        return make_fail_resp(error=error_msg, data=body, code=500)
     elif result:
         logger.debug("host creation successfully")
         opResult['resDes'] = "OK"
@@ -266,7 +266,7 @@ def host_create():
                               operator=operator,
                               opDetails=opDetails)
 
-        return make_fail_resp(error=error_msg)
+        return make_fail_resp(error=error_msg, data=body, code=500)
 
 
 @bp_host_api.route('/host', methods=['PUT'])
@@ -301,7 +301,7 @@ def host_update():
                               opDetails=opDetails)
 
         return make_fail_resp(error=error_msg,
-                              data=body)
+                              data=body, code=404)
     else:
         id, d = body["id"], {}
         for k in body:
@@ -336,7 +336,7 @@ def host_update():
                                   operator=operator,
                                   opDetails=opDetails)
 
-            return make_fail_resp(error=error_msg)
+            return make_fail_resp(error=error_msg, data=body, code=500)
 
 
 @bp_host_api.route('/host', methods=['PUT', 'DELETE'])
@@ -372,7 +372,7 @@ def host_delete():
                               opResult=opResult,
                               operator=operator)
 
-        return make_fail_resp(error=error_msg, data=r.form)
+        return make_fail_resp(error=error_msg, data=r.form, code=404)
 
     logger.debug("host delete with id={0}".format(host_id))
     if host_handler.delete(id=host_id):
@@ -402,7 +402,7 @@ def host_delete():
                               operator=operator,
                               opDetails=opDetails)
 
-        return make_fail_resp(error=error_msg)
+        return make_fail_resp(error=error_msg, code=500)
 
 
 @bp_host_api.route('/host_op', methods=['POST'])

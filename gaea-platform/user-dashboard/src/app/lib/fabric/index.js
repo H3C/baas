@@ -54,14 +54,26 @@ module.exports = app => {
     }
   }
 
-  async function installChainCode(network, orgName, chainCodeData, chainCodePath, body, networkType = 'fabric-1.1') {
+  async function upgradeChainCode(network, orgName, channelData, chainCodeData, body, userName, peers) {
+    const networkType = channelData.version;
+    switch (networkType) {
+      case 'fabric-1.1':
+          return await app.upgradeChainCodeV1_1(network, orgName, channelData, chainCodeData, body, userName, peers);
+      case 'fabric-1.4':
+      default:
+          return await app.upgradeChainCodeV1_4(network, orgName, channelData, chainCodeData, body, userName, peers);
+    }
+  }
+
+  async function installChainCode(network, orgName, chainCodeData, chainCodePath, body, username,networkType = 'fabric-1.4',) {
     // now only support fabric-1.1
     switch (networkType) {
-      case 'fabric-1.4':
-        return await app.installChainCodeV1_4(network, orgName, chainCodeData, chainCodePath, body);
       case 'fabric-1.1':
+        return await app.installChainCodeV1_1(network, orgName, chainCodeData, chainCodePath, body,username);
+      case 'fabric-1.4':
       default:
-        return await app.installChainCodeV1_1(network, orgName, chainCodeData, chainCodePath, body);
+        return await app.installChainCodeV1_4(network, orgName, chainCodeData, chainCodePath, body,username);
+
     }
   }
 
@@ -237,6 +249,9 @@ module.exports = app => {
             return await app.signUpdateV1_4(network, channelName, org, orgId, username, channeldb, config, newOrgId, newOrgName, signedusers);
     }
   }
+  async function removeOrgFromChannel(network, channelName, OrgName, curOrgId, userName, channeldb, config, targetOrgId, targetOrgName, signedusers, networkType) {
+     return await app.removeOrgFromChannelV1_4(network, channelName, OrgName, curOrgId, userName, channeldb, config, targetOrgId, targetOrgName, signedusers);
+  }
 
 
   app.getChannelNameTest = getChannelNameTest;
@@ -261,10 +276,12 @@ module.exports = app => {
   app.getPeersForChannel = getPeersForChannel;
   app.getPeersForOrg = getPeersForOrg;
   app.instantiateChainCode = instantiateChainCode;
+  app.upgradeChainCode = upgradeChainCode;
   app.installChainCode = installChainCode;
   app.getLastBlock = getLastBlock;
   app.getBlockInfoByNumber = getBlockInfoByNumber;
   app.signUpdate = signUpdate;
+  app.removeOrgFromChannel = removeOrgFromChannel;
 
   // hfc.setLogger(app.logger);
 };

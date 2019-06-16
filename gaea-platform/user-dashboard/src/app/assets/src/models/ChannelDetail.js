@@ -1,4 +1,4 @@
-import {queryChannelPeers,addChannelDetail, removeChannelDetail} from '../services/peerList_api';
+import {queryChannelPeers,addChannelDetail, removeChannelDetail, changeRole} from '../services/peerList_api';
 import {createOrg, queryOrgList} from '../services/orgs_api';
 import {queryNetworks} from "../services/network_api";
 import {queryOneChannel} from "../services/channel_api";
@@ -51,8 +51,19 @@ export default {
             const network12=networkid.substring(0,12);
             const peers=[];
            peerlists.map((item,index) =>{
+               let roles = [];
+               if (item.roles.chaincodeQuery) {
+                   roles.push('chaincodeQuery');
+               }
+               if (item.roles.endorsingPeer) {
+                   roles.push('endorsingPeer');
+               }
+               if (item.roles.ledgerQuery) {
+                   roles.push('ledgerQuery');
+               }
+               
                 peers.push(
-                    Object.assign({},item,{role:intl.formatMessage(messages.endorser),healthyState:intl.formatMessage(messages.healthy)})
+                    Object.assign({},item,{role:roles.join(' ,'),healthyState:intl.formatMessage(messages.healthy)})
                 )
             });
              for(let i=0;i<peerslength;i++){
@@ -94,6 +105,16 @@ export default {
                 payload: ChannelDetail,
             });
         },
+        *changeRole({ payload }, { call, put }) {
+            const response = yield call(changeRole, payload.info);
+            
+            payload.dispatch({
+                type: 'ChannelDetail/fetch',
+                payload:{
+                    id: payload.info.channel_id,
+                },
+            });
+        }
 
     /*    *add({ payload, callback }, { call, put }) {
             const response = yield call(addChannelDetail, payload);

@@ -178,6 +178,10 @@ export default class OrgUserList extends PureComponent {
                 title:  intl.formatMessage(messages.name) ,
                 dataIndex: 'username',
                 width: 120,
+                render: val => (
+                    <Fragment>
+                        <a onClick={() => this.toDetail(val)}>{`${val}`}</a>
+                    </Fragment>),
             },
             {
                 title: intl.formatMessage(messages.role),
@@ -216,7 +220,18 @@ export default class OrgUserList extends PureComponent {
                 ),
             }],
     };
-
+    
+    toDetail = val => {
+        this.props.dispatch(
+            routerRedux.push({
+                pathname: 'UserDetail',
+                search: stringify({
+                    name: val,
+                })
+            
+            })
+        )
+    };
 
     componentDidMount() {
              const { dispatch } = this.props;

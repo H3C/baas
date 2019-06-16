@@ -1,7 +1,7 @@
-import { queryNetworks, removeNetwork, addNetwork, queryNetwork, netAddOrg } from '../services/network_api';
+import { queryNetworks, removeNetwork, addNetwork, queryNetwork, netAddOrg, queryServiceendpoints, queryCpuInfo, queryMemoryInfo, queryNetworkInfo } from '../services/network_api';
 import { routerRedux } from "dva/router";
 import { queryHost, queryHosts } from "../services/host.js";
-import { queryOrgList } from "../services/orgs_api";
+import { queryOrgList, queryOrgByName } from "../services/orgs_api";
 import {Modal} from "antd/lib/index";
 import { defineMessages, IntlProvider } from "react-intl";
 import { getLocale } from "../utils/utils";
@@ -10,6 +10,10 @@ const messages = defineMessages({
     fetchOrgFail: {
         id: 'Network.FetchOrgFail',
         defaultMessage: 'Failed to get organization information',
+    },
+    fetchPeerFail: {
+        id: 'Network.FetchPeerFail',
+        defaultMessage: 'Failed to get node information',
     },
     fetchNetworkFail: {
         id: 'Network.FetchNetworkFail',
@@ -45,6 +49,8 @@ export default {
 
     state: {
         blockchain_networks: [],
+        peerInfo: [],
+        orgInfo: []
     },
 
     effects: {
@@ -142,7 +148,6 @@ export default {
                 };
             }
 
-
             //请求主机信息
             const host = yield call(queryHost, {id: network.blockchain_network.host_id});
 
@@ -166,18 +171,82 @@ export default {
                     title:intl.formatMessage(messages.fetchOrgFail),
                     content: orgs.msg
                 });
+                return ;
             }
-            else {
-                const Orgs = [];
-                const orgsInfor = orgs.organizations;
-                for (const org in orgsInfor){
-                    if (orgsInfor[org].blockchain_network_id === network.blockchain_network.id) {
-                        Orgs.push(orgsInfor[org]);
+
+            //请求节点信息
+            const serviceEndPoint = yield call(queryServiceendpoints, payload.netId);
+    
+            if (typeof(serviceEndPoint.service_endpoints) === 'undefined'){
+                networkDetail.orderer_orgs = [];
+                networkDetail.peer_orgs = [];
+                Modal.warning({
+                    title:intl.formatMessage(messages.fetchPeerFail),
+                    content: orgs.msg
+                });
+                return ;
+            }
+            
+            //整合数据，筛选加入到当前网络的组织
+            const Orgs = [];
+            const orgsInfor = orgs.organizations;
+            for (const org in orgsInfor){
+                if (orgsInfor[org].blockchain_network_id === network.blockchain_network.id) {
+                    Orgs.push(
+                        {
+                            name: orgsInfor[org].name,
+                            type: orgsInfor[org].type,
+                            id: orgsInfor[org].id
+                        }
+                    );
+                }
+            }
+            
+            //将节点信息合入组织列表
+            const peerInfo = serviceEndPoint.service_endpoints;
+            for (let i = 0;i < Orgs.length; i++) {
+                const orgName = Orgs[i].name;
+                
+                if (Orgs[i].type === 'peer') {
+                    Orgs[i].peer = [];
+                    Orgs[i].ca = [];
+                    Orgs[i].couchdb = [];
+                }
+                else {
+                    Orgs[i].orderer = [];
+                }
+                
+                for (let j = 0;j< peerInfo.length;j++) {
+                    if (orgName === peerInfo[j].org_name) {
+                        if (peerInfo[j].service_type === 'peer' && peerInfo[j].peer_port_proto === 'grpc') {
+                            Orgs[i].peer.push({
+                                name: peerInfo[j].service_name,
+                                ip: peerInfo[j].service_ip + ':' + peerInfo[j].service_port
+                            })
+                        }
+                        else if (peerInfo[j].service_type === 'ca') {
+                            Orgs[i].ca.push({
+                                name: peerInfo[j].service_name,
+                                ip: peerInfo[j].service_ip + ':' + peerInfo[j].service_port
+                            })
+                        }
+                        else if (peerInfo[j].service_type === 'couchdb') {
+                            Orgs[i].couchdb.push({
+                                name: peerInfo[j].service_name,
+                                ip: peerInfo[j].service_ip + ':' + peerInfo[j].service_port
+                            })
+                        }
+                        else if (peerInfo[j].service_type === 'orderer') {
+                            Orgs[i].orderer.push({
+                                name: peerInfo[j].service_name,
+                                ip: peerInfo[j].service_ip + ':' + peerInfo[j].service_port
+                            })
+                        }
                     }
                 }
-
-                networkDetail.list = Orgs;
             }
+
+            networkDetail.list = Orgs;
 
             yield put({
                 type: 'save',
@@ -212,6 +281,97 @@ export default {
             );
             if (callback) callback();
         },
+        *fetchPeerInfo({ payload, callback }, { call, put }) {
+            const cpuInfo = yield call(queryCpuInfo, payload);
+            const cpuForPeer = {};
+            let cpuMax = 0;
+            cpuForPeer.limit = cpuInfo.node_cpuinfo.limited_cpu_usage;
+            cpuForPeer.data = [];
+            for (let i = 0;i < cpuInfo.node_cpuinfo.instant_cpu_usages.length;i++) {
+                const data = {
+                    time: new Date(cpuInfo.node_cpuinfo.instant_cpu_usages[i][0] * 1000),
+                    used: Math.round(Number(cpuInfo.node_cpuinfo.instant_cpu_usages[i][1]) * 10000) / 10000,
+                    type: 'CPU'
+                };
+                if (data.used > cpuMax) {
+                    cpuMax = data.used;
+                }
+                
+                cpuForPeer.data.push(data);
+            }
+            //cpuMax += 0.005;
+    
+            const memInfo = yield call(queryMemoryInfo, payload);
+            const memForPeer = {};
+            let memMax = 0;
+            //最大内存（M）
+            memForPeer.limit = (memInfo.node_meminfo.limited_mem_usage / 1024 / 1024).toFixed(2);
+            memForPeer.data = [];
+            for (let i = 0;i < memInfo.node_meminfo.instant_mem_usages.length;i++) {
+                const memUsed = Number(memInfo.node_meminfo.instant_mem_usages[i][1]) / 1024 / 1024;
+                const data = {
+                    time: new Date(memInfo.node_meminfo.instant_mem_usages[i][0] * 1000),
+                    used: Math.round(memUsed * 100) / 100,
+                    type: 'Memory'
+                };
+    
+                if (data.used > memMax) {
+                    memMax = data.used;
+                }
+                memForPeer.data.push(data);
+            }
+            //memMax += 20;
+    
+            const netInfo = yield call(queryNetworkInfo, payload);
+            const netForPeer = {};
+            netForPeer.data = [];
+            let netMax = 0;
+            for (let i = 0;i <  netInfo.node_netinfo.instant_received_bytes.length;i++) {
+                const data = {
+                    time: new Date(netInfo.node_netinfo.instant_received_bytes[i][0] * 1000),
+                    used: Math.round((Number(netInfo.node_netinfo.instant_received_bytes[i][1]) / 1024) * 100) / 100,
+                    type: 'Network'
+                };
+                
+                if (data.used > netMax) {
+                    netMax = data.used;
+                }
+    
+                netForPeer.data.push(data);
+            }
+            //netMax += 10;
+    
+            yield put({
+                type: 'saveForPeer',
+                payload: {
+                    name: payload.peerName,
+                    ip: payload.ip,
+                    cpuForPeer,
+                    memForPeer,
+                    netForPeer,
+                    netMax,
+                    memMax,
+                    cpuMax
+                }
+            })
+        },
+        *fetchOrgByName({ payload, callback }, { call, put }) {
+            const org = yield call(queryOrgByName, payload);
+            const infor = {...org.organizations[0]};
+            
+            infor.country = infor.ca.country;
+            infor.province = infor.ca.province;
+            infor.locality = infor.ca.locality;
+            
+            delete infor.ca;
+            
+            yield put({
+                type: 'saveOrgInfo',
+                payload: {
+                    orgInfo: infor
+                }
+            })
+        }
     },
 
     reducers: {
@@ -221,5 +381,23 @@ export default {
                 blockchain_networks: action.payload,
             };
         },
+        saveForPeer(state, action) {
+            return {
+                ...state,
+                peerInfo: action.payload
+            }
+        },
+        saveOrgInfo(state, action) {
+            return {
+                ...state,
+                orgInfo: action.payload.orgInfo
+            }
+        },
+        clearPeerInfo(state, action) {
+            return {
+                ...state,
+                peerInfo: []
+            }
+        }
     },
 };

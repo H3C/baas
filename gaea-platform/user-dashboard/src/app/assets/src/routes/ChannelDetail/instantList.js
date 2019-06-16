@@ -15,6 +15,8 @@ import StandardFormRow from '../../components/StandardFormRow';
 import styles from './ChannelDetail.less';
 import { defineMessages, IntlProvider } from "react-intl";
 import { getLocale } from "../../utils/utils";
+import {Divider, Dropdown, Icon, Menu} from "antd/lib/index";
+import {stringify} from "qs";
 
 const messages = defineMessages({
     pageTitle: {
@@ -44,6 +46,10 @@ const messages = defineMessages({
     colMD5: {
         id: 'Channel.Detail.ChainCode.colMD5',
         defaultMessage: 'MD5',
+    },
+    colUpgrade: {
+        id: 'Channel.Detail.ChainCode.colUpgrade',
+        defaultMessage: 'Upgrade',
     },
     labelOperation: {
         id: 'Channel.Detail.ChainCode.labelOperation',
@@ -185,6 +191,19 @@ export default class Chaincode extends Component {
         this.props.form.resetFields();
     };
 
+  onChainCodeUpgrade =(row) => {
+      const { dispatch,channelId } = this.props;
+      this.props.dispatch(
+          routerRedux.push({
+              pathname: 'InstantiateForUpgrade',
+              search: stringify({
+                  id: row.id,
+                  channnelId: channelId,
+              })
+           })
+      )
+  };
+
   render() {
     const {
       form: { getFieldDecorator },
@@ -193,6 +212,7 @@ export default class Chaincode extends Component {
       loading,
       submitting,
     } = this.props;
+
 
     const {
       selectedRows,
@@ -240,6 +260,16 @@ export default class Chaincode extends Component {
         title: intl.formatMessage(messages.colMD5),
         dataIndex: 'md5',
         key: 'md5',
+      },
+      {
+        title: "",
+        render:  (row) => (
+            <Fragment>
+              {window.localStorage["cello-authority"] === "operator" ? "" :
+                  <a size='small' type="primary" onClick={() => this.onChainCodeUpgrade(row)}>{intl.formatMessage(messages.colUpgrade)}</a>
+              }
+            </Fragment>
+            ),
       },
     ];
 
@@ -309,7 +339,7 @@ export default class Chaincode extends Component {
                                     rules: [
                                         {
                                             required: true,
-                                            pattern:  new RegExp("^[A-Za-z0-9]+[,A-Za-z0-9-]*$"),
+                                            /*pattern:  new RegExp("^[A-Za-z0-9]+[,A-Za-z0-9-]*$"),*/
                                             message: intl.formatMessage(messages.labelParameterWarning),
                                         },
                                     ],

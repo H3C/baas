@@ -23,14 +23,15 @@ class K8sNetworkOperation():
         self.corev1client = client.CoreV1Api()
         self.appv1beta1client = client.AppsV1beta1Api()
         self.support_namespace = ['Deployment', 'Service',
-                                  'PersistentVolumeClaim', 'StatefulSet']
+                                  'PersistentVolumeClaim', 'StatefulSet', 'ConfigMap']
         self.create_func_dict = {
             "Deployment": self._create_deployment,
             "Service": self._create_service,
             "PersistentVolume": self._create_persistent_volume,
             "PersistentVolumeClaim": self._create_persistent_volume_claim,
             "Namespace": self._create_namespace,
-            "StatefulSet": self._create_statefulset
+            "StatefulSet": self._create_statefulset,
+            "ConfigMap": self._create_configmap
         }
         self.delete_func_dict = {
             "Deployment": self._delete_deployment,
@@ -38,7 +39,8 @@ class K8sNetworkOperation():
             "PersistentVolume": self._delete_persistent_volume,
             "PersistentVolumeClaim": self._delete_persistent_volume_claim,
             "Namespace": self._delete_namespace,
-            "StatefulSet": self._delete_statefulset
+            "StatefulSet": self._delete_statefulset,
+            "ConfigMap": self._delete_configmap
         }
 
     def get_one_availabe_node_ip(self):
@@ -52,6 +54,17 @@ class K8sNetworkOperation():
                                 return address.address
 
             return None
+        except Exception as e:
+            logger.error("Kubernetes get node list error msg: {}".format(e))
+            return None
+
+    def list_namespaced_pods(self, namespace, label_selector=None):
+        try:
+            if label_selector is None:
+                pods = self.corev1client.list_namespaced_pod(namespace=namespace, watch=False)
+            else:
+                pods = self.corev1client.list_namespaced_pod(namespace=namespace, label_selector=label_selector, watch=False)
+            return pods
         except Exception as e:
             logger.error("Kubernetes get node list error msg: {}".format(e))
             return None
@@ -100,6 +113,17 @@ class K8sNetworkOperation():
     def _create_statefulset(self, namespace, data, **kwargs):
         try:
             resp = self.appv1beta1client.create_namespaced_stateful_set(namespace,
+                                                                    data,
+                                                                    **kwargs)
+            logger.debug(resp)
+        except ApiException as e:
+            logger.error(e)
+        except Exception as e:
+            logger.error(e)
+
+    def _create_configmap(self, namespace, data, **kwargs):
+        try:
+            resp = self.corev1client.create_namespaced_config_map(namespace,
                                                                     data,
                                                                     **kwargs)
             logger.debug(resp)
@@ -172,6 +196,16 @@ class K8sNetworkOperation():
         except Exception as e:
             logger.error(e)
 
+    def _delete_configmap(self, namespace, data, **kwargs):
+        try:
+            resp = self.corev1client.delete_namespaced_config_map(namespace,
+                                                                  data,
+                                                                  **kwargs)
+            logger.debug(resp)
+        except ApiException as e:
+            logger.error(e)
+        except Exception as e:
+            logger.error(e)
 
     def _delete_persistent_volume_claim(self, name, namespace, data, **kwargs):
         try:

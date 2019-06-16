@@ -461,11 +461,11 @@ class CreateHost extends PureComponent {
                 initialValue: action === 'create' ? '' : currentHost.worker_api,
                 rules: [
                   {
-                    required: true,
+                    required: action === 'create',
                     message: intl.formatMessage(messages.validate.required.daemonUrl),
                   },
                   {
-                    validator: this.validateWorkerApi,
+                    validator: action === 'create' ? this.validateWorkerApi : '',
                   },
                 ],
               })(<Input disabled={action === 'update'} placeholder="192.168.0.1:2375" />)}
@@ -475,7 +475,7 @@ class CreateHost extends PureComponent {
                 initialValue: action === 'create' ? hostTypeValues[0] : currentHost.type,
                 rules: [
                   {
-                    required: true,
+                    required: action === 'create',
                     message: intl.formatMessage(messages.validate.required.hostType),
                   },
                 ],
@@ -522,7 +522,7 @@ class CreateHost extends PureComponent {
                     initialValue: k8sCredType,
                     rules: [
                       {
-                        required: true,
+                        required: action === 'create',
                         message: intl.formatMessage(messages.validate.required.credentialType),
                       },
                     ],
@@ -541,7 +541,7 @@ class CreateHost extends PureComponent {
                     {getFieldDecorator('k8s_cert', {
                       rules: [
                         {
-                          required: true,
+                          required: action === 'create',
                           message: intl.formatMessage(
                             messages.validate.required.certificateContent
                           ),
@@ -556,7 +556,7 @@ class CreateHost extends PureComponent {
                     {getFieldDecorator('k8s_key', {
                      rules: [
                        {
-                         required: true,
+                         required: action === 'create',
                          message: intl.formatMessage(
                            messages.validate.required.certificateKey
                          ),
@@ -624,11 +624,11 @@ class CreateHost extends PureComponent {
                     initialValue: action === 'create' ? '' : currentHost.k8s_param.K8SNfsServer,
                     rules: [
                       {
-                        required: true,
+                        required: action === 'create',
                         message: intl.formatMessage(messages.validate.required.NFSServer),
                       },
                       {
-                        validator: this.validateNfsServer,
+                        validator: action === 'create' ? this.validateNfsServer : '',
                       },
                     ],
                   })(<Input placeholder={action === 'create' ? "192.168.0.1" : ''} disabled={action !== 'create'} />)}

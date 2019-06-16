@@ -16,7 +16,7 @@ spec:
        name: ca
     spec:
      containers:
-       - name: ca
+       - name: $podName
          image: hyperledger/fabric-ca:$fabVersion
          env:
          - name: FABRIC_CA_HOME
@@ -48,6 +48,8 @@ spec:
             subPath: $caDataPath
           - mountPath: /etc/localtime
             name: host-time
+          - mountPath: /etc/timezone
+            name: time-zone
      volumes:
        - name: certificate
          persistentVolumeClaim:
@@ -58,7 +60,9 @@ spec:
        - name: host-time
          hostPath:
             path: /etc/localtime
-
+       - name: time-zone
+         hostPath:
+            path: /etc/timezone
 ---
 apiVersion: v1
 kind: Service

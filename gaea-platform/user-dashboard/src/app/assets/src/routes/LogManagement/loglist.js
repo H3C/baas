@@ -18,6 +18,10 @@ const messages = defineMessages({
         id: 'Log.index',
         defaultMessage: 'Number',
     },
+    colOpSource: {
+        id: 'Log.OpSource',
+        defaultMessage: 'Operation source ip',
+    },
     colOpObject: {
         id: 'Log.OptObject',
         defaultMessage: 'Operation Object',
@@ -161,7 +165,6 @@ const Detail = ( {keyVal, content} ) => (
         </Col>
         <Col span={16}>
             <p>{content}</p>
-            <div>{console.log('keyVal', keyVal)}</div>
         </Col>
     </Row>
 );
@@ -380,6 +383,7 @@ export default class LogList extends PureComponent {
             content:(
                 <div>
                     <Detail keyVal = {intl.formatMessage(messages.colOpObject)} content = {row.opObject}/>
+                    <Detail keyVal = {intl.formatMessage(messages.colOpSource)} content = {row.opSource}/>
                     <Detail keyVal = {intl.formatMessage(messages.colOpName)} content = {row.opName}/>
                     <Detail keyVal = {intl.formatMessage(messages.colOperator)} content = {row.operator}/>
                     <Detail keyVal = {intl.formatMessage(messages.colDate)} content = {moment(row.opDate).format('YYYY-MM-DD HH:mm:ss')}/>

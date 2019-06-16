@@ -34,6 +34,7 @@ class ServiceEndpoint(Document):
     service_name = StringField(default="")
     service_type = StringField(choices=FABRIC_SERVICE_TYPE)
     peer_port_proto = StringField(default="")
+    org_name = StringField(default="")
     network = ReferenceField(BlockchainNetwork, reverse_delete_rule=CASCADE)
 
 class ServiceEndpointSchema(Schema):
@@ -43,6 +44,7 @@ class ServiceEndpointSchema(Schema):
     service_name = fields.String()
     service_type = fields.String()
     peer_port_proto = fields.String()
+    org_name = fields.String()
 
 class BlockchainNetworkSchema(Schema):
     id = fields.String()

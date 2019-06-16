@@ -69,6 +69,8 @@ class ListUser(Resource):
         # offset = (page - 1) * per_page
 
         user_count = UserModel.objects.all().count()
+
+
         users = \
             UserModel.objects.order_by(sort_str)
 

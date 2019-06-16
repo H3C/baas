@@ -10,6 +10,7 @@ export default {
 
     state: {
         chaincodes: [],
+        chaincodesMatch: [],
     },
 
     effects: {
@@ -61,6 +62,24 @@ export default {
             });
         },
 
+        *fetchCCUpVer({ payload}, { call, put }) {
+            const id=payload.id;
+            const responseOne = yield call(queryOneChainCode, id);    // payload ==chaincode_id
+            const responseAll = yield call(queryChainCode, payload);
+            const chainCodeResponse = responseAll.chaincodes;   //链码列表
+            const chaincodeOne = responseOne.chaincode;
+            const chaincodesMatch = [];
+            for(var item in chainCodeResponse) {
+                if(chainCodeResponse[item].name === chaincodeOne.name && chainCodeResponse[item].version != chaincodeOne.version){
+                    chaincodesMatch.push(chainCodeResponse[item]);
+                }
+            }
+            yield put({
+                type: 'saveM',
+                payload: chaincodesMatch,
+            });
+        },
+
         *create({ payload}, { call, put }) {
             const response = yield call(createRule, payload);
             if (response && response.message === 'Ok') {
@@ -98,6 +117,12 @@ export default {
             return {
                 ...state,
                 chaincodes: action.payload,
+            };
+        },
+        saveM(state, action) {
+            return {
+                ...state,
+                chaincodesMatch: action.payload,
             };
         },
     },

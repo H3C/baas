@@ -23,7 +23,7 @@ const messages = defineMessages({
         },
         pageDescription: {
             id: 'Guide.Description',
-            defaultMessage: '使用向导帮助您使用Cello系统开展区块链业务。',
+            defaultMessage: '使用向导帮助您使用Gaea系统开展区块链业务。',
         },
         title: {
             id: 'Guide.ContentTitle',

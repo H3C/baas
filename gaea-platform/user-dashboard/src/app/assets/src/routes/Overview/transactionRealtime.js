@@ -29,6 +29,10 @@ const messages = defineMessages({
         id: 'Overview.Txrealtime.Select',
         defaultMessage: 'select channel',
     },
+    peer:{
+        id: 'Overview.Txlist.Peer',
+        defaultMessage: 'Select Node',
+    },
 });
 
 const currentLocale = getLocale();
@@ -49,32 +53,36 @@ export default class OrgList extends PureComponent {
         super();
         this.state = {
             channel: '',
-            maxCount: 20
+            channelSel: '',
+            peerName: '',
+            minutes: 60
         }
     }
 
     componentDidMount() {
         const {
-            channelList,
             txForRealtime,
         } = this.props;
 
-        if (txForRealtime.length > 0) {
-            channelList.map( channel => {
-                if (txForRealtime[0].type === channel.name) {
-                    this.setState({
-                        channel: channel.id
-                    })
-                }
-            })
-        }
+        const channelId = typeof(txForRealtime.channel_id) === 'undefined' ? '' : txForRealtime.channel_id;
+        const peerName = typeof(txForRealtime.peerName) === 'undefined' ? '' : txForRealtime.peerName;
+        
+        this.setState({
+            channel: channelId,
+            channelSel: channelId,
+            peerName: peerName
+        });
+        
         const loop = setInterval(() => {
-            if (this.state.channel !== '') {
+            if (this.state.channel !== ''
+                && this.state.peerName !== ''
+            ) {
                 this.props.dispatch({
                     type: 'overview/fetchTransactionRealtime',
                     payload: {
                         channel_id: this.state.channel,
-                        minutes: 60
+                        peerName: this.state.peerName,
+                        minutes: this.state.minutes
                     }
                 });
             }
@@ -89,14 +97,23 @@ export default class OrgList extends PureComponent {
     }
 
     setChannel = (value)=> {
+        this.props.form.setFieldsValue({peerName: ''});
         this.setState({
-            channel: value.toString()
+            channelSel: value.toString(),
+        });
+    };
+    
+    onPeerChange = (peer) => {
+        this.setState({
+            peerName: peer,
+            channel: this.state.channelSel
         });
         this.props.dispatch({
             type: 'overview/fetchTransactionRealtime',
             payload: {
-                channel_id: value,
-                minutes: 60
+                channel_id: this.state.channelSel,
+                peerName: peer,
+                minutes: this.state.minutes
             }
         });
     };
@@ -114,8 +131,25 @@ export default class OrgList extends PureComponent {
                 <span>{channel.name}</span>
             </Option>
         ));
-
-        const data = txForRealtime;
+    
+        const data = Array.isArray(txForRealtime.txList) ? txForRealtime.txList : [];
+        const channelId = this.state.channelSel;
+        const peerName = typeof(txForRealtime.peerName) === 'undefined' ? '' : txForRealtime.peerName;
+        const ChannelObj = channelInfo.filter(channel => channel.id === channelId);
+        const peersInChannel = ChannelObj.length > 0 ? ChannelObj[0].peers : [];
+        let peerVal = '';
+        const peerOptions = peersInChannel.map(peer => {
+            if (peer.roles.ledgerQuery) {
+                if (peerName === peer.name) {
+                    peerVal = peerName;
+                }
+                return (
+                    <Option key={peer.name} value={peer.name}>
+                        <span>{peer.name}</span>
+                    </Option>
+                )
+            }
+        });
         
         let max = 10;
         
@@ -124,8 +158,6 @@ export default class OrgList extends PureComponent {
                 max = tx.count
             }
         });
-
-        max += 5;
 
         const formItemLayout = {
             labelCol: {
@@ -164,16 +196,30 @@ export default class OrgList extends PureComponent {
                 >
                     <FormItem {...formItemLayout} label={ intl.formatMessage(messages.selChannel) }>
                         {getFieldDecorator('channel', {
-                            initialValue: data.length > 0 ? data[0].type : ''
+                            initialValue: channelId
                         })(
                             <Select
                                 placeholder = { intl.formatMessage(messages.select) }
                                 style={{maxWidth: 515, width: '100%'}}
-                                onSelect = {(value)=>this.setChannel(value)}
-                                value = {this.state.channel.toString()}
+                                onChange = {(value)=>this.setChannel(value)}
                             >
                                 {channelOptions}
                             </Select >
+                        )}
+                    </FormItem>
+                    <FormItem {...formItemLayout} label={ intl.formatMessage(messages.peer) }>
+                        {getFieldDecorator('peerName',
+                            {
+                                initialValue: peerVal,
+                            })
+                        (
+                            <Select
+                                placeholder={ intl.formatMessage(messages.select) }
+                                style={{ width: '100%' }}
+                                onChange={value => this.onPeerChange(value)}
+                            >
+                                {peerOptions}
+                            </Select>
                         )}
                     </FormItem>
                     <Chart

@@ -84,11 +84,9 @@ export default {
             const ClLength=cls.channels.length;
             const myUser=window.username;
             let mycl=0;
-
-
-
-            let  nocl=0;
-            let  peercl=0;
+            let nocl=0;
+            let peercl=0;
+            
             if(ClLength>0){
                 for(let i=0;i<ClLength;i++){
                     const clCreator=cls.channels[i].creator_name;
@@ -101,10 +99,12 @@ export default {
                     const channelID={id:channelId};
                     const channelPeers = yield call(queryChannelPeers,channelID);
                     if (channelPeers.peers.length===0){
-                            nocl++;
+                        nocl++;
+                        cls.channels[i].peers = [];
                     }
                     else {
                         peercl++;
+                        cls.channels[i].peers = channelPeers.peers;
                     }
                 }
             }
@@ -229,19 +229,23 @@ export default {
                 return;
             }
 
-            const res = [];
+            const txList = [];
             for (let i = 0;i < txs.transactions.length;i++) {
                 const time = new Date(txs.transactions[i].time);
-
-                res.push({
+    
+                txList.push({
                     time: time.getTime(),
                     count: txs.transactions[i].count,
-                    type: txs.channelName
+                    type: `${txs.channelName} | ${payload.peerName}`
                 })
             }
             yield put({
                 type: 'savetx',
-                payload: res,
+                payload: {
+                    txList: txList,
+                    peerName: payload.peerName,
+                    channel_id: payload.channel_id
+                },
             });
         },
         *fetchBlockByNumber({ payload }, {call, put}) {
@@ -267,6 +271,7 @@ export default {
             blockInfo.channel = payload.channel;
             blockInfo.number = payload.blockNum;
             blockInfo.blocks = blocks;
+            blockInfo.peerName = payload.peerName;
 
             yield put({
                 type: 'saveblocks',
@@ -294,6 +299,7 @@ export default {
                 res.channel = payload.channel;
                 res.type = payload.type;
                 res.number = payload.blockNum;
+                res.peerName = payload.peerName;
             }
             else {
                 const blocks = yield call(queryBlockByTime, payload);
@@ -313,6 +319,7 @@ export default {
                 res.type = payload.type;
                 res.startTime = new Date(payload.startTime);
                 res.endTime = new Date(payload.endTime);
+                res.peerName = payload.peerName;
             }
             res.commit = payload.commit;
 

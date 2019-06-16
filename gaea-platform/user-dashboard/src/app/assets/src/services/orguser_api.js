@@ -7,6 +7,18 @@ export async function queryOrgUser() {
     return request('/v2/orgusers', {method:'GET'});
 }
 
+export async function queryOneUser(params) {
+    return request(`/v2/orgusers/${params.username}`, {method:'GET'});
+}
+
+export async function updateUserInfo(params) {
+    return request(`/v2/orguserinfor`, {
+        method:'PUT',
+        body: {
+            information: params.information
+        }
+    });
+}
 
 export async function createOrgUser(params) {
 

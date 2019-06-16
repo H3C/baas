@@ -92,13 +92,15 @@ module.exports = app => {
       });
   }
 
-  async function registerUser(registerUser, caHost, caPort, mspId, name, role, password, userAffilication, caStorePath, caDockerStorePath, attributes) {
+  async function registerUser(registerUser, ca, mspId, name, role, userAffilication, caStorePath, caDockerStorePath, attributes) {
     const fabric_client = new Fabric_Client();
     let fabric_ca_client = null;
     let admin_user = null;
     let member_user = null;
     let result = false;
 
+    const caHost = ca.caHost;
+    const caPort = ca.caPort;
     console.log(' Store path:' + caStorePath);
 
     // create the key value store as defined in the fabric-client/config/default.json 'key-value-store' setting
@@ -606,6 +608,50 @@ module.exports = app => {
     res.success = true;
     return res;
   }
+    async function generateCRL(registerUser, request, caHost, caPort, caStorePath, caDockerStorePath) {
+        const fabric_client = new Fabric_Client();
+        let fabric_ca_client = null;
+        let res = null;
+        
+        await Fabric_Client.newDefaultKeyValueStore({ path: caStorePath,
+        }).then((state_store) => {
+            // assign the store to the fabric client
+            fabric_client.setStateStore(state_store);
+            const crypto_suite = Fabric_Client.newCryptoSuite();
+            // use the same location for the state store (where the users' certificate are kept)
+            // and the crypto store (where the users' keys are kept)
+            const crypto_store = Fabric_Client.newCryptoKeyStore({ path: caStorePath });
+            crypto_suite.setCryptoKeyStore(crypto_store);
+            fabric_client.setCryptoSuite(crypto_suite);
+            
+            const crypto_suite_ca = Fabric_Client.newCryptoSuite();
+            const crypto_store_ca = Fabric_Client.newCryptoKeyStore({ path: caDockerStorePath });
+            crypto_suite_ca.setCryptoKeyStore(crypto_store_ca);
+            
+            const	tlsOptions = {
+                trustedRoots: [],
+                verify: false,
+            };
+            // be sure to change the http to https when the CA is running TLS enabled
+            fabric_ca_client = new FabricCAServices(`https://${caHost}:${caPort}`, tlsOptions, '', crypto_suite_ca);
+            
+            
+            // first check to see if the admin is already enrolled
+            return fabric_client.getUserContext(registerUser, true);
+        }).then((user_from_store) => {
+            if (user_from_store && user_from_store.isEnrolled()) {
+                console.log('Successfully loaded admin from persistence');
+            } else {
+                console.log('Failed to get ' + registerUser + ' run enrollAdmin.js');
+                throw new Error('Failed to get admin.... run enrollAdmin.js');
+            }
+            
+            res = fabric_ca_client.generateCRL(request, user_from_store);
+        });
+        
+        console.log('success opt');
+        return res;
+    }
 
   app.enrollAdminV1_1 = enrollAdmin;
   app.registerUserV1_1 = registerUser;
@@ -616,5 +662,5 @@ module.exports = app => {
   app.getUserAffiliationsV1_1 = getUserAffiliations;
   app.delUserAffiliationsV1_1 = delUserAffiliations;
   app.updateUserAffiliationV1_1 = updateUserAffiliation;
-
+  app.generateCRLV1_1 = generateCRL;
 }

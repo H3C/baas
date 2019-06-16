@@ -70,6 +70,8 @@ spec:
            name: run
          - mountPath: /etc/localtime
            name: host-time
+         - mountPath: /etc/timezone
+           name: time-zone
       volumes:
        - name: certificate
          persistentVolumeClaim:
@@ -83,6 +85,9 @@ spec:
        - name: host-time
          hostPath:
             path: /etc/localtime
+       - name: time-zone
+         hostPath:
+            path: /etc/timezone
 ---
 apiVersion: v1
 kind: Service

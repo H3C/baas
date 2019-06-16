@@ -78,6 +78,12 @@ const menuData = [
         },
         {
             name: intl.formatMessage(messages.menus.channel),
+            path: 'InstantiateForUpgrade',
+            hideInBreadcrumb: true,
+            hideInMenu: true,
+        },
+        {
+            name: intl.formatMessage(messages.menus.channel),
             path: 'AddPeer',
             hideInBreadcrumb: true,
             hideInMenu: true,
@@ -88,6 +94,12 @@ const menuData = [
             hideInBreadcrumb: true,
             hideInMenu: true,
         },
+        {
+            name: intl.formatMessage(messages.menus.channel),
+            path: 'LeaveChannel',
+            hideInBreadcrumb: true,
+            hideInMenu: true,
+        }
       ],
     },
 
@@ -142,6 +154,12 @@ const menuData = [
             {
                 name: intl.formatMessage(messages.menus.user),
                 path: 'NewOrgUser',
+                hideInBreadcrumb: true,
+                hideInMenu: true,
+            },
+            {
+                name: intl.formatMessage(messages.menus.user),
+                path: 'UserDetail',
                 hideInBreadcrumb: true,
                 hideInMenu: true,
             },

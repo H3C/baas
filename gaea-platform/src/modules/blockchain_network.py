@@ -240,7 +240,7 @@ class BlockchainNetworkHandler(object):
             #     service_urls = self.gen_service_urls(net_id)
 
             network.update(set__status='running')
-            host.update(add_to_set__clusters=[net_id])
+            # host.update(add_to_set__clusters=[net_id])
             for peer_org in network_config['peer_org_dicts']:
                 org_obj = modelv2.Organization.objects.get(id=peer_org['id'])
                 org_obj.update(set__network=network)
@@ -256,7 +256,7 @@ class BlockchainNetworkHandler(object):
     def create(self, id, name, description, fabric_version,
             orderer_orgs, peer_orgs, host, consensus_type, create_ts):
 
-        couchdb_enabled = False
+        couchdb_enabled = True
 
         network = modelv2.BlockchainNetwork(id=id,
                                             name=name,
@@ -365,6 +365,7 @@ class BlockchainNetworkHandler(object):
                                 peer_num * PEER_NODE_HOSTPORT_NUM + \
                                 peer_num * COUCHDB_NODE_HOSTPORT_NUM + \
                                 orderer_num * ORDERER_NODE_HOSTPORT_NUM
+
         elif couchdb_enabled is True: # host_type is kubernetes
             request_host_port_num = peer_org_num * CA_NODE_HOSTPORT_NUM + \
                                     peer_num * PEER_NODE_HOSTPORT_NUM + \
@@ -393,6 +394,8 @@ class BlockchainNetworkHandler(object):
     def addorgtonetwork(self, id, peer_orgs):
         ins = modelv2.BlockchainNetwork.objects.get(id=id)
 
+        couchdb_enabled = True
+
         host = ins.host
         consensus_type = ins.consensus_type
         fabric_version = ins.fabric_version
@@ -401,7 +404,6 @@ class BlockchainNetworkHandler(object):
         orderer_org_dicts = []
         peer_orgs_temp = ins.peer_orgs
 
-        couchdb_enabled = False
 
         for org_id in peer_orgs:
             peer_org_dict = org_handler().schema(org_handler().get_by_id(org_id))
@@ -489,8 +491,7 @@ class BlockchainNetworkHandler(object):
             logger.error(error_msg)
             raise Exception(error_msg)
 
-        # create persistent volume path for peer and orderer node
-        # TODO : code here
+
 
         t = Thread(target=self._update_network, args=(network_config, request_host_ports))
         t.start()
@@ -560,6 +561,38 @@ class BlockchainNetworkHandler(object):
         logger.info("filter data {}".format(filter_data))
         networks = modelv2.BlockchainNetwork.objects(__raw__=filter_data)
         return self._schema(networks, many=True)
+
+    def get_node_cpuinfo(self, blockchain_network_id, node_name, filters):
+        network = self.get_by_id(blockchain_network_id)
+        host = network.host
+        node_object = modelv2.ServiceEndpoint.objects(network=network, service_name=node_name)[0]
+        result = self.host_agents[host.type].get_node_cpuinfo(network, node_object, filters)
+
+        return result
+
+    def get_node_meminfo(self, blockchain_network_id, node_name, filters):
+        network = self.get_by_id(blockchain_network_id)
+        host = network.host
+        node_object = modelv2.ServiceEndpoint.objects(network=network, service_name=node_name)[0]
+        result = self.host_agents[host.type].get_node_meminfo(network, node_object, filters)
+
+        return result
+
+    def get_node_netinfo(self, blockchain_network_id, node_name, filters):
+        network = self.get_by_id(blockchain_network_id)
+        host = network.host
+        node_object = modelv2.ServiceEndpoint.objects(network=network, service_name=node_name)[0]
+        result = self.host_agents[host.type].get_node_netinfo(network, node_object, filters)
+
+        return result
+
+
+
+
+
+
+
+
 
 
 

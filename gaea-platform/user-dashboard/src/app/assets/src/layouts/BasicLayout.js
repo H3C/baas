@@ -6,7 +6,7 @@ import PropTypes from "prop-types";
 import { Layout, Icon } from "antd";
 import DocumentTitle from "react-document-title";
 import { connect } from "dva";
-import { Route, Redirect, Switch } from "dva/router";
+import {Route, Redirect, Switch, routerRedux} from "dva/router";
 import { ContainerQuery } from "react-container-query";
 import classNames from "classnames";
 import { enquireScreen } from "enquire-js";
@@ -18,6 +18,7 @@ import { getRoutes } from "../utils/utils";
 import Authorized from "../utils/Authorized";
 import { getMenuData } from "../common/menu";
 import logo from "../assets/logo.svg";
+import {stringify} from "qs";
 
 const { Content, Header, Footer } = Layout;
 const { check } = Authorized;
@@ -103,9 +104,9 @@ class BasicLayout extends React.PureComponent {
   getPageTitle() {
     const { routerData, location } = this.props;
     const { pathname } = location;
-    let title = "Cello Installer Dashboard";
+    let title = "Gaea Installer Dashboard";
     if (routerData[pathname] && routerData[pathname].name) {
-      title = `${routerData[pathname].name} - Cello Installer Dashboard`;
+      title = `${routerData[pathname].name} - Gaea Installer Dashboard`;
     }
     return title;
   }
@@ -137,6 +138,13 @@ class BasicLayout extends React.PureComponent {
   handleMenuClick = ({ key }) => {
     if (key === "logout") {
       window.location.href = "/logout";
+    }
+    else if (key === "personalCenter") {
+        this.props.dispatch(
+            routerRedux.push({
+                pathname: '/persenal',
+            })
+        )
     }
   };
   render() {
@@ -187,7 +195,7 @@ class BasicLayout extends React.PureComponent {
             <GlobalFooter
               copyright={
                 <Fragment>
-                  Copyright <Icon type="copyright" /> Hyperledger Cello
+                  Copyright <Icon type="copyright" /> H3C Research
                 </Fragment>
               }
             />

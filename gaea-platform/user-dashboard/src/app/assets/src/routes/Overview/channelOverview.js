@@ -14,7 +14,7 @@ import {getLocale} from "../../utils/utils";
 
 const messages = defineMessages({
     channel:{
-        id: 'verview.ChannelOverview.Channel',
+        id: 'Overview.ChannelOverview.Channel',
         defaultMessage: 'Channel',
     },
     nodePro:{

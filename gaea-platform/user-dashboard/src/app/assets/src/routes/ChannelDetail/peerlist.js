@@ -6,6 +6,8 @@ import {
     Button,
     Table,
     Badge,
+    Modal,
+    Checkbox
 } from 'antd';
 import { connect } from 'dva';
 import styles from './ChannelDetail.less';
@@ -42,6 +44,14 @@ const messages = defineMessages({
         id: 'Channel.Detail.NodeList.nodeRole',
         defaultMessage: 'Node Role',
     },
+    buttonCancel: {
+        id: 'Channel.AppendOrg.buttonCancel',
+        defaultMessage: 'Cancel',
+    },
+    buttonOk: {
+        id: 'Channel.AppendOrg.buttonOk',
+        defaultMessage: 'Ok',
+    },
 });
 
 const currentLocale = getLocale();
@@ -57,7 +67,13 @@ const { intl } = intlProvider.getChildContext();
 }))
 
 export default class PeerList extends PureComponent {
-
+    state = {
+        modalVisible: false,
+        modalTitle: '',
+        modalChaincodeQuery: true,
+        modalEndorsingPeer: true,
+        modalLedgerQuery: true
+    };
 
     clickCancel = () => {
         this.props.dispatch(
@@ -79,13 +95,72 @@ export default class PeerList extends PureComponent {
         )
 
     };
-
-
+    
+    changeRole = (row) => {
+        console.log('row', row);
+        this.setState({
+            modalVisible: true,
+            modalTitle: row.name,
+            modalChaincodeQuery: row.role.indexOf('chaincodeQuery') !== -1,
+            modalEndorsingPeer: row.role.indexOf('endorsingPeer') !== -1,
+            modalLedgerQuery: row.role.indexOf('ledgerQuery') !== -1
+        });
+    };
+    
+    onChaincodeQuery = (e) => {
+        this.setState({
+            modalChaincodeQuery: e.target.checked
+        })
+    };
+    
+    onEndorsingPeer = (e) => {
+        this.setState({
+            modalEndorsingPeer: e.target.checked
+        })
+    };
+    
+    onLedgerQuery = (e) => {
+        this.setState({
+            modalLedgerQuery: e.target.checked
+        })
+    };
+    
+    onCommit = () => {
+        const {channelId}=this.props;
+        this.props.dispatch({
+            type:    'ChannelDetail/changeRole',
+            payload:  {
+                dispatch: this.props.dispatch,
+                info: {
+                    channel_id: channelId,
+                    peer: {
+                        name: this.state.modalTitle,
+                        roles: {
+                            chaincodeQuery: this.state.modalChaincodeQuery,
+                            endorsingPeer: this.state.modalEndorsingPeer,
+                            ledgerQuery: this.state.modalLedgerQuery
+                        }
+                    }
+                }
+            },
+        });
+        this.setState({
+            modalVisible: false
+        })
+    };
+    
+    ModalCancel = () => {
+        this.setState({
+            modalVisible: false,
+        });
+    };
+    
     render() {
 
         const {
             peers,
             loadingPeers,
+            submitting
         } = this.props;
 
         const deployColumns = [
@@ -100,6 +175,11 @@ export default class PeerList extends PureComponent {
                 key: 'peer',
             },
             {
+                title: 'ip',
+                dataIndex: 'ip',
+                key: 'ip',
+            },
+            {
                 title: intl.formatMessage(messages.healthy),
                 dataIndex: 'healthyState',
                 key: 'healthyState',
@@ -107,8 +187,14 @@ export default class PeerList extends PureComponent {
             },
             {
                 title: intl.formatMessage(messages.nodeRole),
-                dataIndex: 'role',
-                key: 'peerRole',
+                render: row => (
+                    <Fragment>
+                        {
+                            window.username.split('@')[0] === 'Admin' ?
+                                <a onClick={() => this.changeRole(row)}>{`${row.role}`}</a> :
+                                row.role
+                        }
+                    </Fragment>)
             },
         ];
         return (
@@ -133,6 +219,48 @@ export default class PeerList extends PureComponent {
                         {intl.formatMessage(messages.buttonAdd)}
                     </Button>
                 </Card>
+                {!this.state.modalVisible ? '' :
+                    <Modal
+                        title={this.state.modalTitle}
+                        visible={this.state.modalVisible}
+                        onOk={this.onCommit}
+                        onCancel={this.ModalCancel}
+                        okText={intl.formatMessage(messages.buttonOk)}
+                        cancelText={intl.formatMessage(messages.buttonCancel)}
+                        confirmLoading={submitting}
+                    >
+                        <div>
+                            <Checkbox
+                                style={{marginLeft:30}}
+                                checked={this.state.modalChaincodeQuery}
+                                disabled={!this.state.modalEndorsingPeer && !this.state.modalLedgerQuery}
+                                onChange={this.onChaincodeQuery}
+                            >
+                                chaincodeQuery
+                            </Checkbox>
+                        </div>
+                        <div>
+                            <Checkbox
+                                style={{marginLeft:30}}
+                                checked={this.state.modalEndorsingPeer}
+                                disabled={!this.state.modalChaincodeQuery && !this.state.modalLedgerQuery}
+                                onChange={this.onEndorsingPeer}
+                            >
+                                endorsingPeer
+                            </Checkbox>
+                        </div>
+                        <div>
+                            <Checkbox
+                                style={{marginLeft:30}}
+                                checked={this.state.modalLedgerQuery}
+                                disabled={!this.state.modalEndorsingPeer && !this.state.modalChaincodeQuery}
+                                onChange={this.onLedgerQuery}
+                            >
+                                ledgerQuery
+                            </Checkbox>
+                        </div>
+                    </Modal>
+                }
             </div>
         );
     }

@@ -17,6 +17,7 @@ module.exports = app => {
     revoker: { type: String },
     gencrl: { type: String },
     create_time: { type: Date },
+    information: { type: Array },
     expiration_date: { type: String },
     caVersion: { type: String },
   });

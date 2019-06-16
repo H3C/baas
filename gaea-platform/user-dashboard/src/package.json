@@ -1,6 +1,6 @@
 {
   "name": "user-dashboard",
-  "version": "0.7.6",
+  "version": "0.8.9",
   "description": "Cello User Dashboard",
   "private": true,
   "dependencies": {
@@ -87,7 +87,6 @@
     "eslint-plugin-compat": "^2.1.0",
     "eslint-plugin-import": "^2.8.0",
     "eslint-plugin-jsx-a11y": "^6.0.3",
-    "eslint-plugin-markdown": "^1.0.0-beta.6",
     "eslint-plugin-react": "^7.0.1",
     "gh-pages": "^1.0.0",
     "husky": "^0.14.3",

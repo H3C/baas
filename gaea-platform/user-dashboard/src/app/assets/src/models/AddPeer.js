@@ -64,7 +64,18 @@ export default {
                     for (const peerFromOrg in peersName) {
                         //找到已经加入到channel的peer
                         if (peersInChannel.peers[peerFromChannel].name === peersName[peerFromOrg].name){
+                            let roles = [];
+                            if (peersInChannel.peers[peerFromChannel].roles.chaincodeQuery) {
+                                roles.push('chaincodeQuery');
+                            }
+                            if (peersInChannel.peers[peerFromChannel].roles.endorsingPeer) {
+                                roles.push('endorsingPeer');
+                            }
+                            if (peersInChannel.peers[peerFromChannel].roles.ledgerQuery) {
+                                roles.push('ledgerQuery');
+                            }
                             disableRow.push(peersName[peerFromOrg].key);
+                            peersName[peerFromOrg].role = roles.join(', ');
                         }
                     }
                 }

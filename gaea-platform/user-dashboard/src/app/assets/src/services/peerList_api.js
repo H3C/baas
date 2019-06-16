@@ -30,5 +30,9 @@ export async function addChannelDetail(params) {
     });
 }
 
-
-
+export async function changeRole(params) {
+    return request('/v2/peers/role', {
+        method: 'PUT',
+        body: params,
+    });
+}

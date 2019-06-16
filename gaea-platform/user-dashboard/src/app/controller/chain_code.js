@@ -13,7 +13,9 @@ class ChainCodeController extends Controller {
     // put fields here is ok, put fields in service is also ok
     // consider later
     const fields = stream.fields;
-    ctx.body = await ctx.service.chainCode.storeChainCode(stream, fields);
+    const result = await ctx.service.chainCode.storeChainCode(stream, fields);
+    ctx.status = result.success ? 200 : 400;
+    ctx.body = result;
   }
 
   async getChainCodes() {
@@ -30,7 +32,7 @@ class ChainCodeController extends Controller {
     const { ctx } = this;
 
     const result = await ctx.service.chainCode.installChainCode();
-    ctx.status = result.code;
+    ctx.status = result.success ? 200 : 400;
     ctx.body = result;
   }
 
@@ -38,14 +40,22 @@ class ChainCodeController extends Controller {
     const { ctx } = this;
 
     const result = await ctx.service.chainCode.instantiateChainCode();
-    ctx.status = result.code;
+    ctx.status = result.success ? 200 : 400;
     ctx.body = result;
+  }
+
+  async upgradeChainCode() {
+      const { ctx } = this;
+
+      const result = await ctx.service.chainCode.upgradeChainCode();
+      ctx.status = result.success ? 200 : 400;
+      ctx.body = result;
   }
 
   async deleteChainCodeById() {
     const { ctx } = this;
     const result = await ctx.service.chainCode.deleteChainCodeById();
-    ctx.status = result.code;
+    ctx.status = result.success ? 200 : 400;
     ctx.body = result;
   }
 

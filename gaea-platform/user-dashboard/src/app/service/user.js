@@ -11,11 +11,39 @@ const fs = require('fs');
 const roles = ['admin', 'operator', 'user'];
 
 class UserService extends Service {
+
+  async getCookie(user){
+      const { ctx } = this;
+      const userInfo = await ctx.service.user.login(user);
+      const result = {};
+      if(userInfo == null){
+          const message = "Please check if the username and password is right";
+          console.log(message);
+          result.message = message;
+          result.success = false;
+          return result;
+      }
+      let time = new Date().getTime();
+      let expiresTime = new Date(time + 10*365*24*60*60*1000);  //设置超期时间为10年
+      await ctx.login(userInfo);
+      let cookie = ctx.req.headers.cookie;
+      cookie = cookie + ";expires="+expiresTime;
+      result.cookie = cookie;
+      result.success = true;
+      return result;
+  }
+
   async login(user) {
     const { config, ctx } = this;
     const loginUrl = config.operator.url.login;
     const username = user.username;
     const password = user.password;
+
+    const opName = 'orguser_login';
+    const opObject = 'user';
+    const opDate = new Date();
+    const opDetails = "";
+    const opSource = ctx.ip;
 
     if (username.indexOf('@') < 0) {
       return null;
@@ -38,6 +66,7 @@ class UserService extends Service {
         dataType: 'json',
       });
       if (response.status === 200) {
+        /*
         const userModel = await ctx.model.User.findOne({ username });
         if (!userModel) {
           await ctx.service.smartContract.copySystemSmartContract(response.data.id);
@@ -46,6 +75,44 @@ class UserService extends Service {
             username,
           });
         }
+        */
+        const orgName = username.split('@')[1].split('.')[0];
+        const caVersion = await ctx.service.user.getCaVersionByNetworkId(networkId);
+        const ca = await ctx.service.user.getCaInfoByUser(networkId, orgName);
+        const caHost = ca.caHost;
+        const caPort = ca.caPort;
+        const mspId = orgName.charAt(0).toUpperCase() + orgName.slice(1) + 'MSP';
+        const orgDoamin = username.split('@')[1];
+        const caDockerStorePath = '/etc/hyperledger/fabric-ca-server-config/';
+        const caStorePath = `${config.fabricDir}/${networkId}/crypto-config/peerOrganizations/${orgDoamin}/ca`;
+        await ctx.enrollAdmin(caHost, caPort, mspId, caStorePath, caDockerStorePath, username, caVersion);
+        
+        const userModel = await ctx.model.OrgUser.findOne({ username:username, network_id: networkId });
+        if (!userModel) {
+            const date = new Date();
+            await ctx.model.OrgUser.create({
+                username: username,
+                password: password,
+                roles: 'org_admin',
+                active: 'true',
+                ancestors: '',
+                orgname: orgName,
+                network_id: networkId,
+                delegate_roles: 'org_admin',
+                affiliation_mgr: 'true',
+                revoker: 'true',
+                gencrl: 'true',
+                expiration_date: '8760h',
+                caVersion: caVersion,
+                information: [{
+                    address: '',
+                    phone: '',
+                    email: '',
+                    time: date
+                }]
+            });
+        }
+        await ctx.service.log.deposit(opName, opObject, opSource, username, opDate, 200, opDetails, {}, "");
         return {
           username: user.username,
           id: response.data.id,
@@ -53,7 +120,7 @@ class UserService extends Service {
         };
       }
     } else {
-      const orgUser = await ctx.model.OrgUser.findOne({ username });
+      const orgUser = await ctx.model.OrgUser.findOne({ username, network_id: networkId });
 
       if (orgUser.password !== password || orgUser.active === "false") {
         return false;
@@ -66,7 +133,7 @@ class UserService extends Service {
         } else {
           orgRole = roles[1];
         }
-
+        await ctx.service.log.deposit(opName, opObject, opSource, username, opDate, 200, opDetails, {}, "");
         return {
           username: orgUser.username,
           id: orgUser._id,
@@ -82,6 +149,7 @@ class UserService extends Service {
     const { ctx } = this;
     let caHost;
     let caPort;
+    let serviceEndPoints;
     const ca = {};
 
     const networkUrl = `http://operator-dashboard:8071/v2/blockchain_networks/${networkId}/serviceendpoints`;
@@ -91,6 +159,7 @@ class UserService extends Service {
 
     if (networkResponse.status === 200) {
       const serviceData = JSON.parse(networkResponse.data.toString());
+      serviceEndPoints = serviceData;
       for (const each in serviceData.service_endpoints) {
         if (serviceData.service_endpoints[each].service_type === 'ca') {
           const caOrg = serviceData.service_endpoints[each].service_name.split('.').slice(0)[1];
@@ -104,6 +173,7 @@ class UserService extends Service {
     }
     ca.caHost = caHost;
     ca.caPort = caPort;
+    ca.response = serviceEndPoints;
     return ca;
   }
 
@@ -161,17 +231,31 @@ class UserService extends Service {
   async createOrguser(name, role, password, delegateRoles, affiliation, affiliationMgr, revoker, gencrl) {
     const { ctx, config } = this;
     const userName = ctx.req.user.username;
+    let result = {};
+    let roleUser;
+    if(role === 'org_admin'){
+        roleUser = 'org_admin,org_user';
+    }else{
+        roleUser = role;
+    }
+    let delegateRolesUser;
+    if(delegateRoles === 'org_admin'){
+        delegateRolesUser = 'org_admin,org_user';
+    }else{
+        delegateRolesUser = delegateRoles;
+    }
+
 
     const attrs = [
       {
         name: 'hf.Registrar.Roles',
-        // value: 'org_admin',
-        value: role,
+        //value: 'org_admin',
+        value: roleUser,
       },
       {
         name: 'hf.Registrar.DelegateRoles',
-        // value: 'org_admin',
-        value: delegateRoles,
+        //value: 'org_admin',
+        value: delegateRolesUser,
       },
       {
         name: 'hf.Revoker',
@@ -196,29 +280,50 @@ class UserService extends Service {
     ];
 
     const opName = 'orguser_create';
+   const opSource = ctx.ip;
     const opObject = 'user';
     const opDate = new Date();
     const opDetails = ctx.request.body.orguser;
     const orgName = userName.split('@')[1].split('.')[0];
     const orgDoamin = userName.split('@')[1];
     const mspId = orgName.charAt(0).toUpperCase() + orgName.slice(1) + 'MSP';
-    let networkId;
+    let networkId = await ctx.service.user.getNetworkIdByAdminUser(orgName);
     let caStorePath;
     let caDockerStorePath;
     let ca;
     let ancest;
+
+    //校验用户名是否带了@，是否跟操作员后面的组织名、域名相同,是否只有一个@
+    try{
+      if((name.split('@')[1] !== userName.split('@')[1])||(name.split('@').length-1!==1)){
+          const errorMsg = 'func:createOrguser. name format is wrong!:';
+          await ctx.service.log.deposit(opName, opObject, opSource, userName, opDate, 400, opDetails, {}, errorMsg);
+          result.message = errorMsg;
+          result.success = false;
+          result.code = 400;
+          return result;
+        }
+    }catch(err){
+        const error_Msg = 'func:createOrguser. name format is wrong!: ';
+        result.message = error_Msg;
+        result.success = false;
+        result.code = 400;
+        await ctx.service.log.deposit(opName, opObject, opSource, userName, opDate, 400, opDetails, {}, error_Msg);
+        return result;
+    }
+
     try {
       if (userName.split('@')[0] === 'Admin') {
-        networkId = await ctx.service.user.getNetworkIdByAdminUser(orgName);
         ancest = 'Admin';
       } else {
-        const userInfo = await ctx.model.OrgUser.findOne({ username: userName });
+        const userInfo = await ctx.model.OrgUser.findOne({ username: userName, network_id: networkId });
         if (userInfo === null) {
           const err_message = `user ${userName} can not found in db`;
-          await ctx.service.log.deposit(opName, opObject, userName, opDate, 400, opDetails, {}, err_message);
-          throw new Error(err_message);
+          result.message = err_message;
+          result.success = false;
+          result.code = 400;
+          return result;
         }
-        networkId = userInfo.network_id;
         ancest = userInfo.ancestors + '.' + userName.split('@')[0];
       }
       opDetails.network_id = networkId;
@@ -227,12 +332,18 @@ class UserService extends Service {
       ca = await ctx.service.user.getCaInfoByUser(networkId, orgName);
     } catch (err) {
       console.log('func:createOrguser. get networkid or caInfo by orgName Failed, err: ' + err);
-      await ctx.service.log.deposit(opName, opObject, userName, opDate, 400, opDetails, {}, err);
-      throw new Error(err);
+      result.message = err.message;
+      result.success = false;
+      result.code = 400;
+      await ctx.service.log.deposit(opName, opObject, opSource, userName, opDate, 400, opDetails, {}, err.message);
+      return result;
     }
 
+    const networkInfo = await this.getNetworkById(networkId);
     const caHost = ca.caHost;
     const caPort = ca.caPort;
+    ca.network = networkInfo.blockchain_network;
+    ca.orgName = orgName;
     const caVersion = await ctx.service.user.getCaVersionByNetworkId(networkId);
     let registerUser;
     try {
@@ -243,8 +354,10 @@ class UserService extends Service {
       } else {
         registerUser = userName;
       }
-
-      const result = await ctx.registerUser(registerUser, caHost, caPort, mspId, name, role, password, affiliation, `${caStorePath}/Admin@${orgDoamin}`, caDockerStorePath, attrs, caVersion);
+      if (caVersion !== 'ca_v1.4') {
+          caStorePath = `${caStorePath}/Admin@${orgDoamin}`;
+      }
+      const result = await ctx.registerUser(registerUser, ca, mspId, name, role, affiliation, caStorePath, caDockerStorePath, attrs, caVersion);
       const createTime = new Date();
       if (result === true) {
         await ctx.model.OrgUser.create({
@@ -262,119 +375,174 @@ class UserService extends Service {
           create_time: createTime,
           expiration_date: '8760h',
           caVersion,
+          information: [{
+              address: '',
+              phone: '',
+              email: '',
+              time: createTime
+          }]
         });
-        await ctx.service.log.deposit(opName, opObject, userName, opDate, 200, opDetails, {}, '');
-        return true;
+        await ctx.service.log.deposit(opName, opObject, opSource, userName, opDate, 200, opDetails, {}, '');
+        let result1={};
+        result1.code = 200;
+        result1.success = true;
+        return result1;
       }
-      console.log(`register user ${name}@${orgDoamin} failed`);
+      console.log(`register user ${name} failed`);
+      await ctx.service.log.deposit(opName, opObject, opSource, userName, opDate, 400, opDetails, {}, result.message);
+      return result;
     } catch (err) {
-      console.log(`register user ${name}@${orgDoamin} failed` + err.message);
+      console.log(`register user ${name} failed` + err.message);
     }
-    const errorMsg = `register user ${name}@${orgDoamin} failed`;
-    await ctx.service.log.deposit(opName, opObject, userName, opDate, 400, opDetails, {}, errorMsg);
-    return false;
+    const errorMsg = `register user ${name} failed`;
+    await ctx.service.log.deposit(opName, opObject, opSource, userName, opDate, 400, opDetails, {}, errorMsg);
+    result.message = errorMsg;
+    result.success = false;
+    return result;
   }
+    
+    async getNetworkById(networkId) {
+        const { ctx } = this;
+        const orgUrl = `http://operator-dashboard:8071/v2/blockchain_networks/${networkId}`;
+        const orgResponse = await ctx.curl(orgUrl, {
+            method: 'GET',
+        });
+    
+        if (orgResponse.status === 200) {
+            const data = JSON.parse(orgResponse.data.toString());
+            data.success = true;
+            return data;
+        }
+        
+        return {success: false};
+    }
 
   async deleteOrguser(name, reason) {
     const { ctx, config } = this;
     const operaterName = ctx.req.user.username;
     const opName = 'orguser_delete';
+   const opSource = ctx.ip;
     const opObject = 'user';
     const opDate = new Date();
     const opDetails = {};
+    const resultdel = {};
     opDetails.name = ctx.req.query.name;
     opDetails.reason = ctx.req.query.reason;
     const orgName = operaterName.split('@')[1].split('.')[0];
     const orgDoamin = operaterName.split('@')[1];
     const operaterAncest = operaterName.split('@')[0];
-    let networkId;
+    let networkId = await ctx.service.user.getNetworkIdByAdminUser(orgName);
     let caStorePath;
     let caDockerStorePath;
     let ca;
     let regUser;
     try {
       if (operaterName.split('@')[0] === 'Admin') {
-        networkId = await ctx.service.user.getNetworkIdByAdminUser(orgName);
         regUser = 'admin';
       } else {
-        const userInfo = await ctx.model.OrgUser.findOne({ username: operaterName });
+        const userInfo = await ctx.model.OrgUser.findOne({ username: operaterName, network_id: networkId });
         if (userInfo === null) {
           const err_message = `user ${operaterName} can not found in db`;
-          await ctx.service.log.deposit(opName, opObject, operaterName, opDate, 400, opDetails, {}, err_message);
-          throw new Error(err_message);
+          resultdel.message = err_message;
+          resultdel.success = false;
+          resultdel.code = 400;
+          await ctx.service.log.deposit(opName, opObject, opSource, operaterName, opDate, 400, opDetails, {}, err_message);
+          return resultdel;
         }
-        networkId = userInfo.network_id;
         regUser = operaterName;
       }
       opDetails.network_id = networkId;
-      caStorePath = `${config.fabricDir}/${networkId}/crypto-config/peerOrganizations/${orgDoamin}/ca/Admin@${orgDoamin}`;
+      caStorePath = `${config.fabricDir}/${networkId}/crypto-config/peerOrganizations/${orgDoamin}/ca`;
       caDockerStorePath = '/etc/hyperledger/fabric-ca-server-config/';
       ca = await ctx.service.user.getCaInfoByUser(networkId, orgName);
     } catch (err) {
-      const errorMsg = 'func:deleteOrguser. get networkid or caInfo by orgName Failed, err: ' + err;
+      const errorMsg = 'func:deleteOrguser. get networkid or caInfo by orgName Failed, err: ' + err.message;
+      resultdel.message = errorMsg;
+      resultdel.success = false;
+      resultdel.code = 400;
       console.log(errorMsg);
-      await ctx.service.log.deposit(opName, opObject, operaterName, opDate, 400, opDetails, {}, errorMsg);
-      throw new Error(err);
+      await ctx.service.log.deposit(opName, opObject,opSource, operaterName, opDate, 400, opDetails, {}, errorMsg);
+      return resultdel;
     }
 
     const caHost = ca.caHost;
     const caPort = ca.caPort;
     const caVersion = await ctx.service.user.getCaVersionByNetworkId(networkId);
     // 只能删除自己创建的用户
-    const userInfo = await ctx.model.OrgUser.findOne({ username: name });
+    const userInfo = await ctx.model.OrgUser.findOne({ username: name, network_id: networkId });
     if (userInfo != null) {
       const userAncest = userInfo.ancestors;
       if (userAncest.split('.').indexOf(operaterAncest) < 0) {
         const err = operaterName + 'can not delete' + name + ', not it\'s ancestors.';
-        await ctx.service.log.deposit(opName, opObject, operaterName, opDate, 400, opDetails, {}, err);
-        throw new Error(err);
+        resultdel.message = err;
+        resultdel.success = false;
+        resultdel.code = 400;
+        await ctx.service.log.deposit(opName, opObject, opSource,  operaterName, opDate, 400, opDetails, {}, err);
+        return resultdel;
       }
     }
-
+    
+    if (caVersion === 'ca_v1.4') {
+        caStorePath = `${caStorePath}/${regUser}`;
+    }
+    else {
+        caStorePath = `${caStorePath}/Admin@${orgDoamin}`;
+    }
     const result = await ctx.deleteUser(regUser, name, reason, caHost, caPort, caStorePath, caDockerStorePath, caVersion);
     if (result === true) {
       try {
-        await ctx.model.OrgUser.remove({ username: name });
+        await ctx.model.OrgUser.remove({ username: name, network_id: networkId });
       } catch (err) {
-        const errMsg = name + 'revoked success but user ' + name + ' data remove from db failed,err:' + err;
+        const errMsg = name + 'revoked success but user ' + name + ' data remove from db failed,err:' + err.message;
+        resultdel.message = errMsg;
+        resultdel.success = false;
+        resultdel.code = 400;
         console.log(errMsg);
-        await ctx.service.log.deposit(opName, opObject, operaterName, opDate, 400, opDetails, {}, errMsg);
-        throw new Error(err);
+        await ctx.service.log.deposit(opName, opObject, opSource, operaterName, opDate, 400, opDetails, {}, errMsg);
+        return resultdel;
       }
     }
-    await ctx.service.log.deposit(opName, opObject, operaterName, opDate, 200, opDetails, {}, '');
+    await ctx.service.log.deposit(opName, opObject, opSource, operaterName, opDate, 200, opDetails, {}, '');
     return result;
   }
 
   async getOrguser(name) {
     const { ctx } = this;
     let userAncest;
+    let targetUser = name;
     const user = {};
     const operaterName = ctx.req.user.username;
     // const operaterName = 'new3@org1.ex.com';
+    const orgName = operaterName.split('@')[1].split('.')[0];
+    const networkId =  await ctx.service.user.getNetworkIdByAdminUser(orgName);
     const operaterAncest = operaterName.split('@')[0];
+    
     if (name.split('@')[0] === 'Admin') {
-      user.success = false;
-      user.reason = 'Admin user not srored in userDashboard DB';
-    } else {
-      const userInfo = await ctx.model.OrgUser.findOne({ username: name });
-      if (userInfo != null) {
+      targetUser = 'admin';
+    }
+    
+    const userInfo = await ctx.model.OrgUser.findOne({ username: name, network_id: networkId });
+    if (userInfo != null) {
         userAncest = userInfo.ancestors;
-        if (userAncest.split('.').indexOf(operaterAncest) >= 0) {
-          const userIdentity = await ctx.service.user.getIdentity(name, operaterName);
-          if (userIdentity.success === true) {
-            userInfo._doc.affiliation = userIdentity.result.affiliation;
-          }
-          user.success = true;
-          user.orguser = userInfo;
+        
+        //允许祖宗节点和自己获取自己的信息
+        if (userAncest.split('.').indexOf(operaterAncest) >= 0
+          || name === operaterName
+        ) {
+            const userIdentity = await ctx.service.user.getIdentity(targetUser, operaterName);
+            if (userIdentity.success === true) {
+                userInfo._doc.affiliation = userIdentity.result.affiliation;
+            }
+            user.success = true;
+            delete userInfo._doc.password;
+            user.orguser = userInfo;
         } else {
-          user.success = false;
-          user.reason = 'not authoritied';
+            user.success = false;
+            user.reason = 'not authoritied';
         }
-      } else {
+    } else {
         user.success = false;
         user.reason = 'not found';
-      }
     }
 
     return user;
@@ -388,8 +556,9 @@ class UserService extends Service {
     // const operaterName = 'new3@org2.ex.com';
     const operaterAncest = operaterName.split('@')[0];
     const orgName = operaterName.split('@')[1].split('.')[0];
+    const networkId =  await ctx.service.user.getNetworkIdByAdminUser(orgName);
     let userAncest;
-    const userListInOrg = await ctx.model.OrgUser.find({ orgname: orgName });
+    const userListInOrg = await ctx.model.OrgUser.find({ orgname: orgName, network_id: networkId });
     if (userListInOrg.length !== 0 || userListInOrg !== null) {
       for (const each in userListInOrg) {
         userAncest = userListInOrg[each].ancestors;
@@ -397,6 +566,7 @@ class UserService extends Service {
           const userIdentity = await ctx.service.user.getIdentity(userListInOrg[each].username, operaterName);
           if (userIdentity.success === true) {
             userListInOrg[each]._doc.affiliation = userIdentity.result.affiliation;
+            delete userListInOrg[each]._doc.password;
           }
           user.orgusers.push(userListInOrg[each]);
         }
@@ -413,15 +583,19 @@ class UserService extends Service {
     const result = { success: true };
     const operaterName = ctx.req.user.username;
     const opName = 'orguser_password_update';
+   const opSource = ctx.ip;
     const opObject = 'user';
     const opDate = new Date();
     const opDetails = {};
+    const orgName = operaterName.split('@')[1].split('.')[0];
+    const networkId =  await ctx.service.user.getNetworkIdByAdminUser(orgName);
+    
     opDetails.name = operaterName;
     if (operaterName.split('@')[0] === 'Admin') {
       result.success = false;
       result.message = 'can not modify ' + operaterName + 'password!';
       console.log(result.message);
-      await ctx.service.log.deposit(opName, opObject, operaterName, opDate, 400, opDetails, {}, result.message);
+      await ctx.service.log.deposit(opName, opObject, opSource, operaterName, opDate, 400, opDetails, {}, result.message);
       return result;
     }
     const reg = /[^A-Za-z0-9\-_]/;
@@ -430,15 +604,15 @@ class UserService extends Service {
       result.success = false;
       result.message = 'password container invalid character';
       console.log(result.message);
-      await ctx.service.log.deposit(opName, opObject, operaterName, opDate, 400, opDetails, {}, result.message);
+      await ctx.service.log.deposit(opName, opObject, opSource, operaterName, opDate, 400, opDetails, {}, result.message);
       return result;
     }
     try {
-      const userInfo = await ctx.model.OrgUser.findOne({ username: operaterName });
+      const userInfo = await ctx.model.OrgUser.findOne({ username: operaterName, network_id: networkId });
       if (userInfo != null) {
         if ((passwordnew !== '') && (passwordnew !== userInfo.password)) {
           await ctx.model.OrgUser.update({
-            username: operaterName,
+            username: operaterName, network_id: networkId
           }, {'$set': { password: passwordnew } }, { upsert: true });
         }
       } else {
@@ -447,10 +621,12 @@ class UserService extends Service {
         result.message = 'Not found ' + operaterName;
       }
     } catch (err) {
-      await ctx.service.log.deposit(opName, opObject, operaterName, opDate, 400, opDetails, {}, err);
-      throw new Error(err);
+      await ctx.service.log.deposit(opName, opObject,opSource, operaterName, opDate, 400, opDetails, {}, err);
+      result.success = false;
+      result.message = err.message;
+      return result;
     }
-    await ctx.service.log.deposit(opName, opObject, operaterName, opDate, 200, opDetails, {}, '');
+    await ctx.service.log.deposit(opName, opObject, opSource, operaterName, opDate, 200, opDetails, {}, '');
     return result;
   }
 
@@ -458,9 +634,13 @@ class UserService extends Service {
     const { ctx } = this;
     const operaterName = ctx.req.user.username;
     const opName = 'orguser_state_update';
+   const opSource = ctx.ip;
     const opObject = 'user';
     const opDate = new Date();
     const opDetails = {};
+    const orgName = operaterName.split('@')[1].split('.')[0];
+    const networkId =  await ctx.service.user.getNetworkIdByAdminUser(orgName);
+    
     opDetails.user_name = name;
     opDetails.activenew = activenew;
 
@@ -470,107 +650,184 @@ class UserService extends Service {
     if (operaterName === name) {
       result.success = false;
       result.message = 'user can not modify self\'s active state';
-      opCode = 400;
-      await ctx.service.log.deposit(opName, opObject, operaterName, opDate, opCode, opDetails, {}, result.message);
+      result.code = 400;
+      await ctx.service.log.deposit(opName, opObject, opSource, operaterName, opDate, opCode, opDetails, {}, result.message);
       console.log(result.message);
       return result;
     }
     try {
-      const userInfo = await ctx.model.OrgUser.findOne({ username: name });
+      const userInfo = await ctx.model.OrgUser.findOne({ username: name, network_id: networkId });
       if (userInfo != null) {
         const userAncest = userInfo.ancestors;
         if (userAncest.split('.').indexOf(operaterAncest) >= 0) {
           if ((['true', 'false'].indexOf(activenew) >= 0) && (activenew !== userInfo.active)) {
             await ctx.model.OrgUser.update({
-              username: name,
+              username: name, network_id: networkId
             }, {'$set': { active: activenew } }, { upsert: true });
           }
         } else {
           // operator is not name's ancestor.
           result.success = false;
           result.message = 'Not authorthed';
-          opCode = 400;
+          result.code = 400;
         }
       } else {
         result.success = false;
         result.message = 'User' + name + 'not found!';
-        opCode = 400;
+        result.code = 400;
         console.log(result.message);
       }
     } catch (err) {
-      await ctx.service.log.deposit(opName, opObject, operaterName, opDate, 400, opDetails, {}, err);
-      throw new Error(err);
+      result.success = false;
+      result.message = err.message;
+      result.code = 400;
+      await ctx.service.log.deposit(opName, opObject, opSource, operaterName, opDate, 400, opDetails, {}, err);
+      return result;
     }
-    await ctx.service.log.deposit(opName, opObject, operaterName, opDate, opCode, opDetails, {}, result.message);
+    await ctx.service.log.deposit(opName, opObject, opSource, operaterName, opDate, opCode, opDetails, {}, result.message);
     return result;
+  }
+  
+  async updateOrguserInfo(information) {
+      const { ctx } = this;
+      const operaterName = ctx.req.user.username;
+      const opName = 'orguser_information_update';
+      const opSource = ctx.ip;
+      const opObject = 'user';
+      const opDate = new Date();
+      const opDetails = {};
+      const orgName = operaterName.split('@')[1].split('.')[0];
+      const networkId =  await ctx.service.user.getNetworkIdByAdminUser(orgName);
+    
+      opDetails.address = information.address;
+      opDetails.phone = information.phone;
+      opDetails.email = information.email;
+    
+      const result = { success: true };
+      let opCode = 200;
+      try {
+          const userInfo = await ctx.model.OrgUser.findOne({ username: operaterName, network_id: networkId });
+          if (userInfo != null) {
+              const info = userInfo.information;
+              const length = info.length;
+              if (info[length - 1].address !== information.address
+                  || info[length - 1].phone !== information.phone
+                  || info[length - 1].email !== information.email
+              ) {
+                  info.push({
+                      address: information.address,
+                      phone: information.phone,
+                      email: information.email,
+                      time: opDate
+                  });
+                  await ctx.model.OrgUser.update({
+                      username: operaterName, network_id: networkId
+                  }, {'$set': { information: info } }, { upsert: true });
+              }
+          }
+          else {
+              result.success = false;
+              result.message = 'User ' + operaterName + ' not found!';
+              opCode = 400;
+          }
+      } catch (err) {
+          result.success = false;
+          result.message = err.message;
+          result.code = 400;
+          await ctx.service.log.deposit(opName, opObject, opSource, operaterName, opDate, 400, opDetails, {}, err);
+          return result;
+      }
+      await ctx.service.log.deposit(opName, opObject, opSource, operaterName, opDate, opCode, opDetails, {}, result.message);
+      return result;
   }
 
   async reenrollOrgUser(name) {
     const { ctx, config } = this;
     const operatorName = ctx.req.user.username;
     const opName = 'orguser_reenroll';
+   const opSource = ctx.ip;
     const opObject = 'user';
     const opDate = new Date();
     const opDetails = {};
+    const resultdel = {};
     opDetails.user_name = name;
     const operatorAncest = operatorName.split('@')[0];
     const orgName = operatorName.split('@')[1].split('.')[0];
     if (orgName !== name.split('@')[1].split('.')[0]) {
       const errorMsg = 'User ' + operatorName + ' and ' + name + ' not in a org';
-      await ctx.service.log.deposit(opName, opObject, operatorName, opDate, 400, opDetails, {}, errorMsg);
-      throw new Error(errorMsg);
+      resultdel.message = errorMsg;
+      resultdel.success = false;
+      resultdel.code = 400;
+      await ctx.service.log.deposit(opName, opObject, opSource, operatorName, opDate, 400, opDetails, {}, errorMsg);
+      return resultdel;
     }
     const orgDoamin = operatorName.split('@')[1];
     const mspId = orgName.charAt(0).toUpperCase() + orgName.slice(1) + 'MSP';
     let ca;
-    let networkId;
+    let networkId = await ctx.service.user.getNetworkIdByAdminUser(orgName);
     let caStorePath;
     let caDockerStorePath;
     let regUser;
 
     try {
       if (operatorName.split('@')[0] === 'Admin') {
-        networkId = await ctx.service.user.getNetworkIdByAdminUser(orgName);
         regUser = 'admin';
       } else {
-        const userInfo = await ctx.model.OrgUser.findOne({ username: name });
+        const userInfo = await ctx.model.OrgUser.findOne({ username: name, network_id: networkId });
         if (userInfo === null) {
           const errorMsg = `user ${name} can not found in db`;
-          await ctx.service.log.deposit(opName, opObject, operatorName, opDate, 400, opDetails, {}, errorMsg);
-          throw new Error(errorMsg);
+          resultdel.message = errorMsg;
+          resultdel.success = false;
+          resultdel.code = 400;
+          await ctx.service.log.deposit(opName, opObject, opSource,  operatorName, opDate, 400, opDetails, {}, errorMsg);
+          return resultdel;
         }
         if (userInfo != null) {
           const userAncest = userInfo.ancestors;
           if (userAncest.split('.').indexOf(operatorAncest) < 0) {
             const errorMsg = 'User ' + operatorName + ' is not  ' + name + '\'s ancestor, forbidden to enroll';
-            await ctx.service.log.deposit(opName, opObject, operatorName, opDate, 400, opDetails, {}, errorMsg);
-            throw new Error(errorMsg);
+            resultdel.message = errorMsg;
+            resultdel.success = false;
+            resultdel.code = 400;
+            await ctx.service.log.deposit(opName, opObject, opSource, operatorName, opDate, 400, opDetails, {}, errorMsg);
+            return resultdel;
           }
-          networkId = userInfo.network_id;
           regUser = operatorName;
         }
       }
       opDetails.network_id = networkId;
-      caStorePath = `${config.fabricDir}/${networkId}/crypto-config/peerOrganizations/${orgDoamin}/ca/Admin@${orgDoamin}`;
+      caStorePath = `${config.fabricDir}/${networkId}/crypto-config/peerOrganizations/${orgDoamin}/ca`;
       caDockerStorePath = '/etc/hyperledger/fabric-ca-server-config/';
       ca = await ctx.service.user.getCaInfoByUser(networkId, orgName);
     } catch (err) {
       const errorMsg = 'func: reenrollOrgUser. get networkid or caInfo by orgName Failed, err: ' + err;
-      await ctx.service.log.deposit(opName, opObject, operatorName, opDate, 400, opDetails, {}, errorMsg);
-      throw new Error(err);
+      resultdel.message = errorMsg;
+      resultdel.success = false;
+      resultdel.code = 400;
+      await ctx.service.log.deposit(opName, opObject,opSource, operatorName, opDate, 400, opDetails, {}, errorMsg);
+      return resultdel;
     }
     let result;
     const caHost = ca.caHost;
     const caPort = ca.caPort;
     const caVersion = await ctx.service.user.getCaVersionByNetworkId(networkId);
     try {
+      if (caVersion === 'ca_v1.4') {
+          caStorePath = `${caStorePath}/${regUser}`;
+      }
+      else {
+          caStorePath = `${caStorePath}/Admin@${orgDoamin}`;
+      }
       result = ctx.reenrollUser(regUser, name, mspId, caHost, caPort, caStorePath, caDockerStorePath, caVersion);
     } catch (e) {
-      await ctx.service.log.deposit(opName, opObject, operatorName, opDate, 400, opDetails, {}, e);
-      throw new Error(e);
+      resultdel.message = e.message;
+      resultdel.success = false;
+      resultdel.code = 400;
+      await ctx.service.log.deposit(opName, opObject,opSource, operatorName, opDate, 400, opDetails, {}, e);
+      return resultdel;
     }
 
-    await ctx.service.log.deposit(opName, opObject, operatorName, opDate, 200, opDetails, {}, '');
+    await ctx.service.log.deposit(opName, opObject, opSource, operatorName, opDate, 200, opDetails, {}, '');
     return result;
   }
 
@@ -579,14 +836,16 @@ class UserService extends Service {
     const { ctx, config } = this;
     const operatorName = ctx.req.user.username;
     const opName = 'orguser_affiliation_create';
+   const opSource = ctx.ip;
     const opObject = 'user';
     const opDate = new Date();
     const opDetails = {};
     opDetails.name = targetName;
+    const resultdel = {};
 
     const orgName = operatorName.split('@')[1].split('.')[0];
     const orgDoamin = operatorName.split('@')[1];
-    let networkId = null;
+    let networkId = await ctx.service.user.getNetworkIdByAdminUser(orgName);
     let caStorePath = '';
     let caDockerStorePath = '';
     let regUser = '';
@@ -594,36 +853,49 @@ class UserService extends Service {
 
     try {
       if (operatorName.split('@')[0] === 'Admin') {
-        networkId = await ctx.service.user.getNetworkIdByAdminUser(orgName);
         regUser = 'admin';
       } else {
-        const userInfo = await ctx.model.OrgUser.findOne({ username: operatorName });
+        const userInfo = await ctx.model.OrgUser.findOne({ username: operatorName, network_id: networkId });
         if (userInfo === null) {
           const err_message = `user ${operatorName} can not found in db`;
-          await ctx.service.log.deposit(opName, opObject, operatorName, opDate, 400, opDetails, {}, err_message);
-          throw new Error(err_message);
+          resultdel.message = err_message;
+          resultdel.success = false;
+          resultdel.code = 400;
+          await ctx.service.log.deposit(opName, opObject, opSource, operatorName, opDate, 400, opDetails, {}, err_message);
+          return resultdel;
         }
-        networkId = userInfo.network_id;
         regUser = operatorName;
       }
-      caStorePath = `${config.fabricDir}/${networkId}/crypto-config/peerOrganizations/${orgDoamin}/ca/Admin@${orgDoamin}`;
+      caStorePath = `${config.fabricDir}/${networkId}/crypto-config/peerOrganizations/${orgDoamin}/ca`;
       caDockerStorePath = '/etc/hyperledger/fabric-ca-server-config/';
       ca = await ctx.service.user.getCaInfoByUser(networkId, orgName);
     } catch (err) {
       const err_message = 'func:createAffiliation. get networkid or caInfo by orgName Failed, err: ' + err;
-      await ctx.service.log.deposit(opName, opObject, operatorName, opDate, 400, opDetails, {}, err_message);
-      throw new Error(err);
+      resultdel.message = err_message;
+      resultdel.success = false;
+      resultdel.code = 400;
+      await ctx.service.log.deposit(opName, opObject,opSource,  operatorName, opDate, 400, opDetails, {}, err_message);
+      return resultdel;
     }
     let res;
     try {
       const caVersion = await ctx.service.user.getCaVersionByNetworkId(networkId);
+        if (caVersion === 'ca_v1.4') {
+            caStorePath = `${caStorePath}/${regUser}`;
+        }
+        else {
+            caStorePath = `${caStorePath}/Admin@${orgDoamin}`;
+        }
       res = await ctx.createUserAffiliation(regUser, targetName, ca.caHost, ca.caPort, caStorePath, caDockerStorePath, caVersion);
     } catch (e) {
-      await ctx.service.log.deposit(opName, opObject, operatorName, opDate, 400, opDetails, {}, e);
-      throw new Error(e);
+      resultdel.message = e.message;
+      resultdel.success = false;
+      resultdel.code = 400;
+      await ctx.service.log.deposit(opName, opObject, opSource, operatorName, opDate, 400, opDetails, {}, e);
+      return resultdel;
     }
 
-    await ctx.service.log.deposit(opName, opObject, operatorName, opDate, 200, opDetails, {}, '');
+    await ctx.service.log.deposit(opName, opObject, opSource, operatorName, opDate, 200, opDetails, {}, '');
     return res;
   }
 
@@ -635,7 +907,7 @@ class UserService extends Service {
 
     const orgDoamin = operatorName.split('@')[1];
 
-    let networkId = null;
+    let networkId = await ctx.service.user.getNetworkIdByAdminUser(orgName);
     let caStorePath = '';
     let caDockerStorePath = '';
     let regUser = '';
@@ -644,15 +916,13 @@ class UserService extends Service {
 
     try {
       if (operatorName.split('@')[0] === 'Admin') {
-        networkId = await ctx.service.user.getNetworkIdByAdminUser(orgName);
         regUser = 'admin';
       } else {
-        const userInfo = await ctx.model.OrgUser.findOne({ username: operatorName });
+        const userInfo = await ctx.model.OrgUser.findOne({ username: operatorName, network_id: networkId });
         if (userInfo === null) {
-          throw new Error(`\r\n user ${operatorName} can not found in db`);
+          ctx.throw(200, `\r\n user ${operatorName} can not found in db`);
         }
 
-        networkId = userInfo.network_id;
         regUser = operatorName;
       }
       caVersion = await ctx.service.user.getCaVersionByNetworkId(networkId);
@@ -664,7 +934,12 @@ class UserService extends Service {
         await ctx.enrollAdmin(ca.caHost, ca.caPort, mspId, caStorePath, caDockerStorePath, operatorName, caVersion);
       }
 
-      caStorePath = `${config.fabricDir}/${networkId}/crypto-config/peerOrganizations/${orgDoamin}/ca/Admin@${orgDoamin}`;
+      if (caVersion === 'ca_v1.4') {
+          caStorePath = `${config.fabricDir}/${networkId}/crypto-config/peerOrganizations/${orgDoamin}/ca/${regUser}`;
+      }
+      else {
+          caStorePath = `${config.fabricDir}/${networkId}/crypto-config/peerOrganizations/${orgDoamin}/ca/Admin@${orgDoamin}`;
+      }
     } catch (err) {
       console.log('func: getAffiliations. get networkid or caInfo by orgName Failed, err: ' + err);
       return {
@@ -684,13 +959,15 @@ class UserService extends Service {
     const targetName = ctx.params.affiliation;
     const operatorName = ctx.req.user.username;
     const opName = 'orguser_affiliation_del';
+   const opSource = ctx.ip;
     const opObject = 'user';
     const opDate = new Date();
     const opDetails = {};
+    const result = {};
     opDetails.name = targetName;
     const orgName = operatorName.split('@')[1].split('.')[0];
     const orgDoamin = operatorName.split('@')[1];
-    let networkId = null;
+    let networkId = await ctx.service.user.getNetworkIdByAdminUser(orgName);
     let caStorePath = '';
     let caDockerStorePath = '';
     let regUser = '';
@@ -698,42 +975,51 @@ class UserService extends Service {
 
     try {
       if (operatorName.split('@')[0] === 'Admin') {
-        networkId = await ctx.service.user.getNetworkIdByAdminUser(orgName);
         regUser = 'admin';
       } else {
-        const userInfo = await ctx.model.OrgUser.findOne({ username: operatorName });
+        const userInfo = await ctx.model.OrgUser.findOne({ username: operatorName, network_id: networkId });
         if (userInfo === null) {
           const err_message = `user ${operatorName} can not found in db`;
-          await ctx.service.log.deposit(opName, opObject, operatorName, opDate, 400, opDetails, {}, err_message);
-          throw new Error(err_message);
+          result.message = err_message;
+          result.success = false;
+          result.code = 400;
+          await ctx.service.log.deposit(opName, opObject, opSource, operatorName, opDate, 400, opDetails, {}, err_message);
+          return result;
         }
 
-        networkId = userInfo.network_id;
         regUser = operatorName;
       }
       opDetails.network_id = networkId;
-      caStorePath = `${config.fabricDir}/${networkId}/crypto-config/peerOrganizations/${orgDoamin}/ca/Admin@${orgDoamin}`;
       caDockerStorePath = '/etc/hyperledger/fabric-ca-server-config/';
       ca = await ctx.service.user.getCaInfoByUser(networkId, orgName);
     } catch (err) {
       const err_message = 'func: delAffiliation. get networkid or caInfo by orgName Failed, err: ' + err;
       console.log(err_message);
-      await ctx.service.log.deposit(opName, opObject, operatorName, opDate, 400, opDetails, {}, err_message);
-      return {
-        success: false,
-        message: err,
-      };
+      result.message = err_message;
+      result.success = false;
+      result.code = 400;
+      await ctx.service.log.deposit(opName, opObject, opSource, operatorName, opDate, 400, opDetails, {}, err_message);
+      return result;
     }
     let res;
     try {
       const caVersion = await ctx.service.user.getCaVersionByNetworkId(networkId);
+      if (caVersion === 'ca_v1.4') {
+          caStorePath = `${config.fabricDir}/${networkId}/crypto-config/peerOrganizations/${orgDoamin}/ca/${regUser}`;
+      }
+      else {
+          caStorePath = `${config.fabricDir}/${networkId}/crypto-config/peerOrganizations/${orgDoamin}/ca/Admin@${orgDoamin}`;
+      }
       res = await ctx.delUserAffiliations(regUser, targetName, ca.caHost, ca.caPort, caStorePath, caDockerStorePath, caVersion);
     } catch (e) {
-      await ctx.service.log.deposit(opName, opObject, operatorName, opDate, 400, opDetails, {}, e);
-      throw new Error(e);
+      result.message = e.message;
+      result.success = false;
+      result.code = 400;
+      await ctx.service.log.deposit(opName, opObject, opSource, operatorName, opDate, 400, opDetails, {}, e);
+      return result;
     }
 
-    await ctx.service.log.deposit(opName, opObject, operatorName, opDate, 200, opDetails, {}, '');
+    await ctx.service.log.deposit(opName, opObject, opSource, operatorName, opDate, 200, opDetails, {}, '');
     return res;
   }
 
@@ -741,6 +1027,7 @@ class UserService extends Service {
     const { ctx, config } = this;
     const operatorName = ctx.req.user.username;
     const opName = 'orguser_affiliation_update';
+   const opSource = ctx.ip;
     const opObject = 'user';
     const opDate = new Date();
     const opDetails = {};
@@ -751,40 +1038,55 @@ class UserService extends Service {
     let networkId = null;
     let caStorePath = '';
     let caDockerStorePath = '';
+    const result = {};
     let ca = null;
+    let regUser = '';
 
     try {
       if (operatorName.split('@')[0] === 'Admin') {
         networkId = await ctx.service.user.getNetworkIdByAdminUser(orgName);
-      } else {
+        regUser = 'admin';
+      } else {  //非组织管理员不允许修改组织结构
         const errorMsg = 'Authorization failure,please contact the administrator.';
-        await ctx.service.log.deposit(opName, opObject, operatorName, opDate, 400, opDetails, {}, errorMsg);
-        throw new Error(errorMsg);
+        result.message = errorMsg;
+        result.success = false;
+        result.code = 400;
+        await ctx.service.log.deposit(opName, opObject, opSource, operatorName, opDate, 400, opDetails, {}, errorMsg);
+        return result;
       }
       opDetails.network_id = networkId;
-      caStorePath = `${config.fabricDir}/${networkId}/crypto-config/peerOrganizations/${orgDoamin}/ca/Admin@${orgDoamin}`;
       caDockerStorePath = '/etc/hyperledger/fabric-ca-server-config/';
       ca = await ctx.service.user.getCaInfoByUser(networkId, orgName);
     } catch (err) {
       const errorMsg = 'func: updateAffiliation. get networkid or caInfo by orgName Failed, err: ' + err;
       console.log(errorMsg);
-      await ctx.service.log.deposit(opName, opObject, operatorName, opDate, 400, opDetails, {}, errorMsg);
-      return {
-        success: false,
-        message: err,
-      };
+      result.message = errorMsg;
+      result.success = false;
+      result.code = 400;
+      await ctx.service.log.deposit(opName, opObject, opSource, operatorName, opDate, 400, opDetails, {}, errorMsg);
+      return result;
+
     }
 
     let res;
     try {
       const caVersion = await ctx.service.user.getCaVersionByNetworkId(networkId);
+      if (caVersion === 'ca_v1.4') {
+          caStorePath = `${config.fabricDir}/${networkId}/crypto-config/peerOrganizations/${orgDoamin}/ca/${regUser}`;
+      }
+      else {
+          caStorePath = `${config.fabricDir}/${networkId}/crypto-config/peerOrganizations/${orgDoamin}/ca/Admin@${orgDoamin}`;
+      }
       res = await ctx.updateUserAffiliation(sourceName, targetName, ca.caHost, ca.caPort, caStorePath, caDockerStorePath, caVersion);
     } catch (e) {
-      await ctx.service.log.deposit(opName, opObject, operatorName, opDate, 400, opDetails, {}, e);
-      throw new Error(e);
+      result.message = e.message;
+      result.success = false;
+      result.code = 400;
+      await ctx.service.log.deposit(opName, opObject, opSource, operatorName, opDate, 400, opDetails, {}, e.message);
+      return result;
     }
 
-    await ctx.service.log.deposit(opName, opObject, operatorName, opDate, 200, opDetails, {}, '');
+    await ctx.service.log.deposit(opName, opObject, opSource, operatorName, opDate, 200, opDetails, {}, '');
     return res;
   }
 
@@ -794,7 +1096,7 @@ class UserService extends Service {
     const fabric_client = new Fabric_Client();
     const orgDoamin = operatorName.split('@')[1];
     let fabric_ca_client = null;
-    let networkId = null;
+    let networkId = await ctx.service.user.getNetworkIdByAdminUser(orgName);
     let res = null;
     let store_path = '';
     let store_path_ca = '';
@@ -803,18 +1105,24 @@ class UserService extends Service {
 
     try {
       if (operatorName.split('@')[0] === 'Admin') {
-        networkId = await ctx.service.user.getNetworkIdByAdminUser(orgName);
         regUser = 'admin';
       } else {
-        const userInfo = await ctx.model.OrgUser.findOne({ username: operatorName });
+        const userInfo = await ctx.model.OrgUser.findOne({ username: operatorName, network_id: networkId });
         if (userInfo === null) {
           throw new Error(`\r\n user ${operatorName} can not found in db`);
         }
 
-        networkId = userInfo.network_id;
         regUser = operatorName;
       }
-      store_path = `${config.fabricDir}/${networkId}/crypto-config/peerOrganizations/${orgDoamin}/ca/Admin@${orgDoamin}`;
+      const caVersion = await ctx.service.user.getCaVersionByNetworkId(networkId);
+    
+      if (caVersion === 'ca_v1.4') {
+          store_path = `${config.fabricDir}/${networkId}/crypto-config/peerOrganizations/${orgDoamin}/ca/${regUser}`;
+      }
+      else {
+          store_path = `${config.fabricDir}/${networkId}/crypto-config/peerOrganizations/${orgDoamin}/ca/Admin@${orgDoamin}`;
+      }
+      
       store_path_ca = '/etc/hyperledger/fabric-ca-server-config/';
       ca = await ctx.service.user.getCaInfoByUser(networkId, orgName);
     } catch (err) {
@@ -870,7 +1178,7 @@ class UserService extends Service {
     const orgName = operatorName.split('@')[1].split('.')[0];
     const orgDoamin = operatorName.split('@')[1];
 
-    let networkId = null;
+    let networkId = await ctx.service.user.getNetworkIdByAdminUser(orgName);
     let caStorePath = '';
     let caDockerStorePath = '';
     let regUser = '';
@@ -878,18 +1186,14 @@ class UserService extends Service {
 
     try {
       if (operatorName.split('@')[0] === 'Admin') {
-        networkId = await ctx.service.user.getNetworkIdByAdminUser(orgName);
         regUser = 'admin';
       } else {
-        const userInfo = await ctx.model.OrgUser.findOne({ username: operatorName });
+        const userInfo = await ctx.model.OrgUser.findOne({ username: operatorName, network_id: networkId });
         if (userInfo === null) {
           throw new Error(`\r\n user ${operatorName} can not found in db`);
         }
-        networkId = userInfo.network_id;
         regUser = operatorName;
       }
-      caStorePath = `${config.fabricDir}/${networkId}/crypto-config/peerOrganizations/${orgDoamin}/ca/Admin@${orgDoamin}`;
-      caDockerStorePath = '/etc/hyperledger/fabric-ca-server-config/';
       ca = await ctx.service.user.getCaInfoByUser(networkId, orgName);
     } catch (err) {
       console.log('func : getIdentity. get networkid or caInfo by orgName Failed, err: ' + err);
@@ -898,9 +1202,61 @@ class UserService extends Service {
     const caHost = ca.caHost;
     const caPort = ca.caPort;
     const caVersion = await ctx.service.user.getCaVersionByNetworkId(networkId);
+    if (caVersion === 'ca_v1.4') {
+        caStorePath = `${config.fabricDir}/${networkId}/crypto-config/peerOrganizations/${orgDoamin}/ca/${regUser}`;
+    }
+    else {
+        caStorePath = `${config.fabricDir}/${networkId}/crypto-config/peerOrganizations/${orgDoamin}/ca/Admin@${orgDoamin}`;
+    }
+    caDockerStorePath = '/etc/hyperledger/fabric-ca-server-config/';
     const res = await ctx.getUserIdentity(regUser, targetName, caHost, caPort, caStorePath, caDockerStorePath, caVersion);
     return res;
   }
+    /***********************
+     *  生成注销证书列表
+     *  此方法当前没有被使用    ---2019-05-22
+     *  在启用此方法时需要定义所要获取哪个时间段内注销的证书，4个参数可选，revokedBefore，revokedAfter，expireBefore，expireAfter
+     * *****************************/
+    async generateCRL(request) {
+        const { ctx, config } = this;
+        const operatorName = ctx.req.user.username;
+        const orgName = operatorName.split('@')[1].split('.')[0];
+        const orgDoamin = operatorName.split('@')[1];
+        
+        let networkId = await ctx.service.user.getNetworkIdByAdminUser(orgName);
+        let caStorePath = '';
+        let caDockerStorePath = '';
+        let regUser = '';
+        let ca = null;
+        
+        try {
+            if (operatorName.split('@')[0] === 'Admin') {
+                regUser = 'admin';
+            } else {
+                const userInfo = await ctx.model.OrgUser.findOne({ username: operatorName, network_id: networkId });
+                if (userInfo === null) {
+                    throw new Error(`\r\n user ${operatorName} can not found in db`);
+                }
+                regUser = operatorName;
+            }
+            ca = await ctx.service.user.getCaInfoByUser(networkId, orgName);
+        } catch (err) {
+            console.log('func : getIdentity. get networkid or caInfo by orgName Failed, err: ' + err);
+            throw new Error(err);
+        }
+        const caHost = ca.caHost;
+        const caPort = ca.caPort;
+        const caVersion = await ctx.service.user.getCaVersionByNetworkId(networkId);
+        if (caVersion === 'ca_v1.4') {
+            caStorePath = `${config.fabricDir}/${networkId}/crypto-config/peerOrganizations/${orgDoamin}/ca/${regUser}`;
+        }
+        else {
+            caStorePath = `${config.fabricDir}/${networkId}/crypto-config/peerOrganizations/${orgDoamin}/ca/Admin@${orgDoamin}`;
+        }
+        caDockerStorePath = '/etc/hyperledger/fabric-ca-server-config/';
+        const res = await ctx.generateCRL(regUser, request, caHost, caPort, caStorePath, caDockerStorePath, caVersion);
+        return res;
+    }
 }
 
 module.exports = UserService;

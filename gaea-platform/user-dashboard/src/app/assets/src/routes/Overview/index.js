@@ -131,7 +131,7 @@ export default class Overview extends Component {
         const UploadCcs = Array.isArray(UploadCCs) ? UploadCCs : [];
         const installCcs = Array.isArray(installCCs) ? installCCs : [];
         const instantCcs = Array.isArray(instantCCs) ? instantCCs : [];
-        const txForRealtime = Array.isArray(txRealtime) ? txRealtime : [];
+        const txForRealtime = txRealtime;
         //const blocksInfo = Array.isArray(blocks) ? blocks : [];
         //const txInfo = Array.isArray(transactions.trans) ? transactions.trans : [];
         const channelList = [];

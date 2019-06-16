@@ -62,6 +62,10 @@ const messages = defineMessages({
         id: 'Channel.List.LinkAddOrg',
         defaultMessage: 'Append Organization',
     },
+    linkLeaveChannel: {
+        id: 'Channel.List.linkLeaveChannel',
+        defaultMessage: 'Exit Channel',
+    },
     pageTitle: {
         id: 'Channel.List.pageTitle',
         defaultMessage: 'Channel List',
@@ -179,6 +183,8 @@ export default class ChannelList extends PureComponent {
                                 <a onClick={() => this.onAddPeer(row)}>{intl.formatMessage(messages.linkAddPeer)}</a>
                                 <Divider type="vertical"/>
                                 <a onClick={() => this.onAddOrg(row)}>{intl.formatMessage(messages.linkAddOrg)}</a>
+                                <Divider type="vertical"/>
+                                <a onClick={() => this.onLeaveChannel(row)}>{intl.formatMessage(messages.linkLeaveChannel)}</a>
                             </nobr>
                         }
                     </Fragment>
@@ -214,6 +220,17 @@ export default class ChannelList extends PureComponent {
                     id: row.id,
                 })
 
+            })
+        )
+    };
+    
+    onLeaveChannel =(row) => {
+        this.props.dispatch(
+            routerRedux.push({
+                pathname: 'LeaveChannel',
+                search: stringify({
+                    id: row.id,
+                })
             })
         )
     };

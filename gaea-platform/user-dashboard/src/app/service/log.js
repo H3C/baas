@@ -8,8 +8,8 @@ const Service = require('egg').Service;
 class LogService extends Service {
   async fetch() {
     const { ctx } = this;
-    const startTime = ctx.req.query.startTime;
-    const endTime = ctx.req.query.endTime;
+    const startTime = ctx.req.query.start;
+    const endTime = ctx.req.query.end;
     const opName = ctx.req.query.opName;
     const opObject = ctx.req.query.opObject;
     const operator = ctx.req.query.operator;
@@ -41,8 +41,8 @@ class LogService extends Service {
     let end;
     try {
       if (startTime !== undefined && endTime !== undefined) {
-        start = new Date(startTime);
-        end = new Date(endTime);
+        start = new Date(startTime*1);
+        end = new Date(endTime*1);
         condition.opDate = { $gte: start, $lt: end };
       }
       logs = await ctx.model.Log.find(condition);
@@ -54,7 +54,7 @@ class LogService extends Service {
     return result;
   }
 
-  async deposit(opName, opObject, operator, opDate, resCode, opDetails, opResult = {}, errorMsg = '', resDes = 'ERROR') {
+  async deposit(opName, opObject,  opSource, operator, opDate, resCode, opDetails, opResult = {}, errorMsg = '', resDes = 'ERROR') {
     const { ctx } = this;
     if ((resCode - 400) >= 0) {
       opResult.resDes = resDes;
@@ -69,12 +69,13 @@ class LogService extends Service {
 
     try {
       await ctx.model.Log.create({
-        opDate,
-        opName,
-        opObject,
-        operator,
-        opDetails,
-        opResult,
+        opDate: opDate,
+        opName: opName,
+        opObject: opObject,
+        opSource: opSource,
+        operator: operator,
+        opDetails: opDetails,
+        opResult: opResult,
       });
       return true;
     } catch (e) {

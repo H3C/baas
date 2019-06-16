@@ -12,7 +12,7 @@ spec:
   accessModes:
     - ReadWriteOnce
   capacity:
-    storage: 1Gi
+    storage: 10Gi
   nfs:
     path: $path/kafka-0
     server: $nfsServer
@@ -29,7 +29,7 @@ spec:
   accessModes:
     - ReadWriteOnce
   capacity:
-    storage: 1Gi
+    storage: 10Gi
   nfs:
     path: $path/kafka-1
     server: $nfsServer
@@ -46,7 +46,7 @@ spec:
   accessModes:
     - ReadWriteOnce
   capacity:
-    storage: 1Gi
+    storage: 10Gi
   nfs:
     path: $path/kafka-2
     server: $nfsServer
@@ -63,7 +63,7 @@ spec:
   accessModes:
     - ReadWriteOnce
   capacity:
-    storage: 1Gi
+    storage: 10Gi
   nfs:
     path: $path/kafka-3
     server: $nfsServer

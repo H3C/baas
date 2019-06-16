@@ -108,20 +108,25 @@ module.exports = app => {
     await client.initCredentialStores();
 
     if (username.split('@')[0] === 'Admin') {
-      const adminPKPath = network.config.organizations[orgName].adminPrivateKey.path;
-      const adminCertPath = network.config.organizations[orgName].signedCert.path;
-      const keyPEM = Buffer.from(fs.readFileSync(adminPKPath)).toString();
-      const certPEM = fs.readFileSync(adminCertPath).toString();
-      const orgNameFu = await fistToUpper(orgName);
+        let user = await client.getUserContext(username, true);
+        if (!user) {
+            const adminPKPath = network.config.organizations[orgName].adminPrivateKey.path;
+            const adminCertPath = network.config.organizations[orgName].signedCert.path;
+            const keyPEM = Buffer.from(fs.readFileSync(adminPKPath)).toString();
+            const certPEM = fs.readFileSync(adminCertPath).toString();
+            const orgNameFu = await fistToUpper(orgName);
 
-      const user = await client.createUser({
-        username: `${orgName}Admin`,
-        mspid: `${orgNameFu}MSP`,
-        cryptoContent: {
-          privateKeyPEM: keyPEM,
-          signedCertPEM: certPEM,
-        },
-      });
+            user = await client.createUser({
+                username: `${orgName}Admin`,
+                mspid: `${orgNameFu}MSP`,
+                cryptoContent: {
+                    privateKeyPEM: keyPEM,
+                    signedCertPEM: certPEM,
+                },
+            });
+        } else {
+            app.logger.debug('User %s was found to be registered and enrolled', username);
+        }
     } else {
       if (username) {
         const user = await client.getUserContext(username, true);
@@ -161,7 +166,7 @@ module.exports = app => {
     const keyPEM = Buffer.from(readAllFiles(admin.key)[0]).toString();
     const certPEM = readAllFiles(admin.cert)[0].toString();
 
-    const client = await getClientForOrg(userOrg, clients);
+    const client = await getClientForOrgCA(userOrg, clients);
     const cryptoSuite = hfc.newCryptoSuite();
     if (userOrg) {
       cryptoSuite.setCryptoKeyStore(hfc.newCryptoKeyStore({ path: getKeyStoreForOrg(keyValueStore, getOrgName(userOrg, network)) }));
@@ -183,8 +188,8 @@ module.exports = app => {
     return user;
   }
 
-  async function installChainCode(network, orgName, chainCodeData, chainCodePath, body) {
-    const client = await getClientForOrg(orgName, network);
+  async function installChainCode(network, orgName, chainCodeData, chainCodePath, body,username) {
+    const client = await getClientForOrgCA(orgName, network,username);
     client.newTransactionID(true);
     const install_peers = body.install.peers;
     const request = {
@@ -231,7 +236,7 @@ module.exports = app => {
     const peerInChannel = channelData.peers_inChannel;
     const channelpeers = [];
     for (let i = 0, len = peerInChannel.length; i < len; i++) {
-      channelpeers.push(peerInChannel[i]);
+      channelpeers.push(peerInChannel[i].name);
     }
 
     let inistantiatePeers = channelpeers.filter(function(v){return ccInstallPeers.indexOf(v) > -1});
@@ -265,7 +270,7 @@ module.exports = app => {
       request.fcn = fcn;
     }
 
-    const results = await channel.sendInstantiateProposal(request, 60000); // instantiate takes much longer
+    const results = await channel.sendInstantiateProposal(request, 120000); // instantiate takes much longer
 
     // the returned object has both the endorsement results
     // and the actual proposal, the proposal will be needed
@@ -289,6 +294,7 @@ module.exports = app => {
         all_good = false;
         throw new Error(err_message);
       }
+      app.logger.error("chaincode Error: " + proposalResponses[0].message);
       all_good = all_good & one_good;
     }
 
@@ -381,6 +387,160 @@ module.exports = app => {
       app.logger.debug(error_message);
     }
   }
+
+  async function upgradeChainCode(network, orgName, channelData, chainCodeData, body, userName, peers) {
+
+      let error_message = null;
+      const client = await getClientForOrgCA(orgName, network, userName);
+      const channelName = channelData.name;
+      if (peers.length === 0) {
+          let message = util.format('No peers installed this chaincode have joined channel:%s', channelName);
+          app.logger.error(message);
+          throw new Error(message);
+      }
+
+      const channel = client.getChannel(channelName);
+      if(!channel) {
+          let message = util.format('Channel %s was not defined in the connection profile', channelName);
+          logger.error(message);
+          throw new Error(message);
+      }
+      const body_args = body.args.split(',');
+      const fcn = body.functionName;
+      const tx_id = client.newTransactionID(true);
+      const deployId = await tx_id.getTransactionID();
+
+      const request = {
+          targets: peers,
+          chaincodeType: chainCodeData.language,
+          chaincodeId: chainCodeData.name,
+          chaincodeVersion: chainCodeData.version,
+          args: body_args,
+          txId: tx_id,
+          'endorsement-policy': body.endorsementPolicy
+      };
+      if (fcn) {
+          request.fcn = fcn;
+      }
+
+      const results = await channel.sendUpgradeProposal(request, 120000); // instantiate takes much longer
+
+      // the returned object has both the endorsement results
+      // and the actual proposal, the proposal will be needed
+      // later when we send a transaction to the orderer
+      const proposalResponses = results[0];
+      const proposal = results[1];
+
+      // lets have a look at the responses to see if they are
+      // all good, if good they will also include signatures
+      // required to be committed
+      let all_good = true;
+      for (const i in proposalResponses) {
+          let one_good = false;
+          if (proposalResponses && proposalResponses[i].response &&
+              proposalResponses[i].response.status === 200) {
+              one_good = true;
+              app.logger.info('upgrade proposal was good');
+          } else {
+              const err_message = proposalResponses[i].details;
+              app.logger.error(err_message);
+              all_good = false;
+              throw new Error(err_message);
+          }
+          app.logger.error("chaincode Error: " + proposalResponses[0].message);
+          all_good = all_good & one_good;
+      }
+
+      if (all_good) {
+          app.logger.info(util.format(
+              'Successfully sent Proposal and received ProposalResponse: Status - %s, message - "%s", metadata - "%s", endorsement signature: %s',
+              proposalResponses[0].response.status, proposalResponses[0].response.message,
+              proposalResponses[0].response.payload, proposalResponses[0].endorsement.signature));
+
+          // wait for the channel-based event hub to tell us that the
+          // upgrade transaction was committed on the peer
+          const promises = [];
+          const event_hubs = channel.getChannelEventHubsForOrg();
+          app.logger.debug('found %s eventhubs for this organization', event_hubs.length);
+          event_hubs.forEach(eh => {
+              const upgradeEventPromise = new Promise((resolve, reject) => {
+                  app.logger.debug('upgradeEventPromise - setting up event');
+                  const event_timeout = setTimeout(() => {
+                      const message = 'REQUEST_TIMEOUT:' + eh.getPeerAddr();
+                      app.logger.error(message);
+                      eh.disconnect();
+                  }, 120000);
+                  eh.registerTxEvent(deployId, (tx, code, block_num) => {
+                          app.logger.info('The chaincode instantiate transaction has been committed on peer %s', eh.getPeerAddr());
+                          app.logger.info('Transaction %s has status of %s in blocl %s', tx, code, block_num);
+                          clearTimeout(event_timeout);
+
+                          if (code !== 'VALID') {
+                              const message = util.format('The chaincode instantiate transaction was invalid, code:%s', code);
+                              app.logger.error(message);
+                              reject(new Error(message));
+                          } else {
+                              const message = 'The chaincode instantiate transaction was valid.';
+                              app.logger.info(message);
+                              resolve(message);
+                          }
+                      }, err => {
+                          clearTimeout(event_timeout);
+                          app.logger.error(err);
+                          reject(err);
+                      },
+                      // the default for 'unregister' is true for transaction listeners
+                      // so no real need to set here, however for 'disconnect'
+                      // the default is false as most event hubs are long running
+                      // in this use case we are using it only once
+                      { unregister: true, disconnect: true }
+                  );
+                  eh.connect();
+              });
+              promises.push(upgradeEventPromise);
+          });
+
+          const orderer_request = {
+              txId: tx_id, // must include the transaction id so that the outbound
+              // transaction to the orderer will be signed by the admin
+              // id as was the proposal above, notice that transactionID
+              // generated above was based on the admin id not the current
+              // user assigned to the 'client' instance.
+              proposalResponses,
+              proposal,
+          };
+          const sendPromise = channel.sendTransaction(orderer_request);
+          // put the send to the orderer last so that the events get registered and
+          // are ready for the orderering and committing
+          promises.push(sendPromise);
+          const results = await Promise.all(promises);
+          app.logger.debug(util.format('------->>> R E S P O N S E : %j', results));
+          const response = results.pop(); //  orderer results are last in the results
+          if (response.status === 'SUCCESS') {
+              app.logger.info('Successfully sent transaction to the orderer.');
+          } else {
+              error_message = util.format('Failed to order the transaction. Error code: %s', response.status);
+              app.logger.debug(error_message);
+          }
+
+          // now see what each of the event hubs reported
+          for (const i in results) {
+              const event_hub_result = results[i];
+              const event_hub = event_hubs[i];
+              app.logger.debug('Event results for event hub :%s', event_hub.getPeerAddr());
+              if (typeof event_hub_result === 'string') {
+                  app.logger.debug(event_hub_result);
+              } else {
+                  if (!error_message) error_message = event_hub_result.toString();
+                  app.logger.debug(event_hub_result.toString());
+              }
+          }
+      } else {
+          const error_message = util.format('Failed to send Proposal and receive all good ProposalResponse');
+          app.logger.debug(error_message);
+      }
+  }
+
   async function createChannel(network, channelName, channelConfigPath, username, orgName) {
     app.logger.debug('\n====== Creating Channel \'' + channelName + '\' ======\n');
     try {
@@ -460,6 +620,22 @@ module.exports = app => {
         txId: client.newTransactionID(true), // get an admin based transactionID
       };
       let genesis_block = await channel.getGenesisBlock(request);
+
+      // below code is for debug genesis block
+      // comment out below code when debug if needed
+      // original "config" object: protobuf
+      // var genesis_block_proto = genesis_block.data.toBuffer();
+      // var genesis_block_proto = genesis_block.toBuffer();
+      //
+      // var response = await agent.post('http://127.0.0.1:7059/protolator/decode/common.Block',
+      //   genesis_block_proto).buffer();
+      //
+      // // original config: json
+      // var original_config_json = response.text.toString();
+      // console.log("*******", original_config_json);
+      // console.log("-------------------------");
+
+
       var promises = [];
       var block_registration_numbers = [];
       promises.push(new Promise(resolve => setTimeout(resolve, 10000)));
@@ -522,6 +698,7 @@ module.exports = app => {
       let results = await Promise.all(promises);
       app.logger.debug(util.format('Join Channel R E S P O N S E : %j', results));
       let peers_results = results.pop();
+      console.log("*************", peers_results);
       // then each peer results
       for (let i in peers_results) {
         let peer_result = peers_results[i];
@@ -725,7 +902,7 @@ module.exports = app => {
       app.logger.info('Calling peers in organization "%s" to join the channel', org);
 
       // first setup the client for this org
-      const client = await getClientForOrg(org, network);
+      const client = await getClientForOrgCA(org, network);
       app.logger.debug('Successfully got the fabric client for the organization "%s"', org);
 
       // tx_id = client.newTransactionID(true); // get an admin transactionID
@@ -815,7 +992,7 @@ module.exports = app => {
 
     try {
       // first setup the client for this org
-      const client = await getClientForOrg(org, network);
+      const client = await getClientForOrgCA(org, network);
       app.logger.debug('Successfully got the fabric client for the organization "%s"', org);
       const channel = client.getChannel(channelName);
       if (!channel) {
@@ -1000,7 +1177,7 @@ module.exports = app => {
   async function getRegisteredUser(network, username, userOrg, isJson) {
     const { config } = app;
     try {
-      const client = await getClientForOrg(userOrg, network);
+      const client = await getClientForOrgCA(userOrg, network);
       app.logger.debug('Successfully initialized the credential stores');
       // client can now act as an agent for organization Org1
       // first check to see if the user is already enrolled
@@ -1087,6 +1264,7 @@ module.exports = app => {
         } else {
           app.logger.error('invoke chaincode proposal was bad');
         }
+        app.logger.error("chaincode Error: " + proposalResponses[0].message);
         all_good = all_good & one_good;
       }
 
@@ -1107,7 +1285,7 @@ module.exports = app => {
               const message = 'REQUEST_TIMEOUT:' + eh.getPeerAddr();
               app.logger.error(message);
               eh.disconnect();
-            }, 3000);
+            }, 30000);
             eh.registerTxEvent(tx_id_string, (tx, code, block_num) => {
               app.logger.info('The chaincode invoke chaincode transaction has been committed on peer %s', eh.getPeerAddr());
               app.logger.info('Transaction %s has status of %s in blocl %s', tx, code, block_num);
@@ -1255,7 +1433,7 @@ module.exports = app => {
   async function getChainInfo(network, keyValueStorePath, peer, username, org, channelName = '') {
     try {
       // first setup the client for this org
-      const client = await getClientForOrg(org, network);
+      const client = await getClientForOrgCA(org, network);
       app.logger.debug('Successfully got the fabric client for the organization "%s"', org);
       const channel = client.getChannel(channelName);
       if (!channel) {
@@ -1289,7 +1467,7 @@ module.exports = app => {
   async function getBlockByNumber(network, keyValueStorePath, peer, blockNumber, username, org, channelName = '') {
     try {
       // first setup the client for this org
-      const client = await getClientForOrg(org, network);
+      const client = await getClientForOrgCA(org, network);
       app.logger.debug('Successfully got the fabric client for the organization "%s"', org);
       const channel = client.getChannel(channelName);
       if (!channel) {
@@ -1380,7 +1558,7 @@ module.exports = app => {
   async function getChannels(network, keyValueStorePath, peer, username, org) {
     try {
       // first setup the client for this org
-      const client = await getClientForOrg(org, network);
+      const client = await getClientForOrgCA(org, network);
       app.logger.debug('Successfully got the fabric client for the organization "%s"', org);
 
       const response = await client.queryChannels(peer);
@@ -1405,7 +1583,7 @@ module.exports = app => {
     const chainCodes = [];
     try {
       // first setup the client for this org
-      const client = await getClientForOrg(org, network);
+      const client = await getClientForOrgCA(org, network);
       app.logger.debug('Successfully got the fabric client for the organization "%s"', org);
 
       let response = {};
@@ -1483,7 +1661,7 @@ module.exports = app => {
     return channel.getPeers();
   }
   async function getPeersForOrg(network, orgName){
-    const client = await getClientForOrg(orgName, network);
+    const client = await getClientForOrgCA(orgName, network);
 
     return client.getPeersForOrg(orgName);
   }
@@ -1673,6 +1851,131 @@ module.exports = app => {
           throw new Error('Failed to signChannelOrg the channel: ' + error.toString());
       }
   }
+  async function removeOrgFromChannel(network, channelName, org, orgId, username, channeldb, config, newOrgId, newOrgName,signedusers) {
+      const requester = require('request');
+      let config_proto;
+      try {
+          // first setup the client for this org
+          let client = await getClientForOrgCA(org, network, username);
+          app.logger.debug('Successfully got the fabric client for the organization "%s"', org);
+          const channel = client.getChannel(channelName);
+          if (!channel) {
+              let message = util.format('Channel %s was not defined in the connection profile', channelName);
+              app.logger.error(message);
+              throw new Error(message);
+          }
+        
+          const config_envelope = await channel.getChannelConfig();
+        
+          // original "config" object: protobuf
+          const original_config_proto = config_envelope.config.toBuffer();
+        
+          // use tool : configtxlator : pb->json
+          let response = await agent.post('http://127.0.0.1:7059/protolator/decode/common.Config',
+              original_config_proto).buffer();
+        
+          // original config: json
+          let updated_config_json = response.text.toString();
+        
+          const updated_config = JSON.parse(updated_config_json);
+
+          const OrgMSP = newOrgName.substring(0, 1).toUpperCase() + newOrgName.substring(1) + 'MSP';
+
+          delete updated_config.channel_group.groups.Application.groups[OrgMSP];
+          
+          updated_config_json = JSON.stringify(updated_config);
+          
+          // configtxlator: json -> pb
+          response = await agent.post('http://127.0.0.1:7059/protolator/encode/common.Config',
+              updated_config_json.toString()).buffer();
+        
+          const updated_config_proto = response.body;
+        
+          const formData = {
+              channel: channelName,
+              original: {
+                  value: original_config_proto,
+                  options: {
+                      filename: 'original.proto',
+                      contentType: 'application/octet-stream'
+                  }
+              },
+              updated: {
+                  value: updated_config_proto,
+                  options: {
+                      filename: 'updated.proto',
+                      contentType: 'application/octet-stream'
+                  }
+              }
+          };
+        
+          // configtxlator: computer
+          // need request v1.9.8   (2.87.0  err)
+          response = await new Promise((resolve, reject) => {
+              requester.post({
+                  url: 'http://127.0.0.1:7059/configtxlator/compute/update-from-configs',
+                  // if dont have 'encoding' and 'headers', it will: error authorizing update
+                  encoding: null,
+                  headers: {
+                      accept: '/',
+                      expect: '100-continue'
+                  },
+                  formData: formData
+              }, (err, res, body) => {
+                  if (err) {
+                      app.logger.error('Failed to get the updated configuration ::' + err);
+                      reject(err);
+                  } else {
+                      const proto = Buffer.from(body, 'binary');
+                      resolve(proto);
+                  }
+              });
+          });
+        
+          app.logger.debug('Successfully had configtxlator compute the updated config object')
+          config_proto = response;
+        
+          const signatures = [];
+        
+          for (let each = 0; each < signedusers.length; each++){
+              const orgUsername = signedusers[each];
+              const orgName = signedusers[each].split('@')[1].split('.')[0];
+            
+              client = await getClientForOrgCA(orgName, network, orgUsername);
+            
+              const signature = client.signChannelConfig(config_proto);
+              if (!signature) {
+                  let message = util.format('signature %s was not defined in the connection profile', config_proto);
+                  app.logger.error(message);
+                  console.log(message);
+                  throw new Error(message);
+              }
+              signatures.push(signature);
+          }
+        
+          client = await getClientForOrgCA(org, network, username);
+          let tx_id = client.newTransactionID(true);
+          const request = {
+              config: config_proto,
+              signatures: signatures,
+              name: channelName,
+              txId: tx_id
+          };
+          const result = await client.updateChannel(request);
+          if(result.status && result.status === 'SUCCESS') {
+              app.logger.debug('Successfully updated the channel.');
+          } else {
+              app.logger.error('Failed to update the channel.');
+              console.log('Failed to update the channel.');
+              throw new Error('Failed to update the channel: ' );
+          }
+        
+      } catch (error) {
+          app.logger.error('Failed to signChannelOrg due to error: ' + error.stack ? error.stack : error);
+          console.log(error);
+          throw new Error('Failed to signChannelOrg the channel: ' + error.toString());
+      }
+  }
 
   app.fabricHelperV1_4 = fabricHelper;
   // app.getClientForOrgV1_1 = getClientForOrg;
@@ -1695,9 +1998,11 @@ module.exports = app => {
   app.getPeersForChannelV1_4 = getPeersForChannel;
   app.getPeersForOrgV1_4 = getPeersForOrg;
   app.instantiateChainCodeV1_4 = instantiateChainCode;
+  app.upgradeChainCodeV1_4 = upgradeChainCode;
   app.installChainCodeV1_4 = installChainCode;
   app.signUpdateV1_4 = signUpdate;
   app.getLastBlockV1_4 = getLastBlock;
   app.getBlockInfoByNumberV1_4 = getBlockInfoByNumber;
+  app.removeOrgFromChannelV1_4 = removeOrgFromChannel;
   // hfc.setLogger(app.logger);
 };

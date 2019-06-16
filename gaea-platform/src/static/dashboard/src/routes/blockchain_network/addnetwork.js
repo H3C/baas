@@ -202,7 +202,7 @@ export default class CreateNet extends PureComponent {
       </Option>
     ));
 
-    const fabveroptions = ['v1.1', 'v1.4'];
+    const fabveroptions = ['v1.4'];
     const fabVersionOptions = fabveroptions.map(fabveroption => (
       <Option value={fabveroption}>
         <span>{fabveroption}</span>

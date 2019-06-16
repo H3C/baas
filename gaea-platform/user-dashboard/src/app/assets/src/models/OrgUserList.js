@@ -1,5 +1,5 @@
 import { routerRedux } from 'dva/router';
-import { queryOrgUser, createOrgUser,updateOrgUser,reEnrollOrgUser,removeOrgUser,GetAffiliation,CreateAffiliation,UpdateAffiliation } from '../services/orguser_api';
+import { queryOrgUser, queryOneUser, updateUserInfo, createOrgUser,updateOrgUser,reEnrollOrgUser,removeOrgUser,GetAffiliation,CreateAffiliation,UpdateAffiliation } from '../services/orguser_api';
 import {queryNetworks} from "../services/network_api";
 import {message} from "antd/lib/index";
 import {defineMessages, IntlProvider} from "react-intl";
@@ -14,6 +14,18 @@ const messages = defineMessages({
         id: 'User.NewUser.Operator',
         defaultMessage: 'Operator',
     },
+    updateSuccess: {
+        id: 'User.UpdateInfo.Success',
+        defaultMessage: 'Update user information success.',
+    },
+    updateFail: {
+        id: 'User.UpdateInfo.Fail',
+        defaultMessage: 'Update user information Fail.',
+    },
+    getUserFail: {
+        id: 'User.GetUser.Fail',
+        defaultMessage: 'Get user information Fail.',
+    }
 });
 const currentLocale = getLocale();
 const intlProvider = new IntlProvider(
@@ -29,36 +41,39 @@ export default {
     orgusers: [],
     getAffili:[],
     postAffili:[],
+    currentUser:[]
   },
 
   effects: {
       * fetch({payload}, {call, put}) {
           const orgusers=[];
           const response = yield call(queryOrgUser, payload);
-          const orgUsers = response.orgusers;
-          if (orgUsers.length > 0) {
-              const networkId = orgUsers[0].network_id;
-              const mapNetResponse = yield call(queryNetworks, networkId);
-              const net_name = mapNetResponse.blockchain_network.name;
-              const orgUserResponse = orgUsers;   //用户列表
-              orgUserResponse.map((item, index) => {
-                  if (item.roles === 'org_admin') {
-                      item.roles = intl.formatMessage(messages.administrator);
-                  }
-                  else {
-                      item.roles = intl.formatMessage(messages.operator);
-                  }
+          if (typeof(response) !== 'undefined') {
+              const orgUsers = response.orgusers;
+              if (orgUsers.length > 0) {
+                  const networkId = orgUsers[0].network_id;
+                  const mapNetResponse = yield call(queryNetworks, networkId);
+                  const net_name = mapNetResponse.blockchain_network.name;
+                  const orgUserResponse = orgUsers;   //用户列表
+                  orgUserResponse.map((item, index) => {
+                      if (item.roles === 'org_admin') {
+                          item.roles = intl.formatMessage(messages.administrator);
+                      }
+                      else {
+                          item.roles = intl.formatMessage(messages.operator);
+                      }
 
-                  orgusers.push(
-                      Object.assign({}, item, {network_name: net_name})      // 增加网络名称到列表字段中
-                  )
+                      orgusers.push(
+                          Object.assign({}, item, {network_name: net_name})      // 增加网络名称到列表字段中
+                      )
+                  });
+
+              }
+              yield put({
+                  type: 'save',
+                  payload: orgusers,
               });
-
           }
-          yield put({
-              type: 'save',
-              payload: orgusers,
-          });
       },
 
 
@@ -162,7 +177,35 @@ export default {
               payload: Aff,
           });
       },
-
+      *getUser({payload}, {call, put}) {
+          const user = yield call(queryOneUser, payload);
+          
+          if (!user.success) {
+              message.error(intl.formatMessage(messages.getUserFail));
+              return;
+          }
+          yield put({
+              type: 'saveUser',
+              payload: user.orguser
+          })
+      },
+      *updateUserInfo({payload}, {call, put}) {
+          const res = yield call(updateUserInfo, payload);
+          
+          if (!res.success) {
+              message.error(intl.formatMessage(messages.updateFail));
+          }
+          else {
+              message.success(intl.formatMessage(messages.updateSuccess));
+          }
+    
+          payload.dispatch({
+              type: 'OrgUserList/getUser',
+              payload: {
+                  username: window.username
+              }
+          });
+      }
   },
 
       reducers: {
@@ -178,7 +221,12 @@ export default {
                   getAffili:action.payload,
               }
           },
-
+          saveUser(state, action) {
+              return {
+                  ...state,
+                  currentUser: action.payload
+              }
+          }
       },
 
 };

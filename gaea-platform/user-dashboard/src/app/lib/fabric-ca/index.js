@@ -5,20 +5,20 @@ module.exports = app => {
   async function enrollAdmin(caHost, caPort, mspId, caStorePath, caDockerStorePath, userName, networkType = 'ca_v1.1') {
     switch (networkType) {
       case 'ca_v1.4':
-        return await app.enrollAdminV1_4(caHost, caPort, mspId, caStorePath, caDockerStorePath, userName);
+        return await app.enrollAdminV1_4(caHost, caPort, mspId, caStorePath);
       case 'ca_v1.1':
       default:
         return await app.enrollAdminV1_1(caHost, caPort, mspId, caStorePath, caDockerStorePath, userName);
     }
   }
 
-  async function registerUser(registerUser, caHost, caPort, mspId, name, role, password, userAffilication, caStorePath, caDockerStorePath, attributes, networkType = 'ca_v1.1') {
+  async function registerUser(registerUser, ca, mspId, name, role, userAffilication, caStorePath, caDockerStorePath, attributes, networkType = 'ca_v1.1') {
     switch (networkType) {
       case 'ca_v1.4':
-        return await app.registerUserV1_4(registerUser, caHost, caPort, mspId, name, role, password, userAffilication, caStorePath, caDockerStorePath, attributes);
+        return await app.registerUserV1_4(registerUser, ca, mspId, name, role, userAffilication, caStorePath, attributes);
       case 'ca_v1.1':
       default:
-        return await app.registerUserV1_1(registerUser, caHost, caPort, mspId, name, role, password, userAffilication, caStorePath, caDockerStorePath, attributes);
+        return await app.registerUserV1_1(registerUser, ca, mspId, name, role, userAffilication, caStorePath, caDockerStorePath, attributes);
     }
   }
 
@@ -91,6 +91,16 @@ module.exports = app => {
         return await app.updateUserAffiliationV1_1(sourceName, targetName, caHost, caPort, caStorePath, caDockerStorePath);
     }
   }
+  
+  async function generateCRL(registerUser, request, caHost, caPort, caStorePath, caDockerStorePath, networkType) {
+      switch (networkType) {
+          case 'ca_v1.4':
+              return await app.generateCRLV1_4(registerUser, request, caHost, caPort, caStorePath, caDockerStorePath);
+          case 'ca_v1.1':
+          default:
+              return await app.generateCRLV1_1(registerUser, request, caHost, caPort, caStorePath, caDockerStorePath);
+      }
+  }
 
   app.enrollAdmin = enrollAdmin;
   app.registerUser = registerUser;
@@ -101,4 +111,5 @@ module.exports = app => {
   app.getUserAffiliations = getUserAffiliations;
   app.delUserAffiliations = delUserAffiliations;
   app.updateUserAffiliation = updateUserAffiliation;
+  app.generateCRL = generateCRL;
 }
