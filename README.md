@@ -41,3 +41,5 @@ http://ip:8071
 访问user-dashboard
 
 http://ip:8081
+
+如果npm install不成功，使用yarn install替代，如果网速较快，可以把npm install和npm run build放到dockerfile中
