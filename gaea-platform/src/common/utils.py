@@ -52,7 +52,7 @@ PROMETHEUS_NODE_EXPORTER_POD_PORT = '9100'
 
 
 # number of port allocated to each cluster in case collision
-CLUSTER_PORT_STEP = 100
+CLUSTER_PORT_STEP = 1
 
 PEER_SERVICE_PORTS = {
     'rest': 7050,  # this is the reference starter for cluster port step

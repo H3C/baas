@@ -37,6 +37,17 @@ export async function updateUser(params) {
     body: params,
   });
 }
+export async function resetOrgUserPassword(params) {
+    const name=params.orguser.name;
+    return request(`${urls.user.reset}/${name}`, {
+        method: 'POST',
+        body: {
+            curUser: params.orguser.curUser,
+            curPassword:params.orguser.curPassword,
+            password: params.orguser.password,
+        },
+    });
+}
 
 export async function login(params) {
     return request(urls.user.login, {

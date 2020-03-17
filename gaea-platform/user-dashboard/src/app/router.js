@@ -17,7 +17,7 @@ module.exports = app => {
       username,
       password,
     };
-    app.passport.doVerify(req, user, done);
+   app.passport.doVerify(req, user, done);
   }));
 
   passport.verify(async (ctx, user) => {
@@ -41,3 +41,15 @@ module.exports = app => {
 
   router.prefix('/');
 };
+// module.exports = app => {
+//    const { router, controller, io, jwt } = app;
+//    router.get('home', '/', controller.home.index);
+//    router.post('upload-smart-contract', '/upload-smart-contract', controller.smartContract.upload);
+//    router.post('/login', controller.home.login);
+//    router.redirect('/','/login');
+//    router.get('/logout', controller.home.logout);
+//    require('./router/api')(app);
+//    io.of('/').route('join', io.controller.home.join);
+//
+//    router.prefix('/');
+// };

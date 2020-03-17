@@ -32,6 +32,8 @@ module.exports = app => {
   app.router.post('/v2/channels/:channel_id/signforleave',app.controller.channel.removeOrgFromChannel);
   app.router.get('/v2/channels/:channel_id/getleavesignifo',app.controller.channel.getLeaveChannelsigners);
   app.router.post('/v2/channels/:channel_id/chaincodeOperation', app.controller.channel.chainCodeOperation);
+  app.router.post('/v2/sys_channel/:network_id', app.controller.channel.updateSysChannelInfo);
+  app.router.post('/v2/sys_channel_orderer/:network_id', app.controller.channel.updateSysChannelOrdererInfo);
   app.router.post('/v2/chaincodes', app.controller.chainCode.upload);
   app.router.get('/v2/chaincodes', app.controller.chainCode.getChainCodes);
   app.router.get('/v2/chaincodes/:chaincode_id', app.controller.chainCode.getChainCodeById);
@@ -40,12 +42,14 @@ module.exports = app => {
   app.router.post('/v2/chaincodes/:chaincode_id/upgrade', app.controller.chainCode.upgradeChainCode);
   app.router.delete('/v2/chaincodes/:chaincode_id', app.controller.chainCode.deleteChainCodeById);
   app.router.post('/v2/cookie', app.controller.user.getCookie);
+  app.router.post('/v2/token', app.controller.user.getToken);
   app.router.post('/v2/orgusers', app.controller.user.createOrgUser);
   app.router.get('/v2/orgusers', app.controller.user.getOrgUserList);
   app.router.get('/v2/orgusers/:name', app.controller.user.getOrgUser);
   app.router.delete('/v2/orgusers', app.controller.user.deleteOrgUser);
   app.router.put('/v2/orgusers/:name', app.controller.user.updateOrguserState);
   app.router.put('/v2/orgusers', app.controller.user.updateOrguserPassword);
+  app.router.post('/v2/orgusers/resetpassword/:name', app.controller.user.resetOrguserPassword);
   app.router.put('/v2/orguserinfor', app.controller.user.updateOrguserInfo);
   app.router.post('/v2/orgusers/:name', app.controller.user.reenrollOrgUser);
   app.router.post('/v2/affiliation', app.controller.user.createAffiliation);
@@ -57,4 +61,10 @@ module.exports = app => {
   // app.router.get('/v2/blocks/:channel_id/:times_begin/:times_end', app.controller.explorer.getTransactionsByTime);
   app.router.post('/v2/operator_logs', app.controller.log.deposit);
   app.router.get('/v2/operator_logs', app.controller.log.fetch);
+  app.router.post('/v2/resources', app.controller.user.deleteMongoDatasByNetworkid);
+  app.router.get('/v2/blockchain_networks', app.controller.toOperatorRequest.getNetworks);
+  app.router.get('/v2/blockchain_networks/:id', app.controller.toOperatorRequest.getNetworks);
+  app.router.get('/v2/organizations', app.controller.toOperatorRequest.getOrganizations);
+  app.router.get('/v2/organizations/:id', app.controller.toOperatorRequest.getOrganizations);
+  app.router.post('/v2/orgAdmin/:id/changePassword', app.controller.toOperatorRequest.orgAdminResetPassword);
 };

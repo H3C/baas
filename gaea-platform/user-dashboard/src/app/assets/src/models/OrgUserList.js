@@ -1,5 +1,5 @@
 import { routerRedux } from 'dva/router';
-import { queryOrgUser, queryOneUser, updateUserInfo, createOrgUser,updateOrgUser,reEnrollOrgUser,removeOrgUser,GetAffiliation,CreateAffiliation,UpdateAffiliation } from '../services/orguser_api';
+import { queryOrgUser, ResetAdminPassword, queryOneUser, updateUserInfo, createOrgUser,updateOrgUser,reEnrollOrgUser,removeOrgUser,GetAffiliation,CreateAffiliation,UpdateAffiliation,resetOrgUserPassword } from '../services/orguser_api';
 import {queryNetworks} from "../services/network_api";
 import {message} from "antd/lib/index";
 import {defineMessages, IntlProvider} from "react-intl";
@@ -111,6 +111,12 @@ export default {
           });
       },
 
+      *resetOrgUserPassword({payload,callback}, {call, put}){
+          const response = yield call(resetOrgUserPassword, payload);
+          callback(response);
+          console.log("response:",response);
+      },
+
 
       * removeOrgUser({payload}, {call, put}) {
           const response = yield call(removeOrgUser, payload);
@@ -205,6 +211,10 @@ export default {
                   username: window.username
               }
           });
+      },
+      *ResetAdminPassword({payload, callback}, {call, put}) {
+          const res = yield call(ResetAdminPassword, payload);
+          callback(res);
       }
   },
 

@@ -22,6 +22,8 @@ spec:
           value: debug
         - name: ORDERER_GENERAL_LISTENADDRESS
           value: 0.0.0.0
+        - name: ORDERER_GENERAL_LISTENPORT
+          value: $listenport
         - name: ORDERER_GENERAL_GENESISMETHOD
           value: file
         - name: ORDERER_GENERAL_GENESISFILE
@@ -59,8 +61,6 @@ spec:
            subPath: $ordererDataPath
          - mountPath: /etc/localtime
            name: host-time
-         - mountPath: /etc/timezone
-           name: time-zone
       volumes:
        - name: certificate
          persistentVolumeClaim:
@@ -71,9 +71,6 @@ spec:
        - name: host-time
          hostPath:
             path: /etc/localtime
-       - name: time-zone
-         hostPath:
-            path: /etc/timezone
 ---
 apiVersion: v1
 kind: Service

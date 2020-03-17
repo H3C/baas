@@ -16,6 +16,7 @@ from common.api_exception import UnsupportedMediaType, InternalServerError
 from common.api_exception import BadRequest, NotFound, Forbidden
 
 from modules.operator_log import OperatorLogHandler
+from modules import host_handler
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 from common import fabric_network_define,log_handler, LOG_LEVEL, \
@@ -45,7 +46,6 @@ def organization_create():
     opResult = {}
     op_log_handler = OperatorLogHandler()
 
-
     if r.content_type.startswith("application/json"):
         body = dict(r.get_json(force=True, silent=True))['organization']
         opDetails = body
@@ -65,6 +65,24 @@ def organization_create():
     name = body.get('name', None)
     type = body.get('type', None)
     domain = body.get('domain', None)
+
+    organizations = list(org_handler().list())
+    org_names = []
+    for org in organizations:
+        org_names.append(org['name'])
+    if name in org_names:
+        error_msg = "the same org name has exist,please use another name "
+        opResult['resDes'] = "ERROR"
+        opResult['resCode'] = 400
+        opResult['errorMsg'] = error_msg
+        op_log_handler.create(opDate=cur_time,
+                              opName=opName,
+                              opObject=opObject,
+                              opResult=opResult,
+                              operator=operator,
+                              opDetails=opDetails)
+
+        raise BadRequest(msg=error_msg)
 
     if name is None or name == '':
         error_msg = "name is required and not allowed to be ''"
@@ -147,6 +165,8 @@ def organization_create():
     ordererHostnames = body.get('ordererHostnames', None)
     peerNum = body.get('peerNum', None)
     ca = body.get('ca', {})
+    host_id = body.get('host_id', None)
+    host = host_handler.get_active_host_by_id(host_id)
     id = uuid4().hex
     description = body.get('description', "")
 
@@ -175,6 +195,7 @@ def organization_create():
                                           domain=domain,
                                           peerNum=int(peerNum),
                                           ca=ca,
+                                          host=host,
                                           ordererHostnames=[])
 
 
@@ -187,6 +208,7 @@ def organization_create():
                                   opResult=opResult,
                                   operator=operator,
                                   opDetails=opDetails)
+
 
             return make_ok_gaea_resp('organization', result)
         except Exception as e:
@@ -226,6 +248,7 @@ def organization_create():
                                           domain=domain,
                                           ca=ca,
                                           peerNum = 0,
+                                          host=host,
                                           ordererHostnames=ordererHostnames)
 
             opResult['resDes'] = "OK"
@@ -368,6 +391,7 @@ def organization_delete(organization_id):
                               operator=operator,
                               opDetails=opDetails)
 
+
         return make_ok_gaea_resp(resource='delete success!',result={})
     else:
         error_msg = "Failed to delete organization {}".format(organization_id)
@@ -384,3 +408,6 @@ def organization_delete(organization_id):
                               opDetails=opDetails)
 
         raise InternalServerError(msg=error_msg)
+
+
+

@@ -121,6 +121,10 @@ const messages = defineMessages({
         id: 'Organization.OrdererHostnamesInput',
         defaultMessage: 'Please Enter Host Name',
     },
+    ordererHostnamesWarning:{
+        id: 'OrdererHost.Name.Warning',
+        defaultMessage: 'There are illegal characters or format errors in the name.Please modify,for example:\"myhost1\"',
+    },
     ordererHostnamesContent:{
         id: 'Organization.OrdererHostNamesContent',
         defaultMessage: 'One host name per line',
@@ -137,6 +141,14 @@ const messages = defineMessages({
         id: 'Organization.OK',
         defaultMessage: 'OK',
     },
+    host: {
+        id: 'Network.CreateHost',
+        defaultMessage: 'Host',
+    },
+    hostForSel: {
+        id: 'Network.CreateHostForSel',
+        defaultMessage: 'Please choose a host',
+    },
 });
 const currentLocale = getLocale();
 const intlProvider = new IntlProvider(
@@ -149,15 +161,20 @@ const FormItem = Form.Item;
 const { Option } = Select;
 const { TextArea } = Input;
 
-@connect(({ organization,loading }) => ({
+@connect(({ organization,loading,host}) => ({
     organization,
+    host,
     submitting: loading.effects['organization/createorg'],
     loading: loading.models.organization
 }))
 
 @Form.create()
 export default class CreateOrg extends PureComponent {
-
+    componentWillMount() {
+        this.props.dispatch({
+            type: 'host/fetchHosts',
+        });
+    }
     componentDidMount() {
         const { dispatch } = this.props;
         const location = this.props.location || this.context.location;
@@ -194,6 +211,26 @@ export default class CreateOrg extends PureComponent {
             return false;
         }
     };
+    
+    checkHostName = (rule, value, callback) => {
+        if (value === '' || value === null) {
+            callback();
+        }
+        else {
+            const hostNames = value.split('\n');
+            const regex = new RegExp("^[a-z](?:[0-9a-z\\-]*[0-9a-z])*$");
+
+            for (let i = 0;i < hostNames.length;i++) {
+                if (hostNames[i] === '' || hostNames[i] === null) {
+                    continue;
+                }
+                if (!regex.test(hostNames[i])) {
+                    callback(intl.formatMessage(messages.ordererHostnamesWarning));
+                }
+            }
+            callback();
+        }
+    };
 
     handleSubmit = e => {
         e.preventDefault();
@@ -227,6 +264,7 @@ export default class CreateOrg extends PureComponent {
                             "domain":values.domain,
                             "type": values.type,
                             "peerNum":values.peerNum,
+                            "host_id":values.host_id,
                             "ca": {
                                 "country": values.country,
                                 "province": values.province,
@@ -236,17 +274,19 @@ export default class CreateOrg extends PureComponent {
                         };
                     }
                     else{
-                        const orderernames = values.ordererHostnames.split('\n');
+                        const ordererNamesArray = values.ordererHostnames.split('\n');
+                        const orderernames = ordererNamesArray.filter(item => item !== '' && item !== null);
                         organization = {
-                        "name": values.name,
-                        "description": values.description,
-                        "domain": values.domain,
-                        "type": values.type,
-                        "ordererHostnames": orderernames,
-                        "ca": {
-                            "country": values.country,
-                            "province": values.province,
-                            "locality": values.locality,
+                            "name": values.name,
+                            "description": values.description,
+                            "domain": values.domain,
+                            "type": values.type,
+                            "ordererHostnames": orderernames,
+                            "host_id":values.host_id,
+                            "ca": {
+                                "country": values.country,
+                                "province": values.province,
+                                "locality": values.locality,
                             },
                             callback: this.submitCallback,
                         };
@@ -274,6 +314,7 @@ export default class CreateOrg extends PureComponent {
     render() {
         const {
         organization: { organization },
+        host: { hosts },
         } = this.props;
         const { form, submitting } = this.props;
         const { getFieldValue } = form;
@@ -295,6 +336,7 @@ export default class CreateOrg extends PureComponent {
             "name": "",
             "ordererHostnames": [],
             "peerNum": 0,
+            "host_id":"",
             "type": ""
             } : organization.organization;
 
@@ -309,6 +351,9 @@ export default class CreateOrg extends PureComponent {
                 md: { span: 10 },
             },
         };
+        
+        const hostInfo = hosts.filter( host => host.id === currentOrg.host_id );
+        const hostName = hostInfo.length > 0 ? hostInfo[0].name : '';
 
         const orgtypes = ['peer', 'orderer'];
         const orgtypeOptions = orgtypes.map(orgtype => (
@@ -323,6 +368,13 @@ export default class CreateOrg extends PureComponent {
                     sm: { span: 10, offset: 7 },
                 },
             };
+
+        const hosta = Array.isArray(hosts)? hosts : [];
+        const hostOptions = hosta.map(host => (
+            <Option key={host.id} value={host.id}>
+                <span>{host.name}</span>
+            </Option>
+        ));
 
         return (
             <PageHeaderLayout
@@ -342,7 +394,7 @@ export default class CreateOrg extends PureComponent {
                                             message: intl.formatMessage(messages.inputName),
                                         },
                                         {
-                                            pattern: new RegExp("^[a-zA-Z](?:[0-9a-zA-Z\\-]*[0-9a-zA-Z])*$"),
+                                            pattern: new RegExp("^[a-z](?:[0-9a-z\\-]*[0-9a-z])*$"),
                                             message: intl.formatMessage(messages.orgNameWarning),
                                         }
                                     ],
@@ -482,7 +534,7 @@ export default class CreateOrg extends PureComponent {
                             <FormItem
                                 {...formItemLayout}
                                 label={intl.formatMessage(messages.ordererHostnames)}
-                        >
+                            >
                                 {
                                     getFieldDecorator('ordererHostnames', {
                                         initialValue: action === 'edit' ? currentOrg.ordererHostnames.join('\n') : '',
@@ -491,12 +543,15 @@ export default class CreateOrg extends PureComponent {
                                                 required: getFieldValue('type') === 'orderer' ? 'required' : false,
                                                 message: intl.formatMessage(messages.ordererHostnamesInput),
                                             },
+                                            {
+                                                validator: this.checkHostName,
+                                            }
                                         ],
                                     })
                                     (<TextArea style={{minHeight: 32}}
-                                               placeholder={action === 'edit' ? '' : intl.formatMessage(messages.ordererHostnamesContent)}
-                                               rows={action === 'edit' ? currentOrg.ordererHostnames.length : 4}
-                                               disabled={action === 'edit'}/>)
+                                        placeholder={action === 'edit' ? '' : intl.formatMessage(messages.ordererHostnamesContent)}
+                                        rows={action === 'edit' ? currentOrg.ordererHostnames.length : 4}
+                                        disabled={action === 'edit'}/>)
                                 }
                             </FormItem>
                         }
@@ -511,6 +566,17 @@ export default class CreateOrg extends PureComponent {
                                 ],
                                 })(<Input disabled={true} />)
                             }
+                        </FormItem>
+                        <FormItem {...formItemLayout} label={intl.formatMessage(messages.host)}>
+                            {getFieldDecorator('host_id', {
+                                initialValue: action === 'edit' ? hostName : '',
+                                rules: [
+                                    {
+                                        required: true,
+                                        message: intl.formatMessage(messages.hostForSel),
+                                    },
+                                ],
+                            })(<Select disabled={action === 'edit'}>{hostOptions}</Select>)}
                         </FormItem>
                         <FormItem {...submitFormLayout} style={{ marginTop: 32 }}>
                             <Button onClick={this.clickCancel} >{intl.formatMessage(messages.cancel)}</Button>

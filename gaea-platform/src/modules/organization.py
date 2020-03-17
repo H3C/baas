@@ -18,7 +18,7 @@ class organizationHandler(object):
         return self._schema(doc, many)
 
     def create(self, id, name, description,
-               type, domain, peerNum, ca, ordererHostnames):
+               type, domain, peerNum, ca, host, ordererHostnames):
         org = modelv2.Organization(id=id,
                                     name=name,
                                     description=description,
@@ -26,6 +26,7 @@ class organizationHandler(object):
                                     domain=domain,
                                     peerNum=peerNum,
                                     ca=ca,
+                                    host=host,
                                     ordererHostnames=ordererHostnames
                                     )
         org.save()
@@ -41,6 +42,18 @@ class organizationHandler(object):
         logger.info("filter data {}".format(filter_data))
         organizations = modelv2.Organization.objects(__raw__=filter_data)
         return self._schema(organizations, many=True)
+
+    def get_by_networkid(self, id):
+        """ List orgs with given criteria
+
+        :param filter_data: Image with the filter properties
+        :return: iteration of serialized doc
+        """
+        logger.info("filter data {}".format(id))
+
+        network = modelv2.BlockchainNetwork.objects.get(id=id)
+        organization = modelv2.Organization.objects(network=network)
+        return self.endports_schema(organization, many=True)
 
     def get_by_id(self, id):
         """ Get a organization

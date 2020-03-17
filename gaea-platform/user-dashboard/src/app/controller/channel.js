@@ -129,6 +129,19 @@ class ChannelController extends Controller {
       ctx.status = result.success ? 200 : 400;
       ctx.body = result;
   }
+
+  async updateSysChannelInfo(){
+      const { ctx } = this;
+      const result = await ctx.service.channel.updateSysChannelInfo();
+      ctx.status = result.success ? 200 : 400;
+      ctx.body = result;
+  }
+    async updateSysChannelOrdererInfo(){
+        const { ctx } = this;
+        const result = await ctx.service.channel.updateSysChannelOrdererInfo();
+        ctx.status = result.success ? 200 : 400;
+        ctx.body = result;
+    }
 }
 
 module.exports = ChannelController;

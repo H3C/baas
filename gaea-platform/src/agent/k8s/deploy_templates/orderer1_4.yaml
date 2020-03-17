@@ -22,6 +22,8 @@ spec:
           value: DEBUG
         - name: ORDERER_GENERAL_LISTENADDRESS
           value: 0.0.0.0
+        - name: ORDERER_GENERAL_LISTENPORT
+          value: $listenPort
         - name: ORDERER_GENERAL_GENESISMETHOD
           value: file
         - name: ORDERER_GENERAL_GENESISFILE
@@ -38,11 +40,17 @@ spec:
           value: /var/hyperledger/orderer/tls/server.crt
         - name: ORDERER_GENERAL_TLS_ROOTCAS
           value: '[/var/hyperledger/orderer/tls/ca.crt]'
+        - name: ORDERER_GENERAL_CLUSTER_CLIENTCERTIFICATE
+          value: /var/hyperledger/orderer/tls/server.crt
+        - name: ORDERER_GENERAL_CLUSTER_CLIENTPRIVATEKEY
+          value: /var/hyperledger/orderer/tls/server.key
+        - name: ORDERER_GENERAL_CLUSTER_ROOTCAS
+          value: '[/var/hyperledger/orderer/tls/ca.crt]'
         - name: GODEBUG
           value: netdns=go
         workingDir: /opt/gopath/src/github.com/hyperledger/fabric
         ports:
-         - containerPort: 7050
+         - containerPort: $containerPort
         command: ["orderer"]
         volumeMounts:
          - mountPath: /var/hyperledger/orderer/msp
@@ -59,8 +67,6 @@ spec:
            subPath: $ordererDataPath
          - mountPath: /etc/localtime
            name: host-time
-         - mountPath: /etc/timezone
-           name: time-zone
       volumes:
        - name: certificate
          persistentVolumeClaim:
@@ -71,9 +77,6 @@ spec:
        - name: host-time
          hostPath:
             path: /etc/localtime
-       - name: time-zone
-         hostPath:
-            path: /etc/timezone
 ---
 apiVersion: v1
 kind: Service
@@ -90,8 +93,8 @@ spec:
  ports:
    - name: listen-endpoint
      protocol: TCP
-     port: 7050
-     targetPort: 7050
+     port: $port
+     targetPort: $targetPort
      nodePort: $nodePort
 
 

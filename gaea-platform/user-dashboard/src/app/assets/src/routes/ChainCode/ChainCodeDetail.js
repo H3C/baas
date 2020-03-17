@@ -149,6 +149,7 @@ export default class ChainCodeDetail extends PureComponent {
 
         const description = (
             <DescriptionList className={styles.headerList}  col="1">
+                <Description   term={'ID'}> {chaincodes.id}</Description>
                 <Description   term={intl.formatMessage(messages.name)}> {chaincodes.name}</Description>
                 <Description   term={intl.formatMessage(messages.network)}>{chaincodes.network_name} </Description>
                 <Description   term={intl.formatMessage(messages.uploadTime)}>{moment(chaincodes.create_ts).format('YYYY-MM-DD HH:mm:ss')} </Description>
@@ -172,7 +173,6 @@ export default class ChainCodeDetail extends PureComponent {
                             >
                                 <div className={styles.standardTable}>
                                     <Table
-
                                         className={styles.table}
                                         loading={loading}
                                         columns={PeerColumns}

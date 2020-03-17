@@ -17,4 +17,5 @@ export default {
   theme:'app/assets/src/theme.js',
   outputPath: 'app/assets/public',
   hash: false,
+  es5ImcompatibleVersions: true,
 };

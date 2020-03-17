@@ -2,7 +2,7 @@
 SPDX-License-Identifier: Apache-2.0
 */
 import React, { PureComponent } from 'react';
-import { Menu, Form, Modal, Icon, Input, Spin, Dropdown, Avatar, Divider, Row, Col, Button } from 'antd';
+import { Menu, Form, Modal, Icon, Input, Spin, Dropdown, Avatar, Divider, Row, message, Col, Button } from 'antd';
 import Debounce from 'lodash-decorators/debounce';
 import { Link } from 'dva/router';
 import styles from './index.less';
@@ -26,6 +26,10 @@ const messages = defineMessages({
         changePassword: {
             id: 'Head.ChangePassword',
             defaultMessage: '修改密码',
+        },
+        inputOldPassword: {
+            id: 'Head.InputOldPassword',
+            defaultMessage: '请输入旧密码',
         },
         inputNewPassword: {
             id: 'Head.InputNewPassword',
@@ -54,6 +58,14 @@ const messages = defineMessages({
         logOut: {
             id: 'Head.LogOut',
             defaultMessage: '退出登录',
+        },
+        changeSuccess: {
+            id: 'Head.ChangeSuccess',
+            defaultMessage: '修改密码成功',
+        },
+        changeFailed: {
+            id: 'Head.ChangeFailed',
+            defaultMessage: '修改密码失败',
         }
     },
 });
@@ -95,6 +107,17 @@ const CreateForm = Form.create()(props => {
       destroyOnClose={true}
     >
         <Form {...formItemLayout} style={{ width: 500}}>
+        <FormItem {...formItemLayout} label={intl.formatMessage(messages.menus.inputOldPassword) + ':'} >
+            {form.getFieldDecorator('oldPassword', {
+              initialValue: '',
+              rules: [
+                {
+                  required: true,
+                  message: intl.formatMessage(messages.menus.inputOldPassword),
+                },
+              ],
+            })(<Input type="password" placeholder={intl.formatMessage(messages.menus.inputNewPassword)} />)}
+          </FormItem>
           <FormItem {...formItemLayout} label={intl.formatMessage(messages.menus.inputNewPassword) + ':'} >
             {form.getFieldDecorator('newPassword', {
               initialValue: '',
@@ -192,9 +215,10 @@ export default class GlobalHeader extends PureComponent {
         if(fields.newPassword === fields.againPassword){
             const formData = new FormData();
             formData.append('new_password', fields.newPassword);
+            formData.append('old_password', fields.oldPassword);
 
             reqwest({
-                url:`/api/user/${window.user_id}/resetPassword`,
+                url:`/api/user/${window.user_id}/changePassword`,
                 method:'post',
                 processData: false,
                 data: formData,
@@ -203,12 +227,14 @@ export default class GlobalHeader extends PureComponent {
                         submitting: false,
                         modalVisible: false,
                     });
+                    message.success(intl.formatMessage(messages.menus.changeSuccess));
                 },
 
                 error: () => {
                     this.setState({
                         submitting:false,
                     });
+                    message.error(intl.formatMessage(messages.menus.changeFailed));
                 }
             });
         }

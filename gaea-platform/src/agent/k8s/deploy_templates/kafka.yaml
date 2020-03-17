@@ -59,15 +59,10 @@ spec:
           mountPath: /opt/kafka/data
         - mountPath: /etc/localtime
           name: host-time
-        - mountPath: /etc/timezone
-          name: time-zone
       volumes:
        - name: host-time
          hostPath:
             path: /etc/localtime
-       - name: time-zone
-         hostPath:
-            path: /etc/timezone
   volumeClaimTemplates:
   - metadata:
       name: datadir

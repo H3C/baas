@@ -43,10 +43,11 @@ const { intl } = intlProvider.getChildContext();
 const FormItem = Form.Item;
 const { Option } = Select;
 
-@connect(({ InstantChainCode,ChainCodeList,loading }) => ({
+@connect(({ InstantChainCode,ChainCodeList,loading,submitting }) => ({
     InstantChainCode,
     ChainCodeList,
     loading:loading.models.InstantChainCode,
+    submitting: loading.effects['ChainCodeList/install']
 }))
 
 @Form.create()

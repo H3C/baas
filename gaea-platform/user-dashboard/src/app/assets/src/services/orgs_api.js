@@ -2,13 +2,10 @@ import { stringify } from 'qs';
 import request from '../utils/irequest';
 
 export async function queryOrgList(params) {
-
-   // console.log('myrequest:'+request(`http://192.168.7.21:8071/v2/organizations${stringify(params)}`));
-//    return request(`http://192.168.7.21:8071/v2/organizations${stringify(params)}`);
-    return request('http://'+ window.location.hostname +':8071/v2/organizations');
+    return request('/v2/organizations');
 }
 export async function queryOneOrg(params) {
-    return request('http://'+ window.location.hostname +`:8071/v2/organizations/${params}`);
+    return request(`/v2/organizations/${params}`);
 }
 
 

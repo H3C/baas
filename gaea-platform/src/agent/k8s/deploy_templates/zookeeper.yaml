@@ -137,15 +137,10 @@ spec:
             mountPath: /var/lib/zookeeper
           - mountPath: /etc/localtime
             name: host-time
-          - mountPath: /etc/timezone
-            name: time-zone
       volumes:
        - name: host-time
          hostPath:
             path: /etc/localtime
-       - name: time-zone
-         hostPath:
-            path: /etc/timezone
   #    securityContext:
   #      runAsUser: 1000
   #      fsGroup: 1000

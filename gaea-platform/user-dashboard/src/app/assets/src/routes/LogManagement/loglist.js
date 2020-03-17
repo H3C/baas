@@ -1,11 +1,8 @@
 import React, { PureComponent, Fragment } from 'react';
 import { connect } from 'dva';
-import { stringify } from 'qs';
-import { Form, Card, Button, Table, Drawer, Col, Row, Select, Input, DatePicker, Icon } from 'antd';
-import { routerRedux } from 'dva/router';
+import { Form, Card, Button, Table, Col, Row, Input, DatePicker, Icon } from 'antd';
 import PageHeaderLayout from '../../layouts/PageHeaderLayout';
 import styles from './loglist.less';
-import STable from 'components/StandardTableForNetWork';
 import { defineMessages, IntlProvider } from "react-intl";
 import { getLocale } from "../../utils/utils";
 import moment from 'moment';
@@ -103,15 +100,6 @@ const intlProvider = new IntlProvider(
 const { intl } = intlProvider.getChildContext();
 
 const FormItem = Form.Item;
-const { RangePicker } = DatePicker;
-
-const pStyle = {
-    fontSize: 16,
-    color: 'rgba(0,0,0,0.85)',
-    lineHeight: '24px',
-    display: 'block',
-    marginBottom: 16
-};
 
 const ResizeableTitle = (props) => {
     const { onResize, width, ...restProps } = props;
@@ -125,30 +113,6 @@ const ResizeableTitle = (props) => {
         </Resizable>
     );
 };
-
-const DescriptionItem = ({title, content}) => (
-    <div
-
-    >
-        <Row gutter = {16}>
-            <Col span={4}>
-                <p
-                    style={{
-                        marginRight: 8,
-                        display: 'inline-block',
-                        color: '#720754',
-                        fontWeight: 'bolder'
-                    }}
-                >
-                    { title }:
-                </p>
-            </Col>
-            <Col span={20}>
-                {content}
-            </Col>
-        </Row>
-    </div>
-);
 
 const Detail = ( {keyVal, content} ) => (
     <Row style={{borderBottom: 'solid', width: '450px'}}>
@@ -167,147 +131,6 @@ const Detail = ( {keyVal, content} ) => (
             <p>{content}</p>
         </Col>
     </Row>
-);
-
-const Actions = ( {number, proposal_hash, endorsements, chaincode, rwsets} ) => (
-    <div
-        style = {{
-            fontSize: 14,
-            lineHeight: '22px',
-            marginBottom: 7,
-            color: 'rgba(0,0,0,0.65)'
-        }}
-    >
-        <Row gutter={16}>
-            <Col span={24} style={{backgroundColor: '#a4578e'}}>
-                <div className={styles.textCenter} >
-                    { 'action ' + number }:
-                </div>
-            </Col>
-        </Row>
-        <Row gutter={16} style={{borderLeft: 'solid', borderRight: 'solid', borderColor:'#a4578e'}}>
-            <Col span={4}>
-                <p
-                    style={{
-                        marginRight: 8,
-                        display: 'inline-block',
-                        color: '#720754',
-                        fontWeight: 'bolder'
-                    }}
-                >
-                    { '请求哈希' }:
-                </p>
-            </Col>
-            <Col>
-                {proposal_hash}
-            </Col>
-        </Row>
-        <Row gutter={16} style={{borderLeft: 'solid', borderRight: 'solid', borderColor:'#a4578e'}}>
-            <Col span={4}>
-                <p
-                    style={{
-                        marginRight: 8,
-                        display: 'inline-block',
-                        color: '#720754',
-                        fontWeight: 'bolder'
-                    }}
-                >
-                    { '链码名称' }:
-                </p>
-            </Col>
-            <Col span={20}>
-                { chaincode.name }
-            </Col>
-        </Row>
-        <Row gutter={16} style={{borderLeft: 'solid', borderRight: 'solid', borderColor:'#a4578e'}}>
-            <Col span={4}>
-                <p
-                    style={{
-                        marginRight: 8,
-                        display: 'inline-block',
-                        color: '#720754',
-                        fontWeight: 'bolder'
-                    }}
-                >
-                    { '链码版本' }:
-                </p>
-            </Col>
-            <Col span={20}>
-                { chaincode.version }
-            </Col>
-        </Row>
-        <Row gutter={16} style={{borderLeft: 'solid', borderRight: 'solid', borderColor:'#a4578e'}}>
-            <Col span={4}>
-                <p
-                    style={{
-                        marginRight: 8,
-                        display: 'inline-block',
-                        color: '#720754',
-                        fontWeight: 'bolder'
-                    }}
-                >
-                    { '背书' }:
-                </p>
-            </Col>
-            <Col span={20}>
-                { endorsements.join(',') }
-            </Col>
-        </Row>
-        <Row gutter={16} style={{borderLeft: 'solid', borderRight: 'solid', borderColor:'#a4578e'}}>
-            <Col span={4}>
-                <p
-                    style={{
-                        marginRight: 8,
-                        display: 'inline-block',
-                        color: '#720754',
-                        fontWeight: 'bolder',
-                    }}
-                >
-                    { '读集' }:
-                </p>
-            </Col>
-            <Col span={20}>
-                { rwsets.map( rwset => {
-                    return (<div>
-                        链码: { rwset.namespace }<br/>
-                        {rwset.reads.map( read => {
-                            return (<div>
-                                {JSON.stringify(read)}
-                            </div>)
-                        } )}
-                        <br/>
-                    </div>);
-                } ) }
-            </Col>
-        </Row>
-        <Row gutter={16} style={{borderLeft: 'solid', borderBottom: 'solid', borderRight: 'solid', borderColor:'#a4578e'}}>
-            <Col span={4}>
-                <p
-                    style={{
-                        marginRight: 8,
-                        display: 'inline-block',
-                        color: '#720754',
-                        fontWeight: 'bolder',
-                    }}
-                >
-                    { '写集' }:
-                </p>
-            </Col>
-            <Col span={20}>
-                { rwsets.map( rwset => {
-                    return (<div>
-                        链码: { rwset.namespace }<br/>
-                        {rwset.writes.map( write => {
-                            return (<div>
-                                {JSON.stringify(write)}
-                            </div>)
-                        } )}
-                        <br/>
-                    </div>);
-                } ) }
-            </Col>
-        </Row>
-    </div>
 );
 
 @connect(({ loglist, loading }) => ({
@@ -453,7 +276,7 @@ export default class LogList extends PureComponent {
 
     renderSimpleForm() {
         const { form, channelList, submitting } = this.props;
-        const { getFieldDecorator, getFieldValue } = form;
+        const { getFieldDecorator } = form;
         const channelInfo = Array.isArray(channelList) ? channelList : [];
         const channelOptions = channelInfo.map(channel => (
             <Option key={channel.id} value={channel.id}>
@@ -463,7 +286,7 @@ export default class LogList extends PureComponent {
         const formItemLayout = {
             labelCol: {
                 xs: { span: 24 },
-                sm: { span: 7 },
+                sm: { span: 8 },
             },
             wrapperCol: {
                 xs: { span: 24 },
@@ -474,8 +297,8 @@ export default class LogList extends PureComponent {
         return (
             <Form onSubmit={this.handleSearch} layout="inline">
                 <Row gutter={{ md: 8, lg: 24, xl: 48 }}>
-                    <Col span={8} align={'right'}>
-                        <FormItem
+                    <Col md={8} sm={24} >
+                        <FormItem {...formItemLayout}
                             label={intl.formatMessage(messages.startTime)}
                         >
                             {getFieldDecorator('startTime',{
@@ -485,12 +308,13 @@ export default class LogList extends PureComponent {
                                 }],
                             })(<DatePicker
                                 format='YYYY-MM-DD HH:mm:ss'
+                                style={{ minWidth: 'auto', width: '100%' }}
                                 showTime={{
 
                                 }}
                             />)}
                         </FormItem>
-                        <FormItem
+                        <FormItem {...formItemLayout}
                             label={intl.formatMessage(messages.endTime)}
                         >
                             {getFieldDecorator('endTime',{
@@ -499,6 +323,7 @@ export default class LogList extends PureComponent {
                                     message: intl.formatMessage(messages.endTimeSel),
                                 }],
                             })(<DatePicker
+                                style={{ minWidth: 'auto', width: '100%' }}
                                 format='YYYY-MM-DD HH:mm:ss'
                                 showTime={{
 
@@ -506,20 +331,20 @@ export default class LogList extends PureComponent {
                             />)}
                         </FormItem>
                     </Col>
-                    <Col span={8} align={'right'}>
-                        <FormItem
+                    <Col md={8} sm={24} >
+                        <FormItem {...formItemLayout}
                             label={intl.formatMessage(messages.colOpObject)}
                         >
                             {getFieldDecorator('objectForSel')(<Input />)}
                         </FormItem>
-                        <FormItem
+                        <FormItem {...formItemLayout}
                             label={intl.formatMessage(messages.colOpName)}
                         >
                             {getFieldDecorator('nameForSel')(<Input />)}
                         </FormItem>
                     </Col>
-                    <Col span={8}>
-                        <FormItem
+                    <Col md={8} sm={24} >
+                        <FormItem {...formItemLayout}
                             label={intl.formatMessage(messages.colOperator)}
                         >
                             {getFieldDecorator('operatorForSel')(<Input />)}
@@ -570,7 +395,6 @@ export default class LogList extends PureComponent {
             }),
         }));
 
-        //const data = Array.isArray(list) ? list : [];
         return (
             <PageHeaderLayout
                 title={intl.formatMessage(messages.pageTitle)}
@@ -594,32 +418,6 @@ export default class LogList extends PureComponent {
                                 rowClassName={(record) => record.opResult.resCode !== 200 ? styles.redFont : styles.greenFont}
                             />
                         </div>
-                        {/*
-                        <Drawer
-                            width = {640}
-                            placement = "right"
-                            closable = {false}
-                            onClose={this.onClose}
-                            visible={this.state.visible}
-
-                        >
-
-                            <p style={{ ...pStyle, marginBottom: 24, color: '#c21eb8'}}>交易详情</p>
-                            <DescriptionItem title = '交易id' content = {this.state.id}/>
-                            <DescriptionItem title = '交易时间' content = {moment(this.state.time).format('YYYY-MM-DD HH:mm:ss')}/>
-                            <DescriptionItem title = '发起者MSP' content = {this.state.creatorMSP}/>
-                            <DescriptionItem title = '交易类型' content = {this.state.typeString}/>
-                            <DescriptionItem title = '通道名称' content = {this.state.channelName}/>
-                            {this.state.actions.map( action => {
-                                return (<Actions
-                                    number = {this.state.actions.indexOf(action) + 1}
-                                    proposal_hash = {action.proposal_hash}
-                                    endorsements = {action.endorsements}
-                                    chaincode = {action.chaincode}
-                                    rwsets = {action.rwsets}
-                                />);
-                            })}
-                        </Drawer>*/}
                     </Card>
                 </div>
             </PageHeaderLayout>

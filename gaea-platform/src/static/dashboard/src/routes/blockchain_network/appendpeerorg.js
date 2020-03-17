@@ -38,6 +38,14 @@ const messages = defineMessages({
         id: 'Network.AppendPeerOrgSelName',
         defaultMessage: 'Choose the name of the peer organization'
     },
+    chooseOrdererOrg: {
+        id: 'Network.AppendOrdererOrgSel',
+        defaultMessage: 'Choose Orderer Organization'
+    },
+    chooseOrdererOrgName: {
+        id: 'Network.AppendOrdererOrgSelName',
+        defaultMessage: 'Choose the name of the orderer organization'
+    },
     cancel: {
         id: 'Network.AppendCancel',
         defaultMessage: 'Cancel'
@@ -126,7 +134,8 @@ export default class AppendPeerOrg extends PureComponent {
     form.validateFieldsAndScroll((err, values) => {
       if (!err) {
         const peer_orgs = values.peerorgs;
-        const blockchain_network={peer_orgs};
+        const orderer_orgs = values.ordererorgs;
+        const blockchain_network={peer_orgs,orderer_orgs};
 
         this.props.dispatch({
             type: 'networklist/netaddorg',
@@ -191,8 +200,6 @@ export default class AppendPeerOrg extends PureComponent {
 
     const orgs = Array.isArray(organization) ? organization : [];
 
-    console.log('orgs');
-    console.log(orgs);
     const peerorgs = orgs.filter(orgItem => (orgItem.type === 'peer' && (orgItem.blockchain_network_id === '' || orgItem.blockchain_network_id === null)));
     const orgpeerOptions = peerorgs.map(peerorg => (
       <Option key={peerorg.id} value={peerorg.id}>
@@ -200,6 +207,12 @@ export default class AppendPeerOrg extends PureComponent {
       </Option>
     ));
 
+    const ordererorgs = orgs.filter(orgItem => (orgItem.type === 'orderer' && (orgItem.blockchain_network_id === '' || orgItem.blockchain_network_id === null)));
+    const orgordererOptions = ordererorgs.map(ordererorg => (
+      <Option key={ordererorg.id} value={ordererorg.id}>
+        <span>{ordererorg.name}</span>
+      </Option>
+    ));
 
     return (
       <PageHeaderLayout
@@ -226,7 +239,7 @@ export default class AppendPeerOrg extends PureComponent {
                 initialValue: [],
                 rules: [
                   {
-                    required: true,
+                    required: false,
                     message: intl.formatMessage(messages.choosePeerOrg),
                   },
                   ],

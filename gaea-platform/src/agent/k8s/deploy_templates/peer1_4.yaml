@@ -25,6 +25,8 @@ spec:
           value: "true"
         - name: FABRIC_LOGGING_SPEC
           value: DEBUG
+        - name: CORE_CHAINCODE_LOGGING_LEVEL
+          value: DEBUG
         - name: CORE_PEER_GOSSIP_USELEADERELECTION
           value: "true"
         - name: CORE_PEER_GOSSIP_ORGLEADER
@@ -63,15 +65,20 @@ spec:
          - mountPath: /etc/hyperledger/fabric/tls
            name: certificate
            subPath: $tlsPath
-         - mountPath: /var/hyperledger/production
-           name: peerdata
-           subPath: $dataPath
          - mountPath: /host/var/run/
            name: run
          - mountPath: /etc/localtime
            name: host-time
-         - mountPath: /etc/timezone
-           name: time-zone
+      affinity:
+          nodeAffinity:
+            preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 1
+              preference:
+                matchExpressions:
+                - key: slave
+                  operator: In
+                  values:
+                  - $orgDomain
       volumes:
        - name: certificate
          persistentVolumeClaim:
@@ -85,9 +92,7 @@ spec:
        - name: host-time
          hostPath:
             path: /etc/localtime
-       - name: time-zone
-         hostPath:
-            path: /etc/timezone
+
 ---
 apiVersion: v1
 kind: Service

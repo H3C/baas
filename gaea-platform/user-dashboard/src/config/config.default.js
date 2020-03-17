@@ -42,6 +42,7 @@ module.exports = appInfo => {
     },
     operations: new Enum(['ApplyChain', 'ReleaseChain', 'NewCode', 'InstallCode', 'InstantiateCode', 'Invoke', 'Query']),
     default: {
+      sysChannelName: 'testchainid',
       channelName: 'mychannel',
       smartContracts: {
         fabric: [
@@ -87,7 +88,21 @@ module.exports = appInfo => {
   config.keys = appInfo.name + '_1526391549099_1300';
 
   // add your config here
-  config.middleware = [];
+  config.middleware = [ 'jwt' ];
+
+  config.jwt = {
+    enable: true,
+    ignore: ['/login','/v2/token','/v2/sys_channel','/v2/sys_channel_orderer','/logout','/public/','/v2/resources'], //哪些请求不需要认证
+  };
+
+ // config.redis = {
+ //   client: {
+ //     port: 6379,
+ //     host: '127.0.0.1',
+ //     password: 'gaearedis',
+ //     db: 0,
+ //   }
+ // }
 
   return config;
 };

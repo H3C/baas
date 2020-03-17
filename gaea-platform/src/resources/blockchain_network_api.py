@@ -66,6 +66,7 @@ def blockchain_network_create():
     orderer_orgs = body.get('orderer_orgs', None)
     peer_orgs = body.get('peer_orgs', None)
     host_id = body.get('host_id', None)
+    db_type = body.get('db_type', 'couchdb')
     if name is None or orderer_orgs is None or peer_orgs is None or host_id is None:
         error_msg = "name, orderer(peer)_orgs and host_id must be provided in request body"
 
@@ -98,7 +99,7 @@ def blockchain_network_create():
     consensus_type = body.get('consensus_type', None)
     if consensus_type is None:
         consensus_type = 'kafka'
-    elif consensus_type not in ['kafka', 'solo']:
+    elif consensus_type not in ['etcdraft', 'kafka', 'solo']:
         error_msg = 'consensus type {} is not supported'.format(consensus_type)
 
         op_log_handler.record_operating_log(
@@ -140,6 +141,7 @@ def blockchain_network_create():
                                peer_orgs = peer_orgs,
                                host= host,
                                consensus_type = consensus_type,
+                               db_type = db_type,
                                create_ts = cur_time
                                )
 
@@ -178,11 +180,12 @@ def blockchain_network_add_org(blockchain_network_id):
     peer_orgs = body.get('peer_orgs', None)
     if peer_orgs is None:
         raise BadRequest(msg="peer_orgs must be provided in request body")
+    orderer_orgs = body.get('orderer_orgs', None)
 
     network_handler = BlockchainNetworkHandler()
     try:
         network = network_handler.addorgtonetwork(id = blockchain_network_id,
-                               peer_orgs = peer_orgs
+                               peer_orgs = peer_orgs, orderer_orgs = orderer_orgs,
                                )
         return make_ok_gaea_resp(resource='blockchain_network', result=network)
     except Exception as e:
@@ -202,11 +205,12 @@ def blockchain_network_create_yarml_for_neworgs(blockchain_network_id):
     peer_orgs = body.get('peer_orgs', None)
     if peer_orgs is None:
         raise BadRequest(msg="peer_orgs must be provided in request body")
+    orderer_orgs = body.get('orderer_orgs', None)
 
     network_handler = BlockchainNetworkHandler()
     try:
         network = network_handler.createyamlforneworgs(id = blockchain_network_id,
-                               peer_orgs = peer_orgs
+                               peer_orgs = peer_orgs,orderer_orgs = orderer_orgs,
                                )
         return make_ok_gaea_resp(resource='blockchain_network', result=network)
     except Exception as e:

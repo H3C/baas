@@ -4,13 +4,124 @@
 'use strict';
 
 const Service = require('egg').Service;
-const Fabric_Client = require('../../packages/fabric-1.1/node_modules/fabric-client');
-const Fabric_CA_Client = require('../../packages/fabric-1.1/node_modules/fabric-ca-client');
+const Fabric_Client = require('../../packages/fabric-1.4/node_modules/fabric-client');
+const Fabric_CA_Client = require('../../packages/fabric-1.4/node_modules/fabric-ca-client');
 const path = require('path');
 const fs = require('fs');
+const jwt = require('jsonwebtoken');
 const roles = ['admin', 'operator', 'user'];
+const bcrypt = require('bcryptjs');
 
 class UserService extends Service {
+
+    //time: 过期时间，单位：s
+  async generateToken(userInfo){
+      const { ctx,config } = this;
+      let userName = userInfo.username;
+      const networkId = userInfo.networkid;
+      const userModel = await ctx.model.OrgUser.findOne({ username:userName, network_id: networkId });
+      if(!userModel){
+          return null;
+      }
+      let data = {id:userModel._id,username:userName};
+      let time = 60*60*24*5;  //5天
+      // const orgDomain = userName.split('@')[1];
+      // let privCert;
+      // let pubCert;
+      //
+      // let userCertificatePath;
+      // if (userName.split('@')[0] === 'Admin') {
+      //     userCertificatePath = 'admin';
+      // }else{
+      //     userCertificatePath = userName;
+      // }
+      //第一次登陆的Admin用户的证书存放在amdin目录中，其他用户的证书存放在username@域名目录中
+      //const fabricFilePath = `${config.fabricDir}/${networkId}/crypto-config/peerOrganizations/${orgDomain}/ca/${userCertificatePath}`;
+      // const admin_sk = fs.readdirSync(fabricFilePath);
+      // for(let each of admin_sk){
+      //     if(each.split('-')[1] === 'priv'){
+      //         privCert = each;
+      //     }else if(each.split('-')[1] === 'pub'){
+      //         pubCert = each;
+      //     }
+      // }
+      // let datasRead = fs.readFileSync(`${fabricFilePath}/${privCert}`);
+      let datasRead = fs.readFileSync('/opt/secret/private.key');
+      let created = Math.floor(new Date().getTime()/1000);
+      let token = jwt.sign({
+          data,
+          exp: created + time
+      }, datasRead, {algorithm: 'RS256'});
+
+      //存储到redis服务器
+      //this.app.redis.set(token,userName);
+
+      return token;
+  }
+
+  async verifyToken(token){
+      // let networkId = ctx.req.user.networkid;
+      // let userName = ctx.req.user.username;
+      // const orgDomain = userName.split('@')[1];
+      // let pubCert;
+      // let userCertificatePath;
+      // if (userName.split('@')[0] === 'Admin') {
+      //     userCertificatePath = 'admin';
+      // }else{
+      //     userCertificatePath = userName;
+      // }
+      // const fabricFilePath = `${config.fabricDir}/${networkId}/crypto-config/peerOrganizations/${orgDomain}/ca/${userCertificatePath}`;
+      // const admin_sk = fs.readdirSync(fabricFilePath);
+      // for(let each of admin_sk){
+      //     if(each.split('-')[1] === 'pub'){
+      //         pubCert = each;
+      //     }
+      // }
+      // let datasRead = fs.readFileSync(`${fabricFilePath}/${pubCert}`);
+      let res = '';
+      let datasRead = fs.readFileSync('/opt/secret/public.key');
+      try{
+          const result = jwt.verify(token, datasRead, { algorithm: ['RS256'] }) || {};
+          const { exp } = result;
+          const current = Math.floor(new Date().getTime()/1000);
+          if(current <= exp){
+              res = result.data;
+          }else{
+              console.log("overdue");
+              res = "overdue";
+          }
+      }catch (e) {
+          console.log(e);
+          res = "invalid"
+      }
+      return res;
+  }
+
+  async getToken(user){
+      const {ctx} = this;
+      const userInfo = await ctx.service.user.login(user);
+      //执行ctx.login之后，会将userinfo信息存入ctx.req.user中
+      ctx.login(userInfo);
+      const jwtToken = await ctx.service.user.generateToken(userInfo);
+      return `JWT ${jwtToken}`;
+  }
+   async comparePwd(fromUser, fromDatabase){
+      return new Promise((resolve) => {
+           bcrypt.compare(fromUser, fromDatabase, (err, res) => {
+               resolve(res)
+           })
+       })
+   }
+
+   async doCrypto(password){
+       return new Promise((resolve) => {
+           bcrypt.genSalt(10, function(err, salt){
+               bcrypt.hash(password, salt, function(err, hash){
+                   resolve(hash)
+               });
+           });
+       })
+   }
 
   async getCookie(user){
       const { ctx } = this;
@@ -24,10 +135,12 @@ class UserService extends Service {
           return result;
       }
       let time = new Date().getTime();
-      let expiresTime = new Date(time + 10*365*24*60*60*1000);  //设置超期时间为10年
+      //let expiresTime = new Date(time + 10*365*24*60*60*1000);  //设置超期时间为10年
+      let expiresTime = new Date(time + 60*1000);
       await ctx.login(userInfo);
+      await ctx.cookies.set("name", user.username, {expires: expiresTime});
       let cookie = ctx.req.headers.cookie;
-      cookie = cookie + ";expires="+expiresTime;
+      //cookie = cookie + ";expires="+expiresTime;
       result.cookie = cookie;
       result.success = true;
       return result;
@@ -37,7 +150,7 @@ class UserService extends Service {
     const { config, ctx } = this;
     const loginUrl = config.operator.url.login;
     const username = user.username;
-    const password = user.password;
+    let password = user.password;
 
     const opName = 'orguser_login';
     const opObject = 'user';
@@ -88,6 +201,7 @@ class UserService extends Service {
         await ctx.enrollAdmin(caHost, caPort, mspId, caStorePath, caDockerStorePath, username, caVersion);
         
         const userModel = await ctx.model.OrgUser.findOne({ username:username, network_id: networkId });
+        password = await this.doCrypto(password);
         if (!userModel) {
             const date = new Date();
             await ctx.model.OrgUser.create({
@@ -117,12 +231,14 @@ class UserService extends Service {
           username: user.username,
           id: response.data.id,
           role: roles[0],
+          networkid: networkId,
         };
       }
     } else {
       const orgUser = await ctx.model.OrgUser.findOne({ username, network_id: networkId });
 
-      if (orgUser.password !== password || orgUser.active === "false") {
+      let isCorrect = await this.comparePwd(password, orgUser.password);
+      if (!isCorrect || orgUser.active === "false") {
         return false;
       }
 
@@ -138,6 +254,7 @@ class UserService extends Service {
           username: orgUser.username,
           id: orgUser._id,
           role: orgRole,
+          networkid:networkId,
         };
       }
     }
@@ -234,7 +351,9 @@ class UserService extends Service {
     let result = {};
     let roleUser;
     if(role === 'org_admin'){
-        roleUser = 'org_admin,org_user';
+        roleUser = 'org_admin,org' +
+          '' +
+          '_user';
     }else{
         roleUser = role;
     }
@@ -244,7 +363,6 @@ class UserService extends Service {
     }else{
         delegateRolesUser = delegateRoles;
     }
-
 
     const attrs = [
       {
@@ -280,7 +398,7 @@ class UserService extends Service {
     ];
 
     const opName = 'orguser_create';
-   const opSource = ctx.ip;
+    const opSource = ctx.ip;
     const opObject = 'user';
     const opDate = new Date();
     const opDetails = ctx.request.body.orguser;
@@ -359,6 +477,7 @@ class UserService extends Service {
       }
       const result = await ctx.registerUser(registerUser, ca, mspId, name, role, affiliation, caStorePath, caDockerStorePath, attrs, caVersion);
       const createTime = new Date();
+      password = await this.doCrypto(password);
       if (result === true) {
         await ctx.model.OrgUser.create({
           username: name,
@@ -578,18 +697,19 @@ class UserService extends Service {
     return user;
   }
 
-  async updateOrguserPassword(passwordnew) {
+
+  async updateOrguserPassword(passwordold,passwordnew) {
     const { ctx } = this;
     const result = { success: true };
     const operaterName = ctx.req.user.username;
     const opName = 'orguser_password_update';
-   const opSource = ctx.ip;
+    const opSource = ctx.ip;
     const opObject = 'user';
     const opDate = new Date();
     const opDetails = {};
     const orgName = operaterName.split('@')[1].split('.')[0];
     const networkId =  await ctx.service.user.getNetworkIdByAdminUser(orgName);
-    
+
     opDetails.name = operaterName;
     if (operaterName.split('@')[0] === 'Admin') {
       result.success = false;
@@ -607,14 +727,19 @@ class UserService extends Service {
       await ctx.service.log.deposit(opName, opObject, opSource, operaterName, opDate, 400, opDetails, {}, result.message);
       return result;
     }
+    passwordnew = await this.doCrypto(passwordnew);
     try {
       const userInfo = await ctx.model.OrgUser.findOne({ username: operaterName, network_id: networkId });
       if (userInfo != null) {
-        if ((passwordnew !== '') && (passwordnew !== userInfo.password)) {
+          let isCorrect = await this.comparePwd(passwordold, userInfo.password);
+          if (!isCorrect){
+              result.message = 'Wrong password!';
+              console.log(result.message);
+              result.success = false;
+          }
           await ctx.model.OrgUser.update({
-            username: operaterName, network_id: networkId
+              username: operaterName, network_id: networkId
           }, {'$set': { password: passwordnew } }, { upsert: true });
-        }
       } else {
         console.log('User' + operaterName + 'not found!');
         result.success = false;
@@ -626,15 +751,84 @@ class UserService extends Service {
       result.message = err.message;
       return result;
     }
-    await ctx.service.log.deposit(opName, opObject, opSource, operaterName, opDate, 200, opDetails, {}, '');
+    if(result.success === false){
+        await ctx.service.log.deposit(opName, opObject, opSource, operaterName, opDate, 400, opDetails, {}, '');
+    } else{
+        await ctx.service.log.deposit(opName, opObject, opSource, operaterName, opDate, 200, opDetails, {}, '');
+    }
     return result;
+  }
+
+  async resetOrguserPassword(curPassword, name, newPassword){
+    const { ctx,config } = this;
+    const operaterName = ctx.req.user.username;
+    const opName = 'orguser_password_reset';
+    const opSource = ctx.ip;
+    const opObject = 'user';
+    const opDate = new Date();
+    const opDetails = {};
+    const userName = operaterName.split('@')[0];
+    const orgName = operaterName.split('@')[1].split('.')[0];
+    const networkId =  await ctx.service.user.getNetworkIdByAdminUser(orgName);
+    const result = { success: true };
+    if (userName !== 'Admin') {
+        result.success = false;
+        result.message = 'user '+ operaterName +' do not have authority to reset password';
+        await ctx.service.log.deposit(opName, opObject, opSource, operaterName, opDate, 400, opDetails, {}, result.message);
+        result.code = 400;
+        return result;
+    }
+    const loginUrl = config.operator.url.login;
+
+    const response = await ctx.curl(loginUrl, {
+        method: 'POST',
+        data: {
+            username:operaterName,
+            password:curPassword,
+        },
+        dataType: 'json',
+    });
+    if (response.status !== 200) {
+        result.success = false;
+        result.message = 'user '+ operaterName +' password is wrong. do not have authority to reset password';
+        result.code = 400;
+        await ctx.service.log.deposit(opName, opObject, opSource, operaterName, opDate, 400, opDetails, {}, result.message);
+        return result;
+    }
+    const reg = /[^A-Za-z0-9\-_]/;
+    const isVaild = reg.test(newPassword);
+    if (isVaild !== false) {
+        result.success = false;
+        result.message = 'password container invalid character';
+        console.log(result.message);
+        await ctx.service.log.deposit(opName, opObject, opSource, operaterName, opDate, 400, opDetails, {}, result.message);
+        return result;
+    }
+    try{
+          const passwd = await this.doCrypto(newPassword);
+          await ctx.model.OrgUser.update({
+              username: name, network_id: networkId
+          }, {'$set': { password: passwd } }, { upsert: true });
+          console.log("success modified user's passwd ");
+      }catch (e) {
+        result.success = false;
+        result.message = 'modify password failed';
+        result.code = 400;
+        await ctx.service.log.deposit(opName, opObject, opSource, operaterName, opDate, 400, opDetails, {}, result.message);
+        return result;
+    }
+      result.message = 'Successfully modified user\'s passwd.';
+      result.code = 200;
+      await ctx.service.log.deposit(opName, opObject, opSource, operaterName, opDate, 200, opDetails, {}, result.message);
+      return result;
+
   }
 
   async updateOrguserState(name, activenew) {
     const { ctx } = this;
     const operaterName = ctx.req.user.username;
     const opName = 'orguser_state_update';
-   const opSource = ctx.ip;
+    const opSource = ctx.ip;
     const opObject = 'user';
     const opDate = new Date();
     const opDetails = {};
@@ -779,7 +973,7 @@ class UserService extends Service {
           resultdel.message = errorMsg;
           resultdel.success = false;
           resultdel.code = 400;
-          await ctx.service.log.deposit(opName, opObject, opSource,  operatorName, opDate, 400, opDetails, {}, errorMsg);
+          await ctx.service.log.deposit(opName, opObject, opSource, operatorName, opDate, 400, opDetails, {}, errorMsg);
           return resultdel;
         }
         if (userInfo != null) {
@@ -874,7 +1068,7 @@ class UserService extends Service {
       resultdel.message = err_message;
       resultdel.success = false;
       resultdel.code = 400;
-      await ctx.service.log.deposit(opName, opObject,opSource,  operatorName, opDate, 400, opDetails, {}, err_message);
+      await ctx.service.log.deposit(opName, opObject,opSource, operatorName, opDate, 400, opDetails, {}, err_message);
       return resultdel;
     }
     let res;
@@ -1255,6 +1449,22 @@ class UserService extends Service {
         }
         caDockerStorePath = '/etc/hyperledger/fabric-ca-server-config/';
         const res = await ctx.generateCRL(regUser, request, caHost, caPort, caStorePath, caDockerStorePath, caVersion);
+        return res;
+    }
+
+    async deleteMongoDatasByNetworkid(blockchain_network_id){
+        const { ctx } = this;
+        let res = {success:true};
+        try{
+            await ctx.model.Channel.remove({ blockchain_network_id: blockchain_network_id });
+            await ctx.model.OrgUser.remove({ network_id: blockchain_network_id });
+            await ctx.model.ServiceEndpoint.remove({ networkid: blockchain_network_id });
+            await ctx.model.ChainCode.remove({ blockchain_network_id: blockchain_network_id });
+        }catch(err){
+            console.log(err);
+            res.success = false;
+            res.message = err
+        }
         return res;
     }
 }

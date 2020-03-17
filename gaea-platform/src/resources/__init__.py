@@ -19,3 +19,4 @@ from .user_view import bp_user_view
 from .organization_api import bp_organization_api
 from .blockchain_network_api import bp_blockchain_network_api
 from .operator_log_api import bp_operator_log
+from .license_api import bp_license

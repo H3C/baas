@@ -9,6 +9,7 @@ import {
   createUser,
   deleteUser,
   updateUser,
+  resetOrgUserPassword,
 } from '../services/user';
 import { getLocale } from '../utils/utils';
 
@@ -81,6 +82,11 @@ export default {
             yield put({
                 type: 'fetch',
             });
+        },
+        *resetOrgUserPassword({payload,callback}, {call, put}){
+            console.log("payload");
+            const response = yield call(resetOrgUserPassword, payload);
+            callback(response);
         },
         *deleteUser({ payload }, { call, put }) {
             const response = yield call(deleteUser, payload.id);

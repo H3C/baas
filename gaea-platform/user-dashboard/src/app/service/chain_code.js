@@ -390,8 +390,11 @@ class ChainCodeService extends Service {
     const goPath = process.env.GOPATH;
     const goCcTmpPath = `${goPath}/src`;
     fs.ensureDirSync(`${goCcTmpPath}`);
-    // for now, only support golang
-    if (chainCodeData.language === 'golang') {
+
+    if (chainCodeData.language === 'node' || chainCodeData.language === 'java') {
+        chainCodePath = chainCodeSrcTmpPath;
+    }
+    else if (chainCodeData.language === 'golang') {
       fs.copySync(chainCodeTmpDir, goCcTmpPath); // move extracted dir to gopath
       chainCodePath = chainCodeSrcTmpDir;
       rimraf(chainCodeTmpDir, function(err) {
@@ -452,7 +455,7 @@ class ChainCodeService extends Service {
       },
     };
 
-    console.log(network);
+    //console.log(network);
 
 
     try {
@@ -481,6 +484,11 @@ class ChainCodeService extends Service {
           console.log(err);
         }); // delete gopath file dir
       }
+      else if (chainCodeData.language === 'node'  || chainCodeData.language === 'java') {
+          rimraf(`${chainCodeTmpDir}`, function(err) {
+          console.log(err);
+        });
+      }
     }
 
     result.success = true;
@@ -489,6 +497,200 @@ class ChainCodeService extends Service {
     await ctx.service.log.deposit(opName, opObject, opSource, userName, opDate, result.code, opDetails, {}, result.message);
     return result;
   }
+    
+    async recoveryChaincode(install_peers, userName, chainCodeId, ctx, config) {
+        const body = {
+            install: {
+                peers: install_peers
+            }
+        };
+        const orgName = userName.split('@')[1].split('.')[0];
+        const result = {};
+        const opName = 'chaincode_install_recovery';
+        const opSource = ctx.ip;
+        const opObject = 'chaincode';
+        const opDate = new Date();
+        const opDetails = install_peers;
+        opDetails.chaincode_id = chainCodeId;
+        if (userName.split('@')[0] !== 'Admin') {
+            const userInfo = await ctx.model.OrgUser.findOne({ username: userName });
+            if (userInfo === null) {
+                const err_message = `user ${userName} can not found in db`;
+                result.success = false;
+                result.code = 400;
+                result.message = err_message;
+                await ctx.service.log.deposit(opName, opObject, opSource, userName, opDate, result.code, opDetails, {}, err_message);
+                return result;
+            }
+            const userCreateTime = userInfo.create_time;
+            const userExpirationDateStr = userInfo.expiration_date;
+            const ifValidity = await ctx.service.user.getCertiExpirationState(userCreateTime, userExpirationDateStr);
+            if (ifValidity === false) {
+                const err_message = userName + ' certificate has become invalid , need to reenroll';
+                result.success = false;
+                result.code = 400;
+                result.message = err_message;
+                await ctx.service.log.deposit(opName, opObject, opSource, userName, opDate, result.code, opDetails, {}, err_message);
+                return result;
+            }
+        }
+        let chainCodeData = await ctx.model.ChainCode.findOne({ _id: chainCodeId });
+        let orgResponse = {};
+        try {
+            const orgUrl = `http://operator-dashboard:8071/v2/organizations?name=${orgName}`;
+            orgResponse = await ctx.curl(orgUrl, {
+                method: 'GET',
+            });
+        } catch (e) {
+            console.log(e.message);
+            result.success = false;
+            result.code = 400;
+            result.message = e.message;
+            await ctx.service.log.deposit(opName, opObject, opSource, userName, opDate, 400, opDetails, {}, e.message);
+            return result;
+        }
+        let data = JSON.parse(orgResponse.data.toString());
+        const organization = data.organizations[0];
+        const orgDomain = organization.domain;
+        const orgFullName = `${orgName}.${orgDomain}`;
+        const networkId = organization.blockchain_network_id;
+        const networkRootDir = `${config.fabricDir}/${networkId}`;
+        const keyValueStorePath = `${networkRootDir}/crypto-config/peerOrganizations/${orgFullName}/ca/${userName}`;
+        fs.ensureDirSync(keyValueStorePath);
+        
+        const chainCodeDir = `${networkRootDir}/chainCode/${chainCodeId}/`;
+        const chainCodeFile = commonFs.readdirSync(`${chainCodeDir}`)[0];
+        const chainCodeFilePath = path.join(chainCodeDir, chainCodeFile);
+        const origMd5 = chainCodeData.md5;
+        const cur_md5 = await ctx.service.chainCode.calcFileMd5(chainCodeFilePath, origMd5);
+        opDetails.origMd5 = origMd5;
+        opDetails.cur_md5 = cur_md5;
+        opDetails.networkId = networkId;
+        if (cur_md5 !== origMd5) {
+            const errMsg = 'chainCode has been changed, refuse to install';
+            result.success = false;
+            result.code = 400;
+            result.message = errMsg;
+            await ctx.service.log.deposit(opName, opObject, opSource, userName, opDate, 400, opDetails, {}, errMsg);
+            return result;
+        }
+        const zip = AdmZip(chainCodeFilePath);
+        const chainCodeTmpDir = `${networkRootDir}/chainCode/${chainCodeId}/tmpExtract/`;
+        fs.ensureDirSync(`${chainCodeTmpDir}`);
+        zip.extractAllTo(chainCodeTmpDir, true);
+        const chainCodeSrcTmpDir = commonFs.readdirSync(`${chainCodeTmpDir}`)[0];
+        const chainCodeSrcTmpPath = path.join(chainCodeTmpDir, chainCodeSrcTmpDir);
+        if (!fs.statSync(chainCodeSrcTmpPath).isDirectory()) {
+            const err_message = 'chaincode source files should be put in a directory and then compress to zip, please check.';
+            result.success = false;
+            result.code = 400;
+            result.message = err_message;
+            console.log(err_message);
+            
+            await ctx.service.log.deposit(opName, opObject, opSource, userName, opDate, 400, opDetails, {}, err_message);
+            return result;
+            
+        }
+        
+        let chainCodePath; // for golang, it is a directory name, in fact.
+        process.env.GOPATH = '/root/go';
+        const goPath = process.env.GOPATH;
+        const goCcTmpPath = `${goPath}/src`;
+        fs.ensureDirSync(`${goCcTmpPath}`);
+        if (chainCodeData.language === 'node' || chainCodeData.language === 'java') {
+            chainCodePath = chainCodeSrcTmpPath;
+        } else if (chainCodeData.language === 'golang') {
+            fs.copySync(chainCodeTmpDir, goCcTmpPath); // move extracted dir to gopath
+            chainCodePath = chainCodeSrcTmpDir;
+            rimraf(chainCodeTmpDir, function(err) {
+                console.log(err);
+            }); // delete extranct file dir
+        }
+        
+        let networkResponse = {};
+        try {
+            const networkUrl = `http://operator-dashboard:8071/v2/blockchain_networks/${networkId}/serviceendpoints`;
+            networkResponse = await ctx.curl(networkUrl, {
+                method: 'GET',
+            });
+        } catch (e) {
+            console.log(e.message);
+            result.success = false;
+            result.code = 400;
+            result.message = e.message;
+            await ctx.service.log.deposit(opName, opObject, opSource, userName, opDate, 400, opDetails, {}, e.message);
+            return result;
+            
+        }
+        data = JSON.parse(networkResponse.data.toString());
+        const networkEndpoints = data.service_endpoints;
+        const peerNames = [];
+        for (let i = 0; i < organization.peerNum; i++) {
+            peerNames.push(`peer${i}.${orgFullName}`);
+        }
+        
+        const organizations = await ctx.service.chainCode.buildNetworkConfigOrganizations(networkEndpoints, [organization], peerNames, networkRootDir);
+        const peers = await ctx.service.chainCode.buildNetworkConfigPeers(networkEndpoints, install_peers, networkRootDir);
+        const certificateAuthorities = await ctx.service.chainCode.buildNetworkConfigCA(networkEndpoints, organization, networkRootDir);
+        const network = {
+            config: {
+                version: '1.0',
+                'x-type': 'hlfv1',
+                name: `${orgName}-ccinstall`,
+                description: `${orgName}-ccinstall`,
+                organizations,
+                peers,
+                certificateAuthorities,
+            },
+        };
+        network[`${orgName}`] = {
+            'x-type': 'hlfv1',
+            name: `${networkId.slice(0, 12)}-${orgName}`,
+            description: `${networkId.slice(0, 12)}-${orgName}`,
+            version: '1.0',
+            client: {
+                organization: `${orgName}`,
+                credentialStore: {
+                    path: keyValueStorePath,
+                    cryptoStore: {
+                        path: keyValueStorePath,
+                    },
+                    wallet: 'wallet',
+                },
+            },
+        };
+        
+        //console.log(network);
+        
+        
+        try {
+            await ctx.installChainCode(network, orgName, chainCodeData, chainCodePath, body, userName);
+        } catch (err) {
+            result.success = false;
+            result.code = 400;
+            result.message = err.message;
+            await ctx.service.log.deposit(opName, opObject, opSource, userName, opDate, 400, opDetails, {}, err.message);
+            return result;
+        } finally {
+            // For install, chainCode need be put under gopath/src temporary
+            if (chainCodeData.language === 'golang') {
+                rimraf(`${goCcTmpPath}/${chainCodePath}`, function(err) {
+                    console.log(err);
+                });
+            }
+            else if (chainCodeData.language === 'node'  || chainCodeData.language === 'java') {
+                rimraf(`${chainCodeTmpDir}`, function(err) {
+                    console.log(err);
+                });
+            }
+        }
+        
+        result.success = true;
+        result.code = 200;
+        result.message = 'install ChainCode Success';
+        await ctx.service.log.deposit(opName, opObject, opSource, userName, opDate, result.code, opDetails, {}, result.message);
+        return result;
+    }
 
   async instantiateChainCode() {
     const { ctx, config } = this;

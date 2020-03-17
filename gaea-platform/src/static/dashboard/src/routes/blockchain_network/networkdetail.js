@@ -312,7 +312,6 @@ export default class NetworkDetail extends PureComponent {
         const ip = e.key.split(',')[1];
         const name = e.key.split(',')[0];
         this.requestPeerInfo(blockchain_networks.id, name, ip);
-        console.log('e',e);
         const loop = setInterval(() => {
             this.requestPeerInfo(blockchain_networks.id, name, ip);
         }, 10000);

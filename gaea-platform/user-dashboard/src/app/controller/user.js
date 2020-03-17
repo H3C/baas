@@ -15,6 +15,14 @@ class UserController extends Controller {
       ctx.body = result;
   }
 
+  async getToken() {
+      const { ctx } = this;
+      const user = ctx.request.body;
+      const result = await ctx.service.user.getToken(user);
+      ctx.status = result.success ? 200:400;
+      ctx.body = result;
+  }
+
   async currentUser() {
     const { ctx } = this;
     if (!ctx.isAuthenticated()) {
@@ -22,6 +30,14 @@ class UserController extends Controller {
     } else {
       ctx.body = this.ctx.user;
     }
+  }
+
+  async generateToken(){
+    const { ctx,config } = this;
+    const {networkId, userName, data, time} = ctx.request.body.user;
+    const result = await ctx.service.user.generateToken(networkId, userName, data, time);
+    ctx.status = result.success ? 200 : 400;
+    ctx.body = result;
   }
 
   async createOrgUser() {
@@ -68,11 +84,23 @@ class UserController extends Controller {
   async updateOrguserPassword() {
     const { ctx } = this;
     const password = ctx.req.query.password;
+    const old_password = ctx.req.query.old_password;
     let result = { success: false };
-    result = await ctx.service.user.updateOrguserPassword(password);
+    result = await ctx.service.user.updateOrguserPassword(old_password, password);
     ctx.status = result.success ? 200 : 400;
     ctx.body = result;
   }
+
+  async resetOrguserPassword(){
+      const { ctx } = this;
+      const name = ctx.params.name;
+      const newPassword = ctx.request.body.password;
+      const curPassword = ctx.request.body.curPassword;
+      let result = await ctx.service.user.resetOrguserPassword(curPassword, name, newPassword);
+      ctx.status = result.success ? 200 : 400;
+      ctx.body = result;
+  }
+
   async updateOrguserInfo() {
       const { ctx } = this;
       const information = ctx.request.body.information;
@@ -115,6 +143,14 @@ class UserController extends Controller {
     const { ctx } = this;
     const { sourceName, targetName } = ctx.request.body.affiliation;
     const result = await ctx.service.user.updateAffiliation(sourceName, targetName);
+    ctx.status = result.success ? 200 : 400;
+    ctx.body = result;
+  }
+
+  async deleteMongoDatasByNetworkid(){
+    const { ctx } = this;
+    const blockchain_network_id  = ctx.request.body.blockchain_network_id;
+    const result = await ctx.service.user.deleteMongoDatasByNetworkid(blockchain_network_id);
     ctx.status = result.success ? 200 : 400;
     ctx.body = result;
   }

@@ -5,6 +5,7 @@ import { createUser, query, deleteUser } from '../services/user';
 import { Modal} from "antd/lib/index";
 import { defineMessages, IntlProvider } from "react-intl";
 import { getLocale } from "../utils/utils";
+import {queryHosts} from "../services/host";
 
 const messages = defineMessages({
     fetchOrgFail: {
@@ -34,6 +35,10 @@ const messages = defineMessages({
     deleteAccountFail: {
         id: 'Organization.deleteAccountFail',
         defaultMessage: 'Fail to delete the organization\'s administrator account',
+    },
+    fetchHostFail: {
+        id: 'Network.FetchHostFail',
+        defaultMessage: 'Failed to get host information',
     },
 });
 

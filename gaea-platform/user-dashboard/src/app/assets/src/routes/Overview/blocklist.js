@@ -1,16 +1,15 @@
 import React, { PureComponent, Fragment } from 'react';
-import { routerRedux } from 'dva/router';
-import { Form, Card, Button, Table, Drawer, Col, Row, Select, Input } from 'antd';
+import { Form, Card, Button, Table, Drawer, Col, Row, Select, Input, DatePicker } from 'antd';
 import { Resizable } from 'react-resizable';
 import styles from './index.less';
 import { connect } from 'dva';
 import Ellipsis from '../../components/Ellipsis'
-import { stringify } from "qs";
+import moment from 'moment';
 import {defineMessages, IntlProvider} from "react-intl";
 import {getLocale} from "../../utils/utils";
+import {Actions, DescriptionItem} from './transactionlist';
 
 const FormItem = Form.Item;
-
 const pStyle = {
     fontSize: 16,
     color: 'rgba(0,0,0,0.85)',
@@ -18,12 +17,14 @@ const pStyle = {
     display: 'block',
     marginBottom: 16
 };
-
-
 const messages = defineMessages({
     list:{
         id: 'Overview.Blocklist.List',
         defaultMessage: 'Block List',
+    },
+    txList:{
+        id: 'Overview.Txlist.List',
+        defaultMessage: 'Transaction List',
     },
     number:{
         id: 'Overview.Blocklist.Number',
@@ -89,15 +90,73 @@ const messages = defineMessages({
         id: 'Overview.Txlist.SelPeer',
         defaultMessage: 'Select Node',
     },
+    txId:{
+        id: 'Overview.Txlist.TxId',
+        defaultMessage: 'Tx Id',
+    },
+    msp:{
+        id: 'Overview.Txlist.Msp',
+        defaultMessage: 'Creator MSP',
+    },
+    txTime:{
+        id: 'Overview.Txlist.TxTime',
+        defaultMessage: 'Tx Time',
+    },
+    txType:{
+        id: 'Overview.Txlist.TxType',
+        defaultMessage: 'Tx Type',
+    },
+    name:{
+        id: 'Overview.Txlist.Name',
+        defaultMessage: 'Channel Name',
+    },
+    txinfo:{
+        id: 'Overview.Txlist.Txinfo',
+        defaultMessage: 'Tx info',
+    },
+    condition:{
+        id: 'Overview.Txlist.Condition',
+        defaultMessage: 'Condition',
+    },
+    selCondition:{
+        id: 'Overview.Txlist.SelCondition',
+        defaultMessage: 'Please select the condition',
+    },
+    block:{
+        id: 'Overview.Txlist.Block',
+        defaultMessage: 'Block Number',
+    },
+    startTime:{
+        id: 'Overview.Txlist.StartTime',
+        defaultMessage: 'Starting Time',
+    },
+    endTime:{
+        id: 'Overview.Txlist.EndTime',
+        defaultMessage: 'End Time',
+    },
+    selTime:{
+        id: 'Overview.Txlist.SelTime',
+        defaultMessage: 'Select Time',
+    },
+    selEndTime:{
+        id: 'Overview.Txlist.SelEndTime',
+        defaultMessage: 'Please select end time',
+    },
+    blocknum:{
+        id: 'Overview.Txlist.BlockNum',
+        defaultMessage: 'Latest Block Number',
+    },
+    timeRange:{
+        id: 'Overview.Blocklist.TimeRange',
+        defaultMessage: 'Time',
+    }
 });
-
 const currentLocale = getLocale();
 const intlProvider = new IntlProvider(
     { locale: currentLocale.locale, messages: currentLocale.messages },
     {}
 );
 const { intl } = intlProvider.getChildContext();
-
 const ResizeableTitle = (props) => {
     const { onResize, width, ...restProps } = props;
 
@@ -111,7 +170,7 @@ const ResizeableTitle = (props) => {
     );
 };
 
-const DescriptionItem = ({title, content}) => (
+const blockListItem = (title, content) => (
     <div
         style = {{
             fontSize: 14,
@@ -134,7 +193,7 @@ const DescriptionItem = ({title, content}) => (
 );
 
 @connect(({ loading }) => ({
-    submitting: loading.effects['overview/fetchBlockByNumber'],
+    submitting: loading.effects['overview/fetchBlock'],
 }))
 
 @Form.create()
@@ -143,6 +202,7 @@ export default class BlockList extends PureComponent {
         super();
         this.state = {
             visible: false,
+            txVisible: false,
             columns: [{
                 title: intl.formatMessage(messages.number),
                 dataIndex: 'number',
@@ -168,14 +228,29 @@ export default class BlockList extends PureComponent {
                 width: 250,
                 render: (row) => (
                     <Fragment>
-                        <a   onClick={() => this.showDrawer(row)}>{intl.formatMessage(messages.see)}</a>
+                        <a onClick={() => this.showDrawer(row)}>{intl.formatMessage(messages.see)}</a>
                     </Fragment>
                 ),
             }],
+            
+            txsColumns: [
+                {
+                    title: intl.formatMessage(messages.txList),
+                    width: 100,
+                    render: (row) => (
+                        <Fragment>
+                            <a onClick={() => this.showTxDrawer(row)}>{row.type === 1 ? 'CONFIG' : row.id }</a>
+                        </Fragment>
+                    ),
+                }
+            ],
             channel:'',
-            type: '',
+            type: '0',
             channelSel: '',
-            peerName: ''
+            peerName: '',
+            txInfo: {},
+            txs: [],
+            actions: []
         }
     }
 
@@ -186,13 +261,28 @@ export default class BlockList extends PureComponent {
             dataHash: row.dataHash,
             blockNumber: row.number,
             previousHash: row.previousHash,
-            txCount: row.txCount
+            txCount: row.txCount,
+            txs: row.txs
         });
+    };
+    
+    showTxDrawer = row => {
+        this.setState({
+            txVisible: true,
+            txInfo: row,
+            actions: row.type === 3 ? row.actions : []
+        })
     };
 
     onClose = () => {
         this.setState({
             visible: false
+        });
+    };
+    
+    onTxClose = () => {
+        this.setState({
+            txVisible: false
         });
     };
 
@@ -215,9 +305,16 @@ export default class BlockList extends PureComponent {
                 ...fieldsValue,
                 updatedAt: fieldsValue.updatedAt && fieldsValue.updatedAt.valueOf(),
             };
+    
+            if (values.type === '1') {
+                const startTime = new Date(values.startTime);
+                const endTime = new Date(values.endTime);
+                values.startTime = startTime.getTime();
+                values.endTime = endTime.getTime();
+            }
 
             dispatch({
-                type: 'overview/fetchBlockByNumber',
+                type: 'overview/fetchBlock',
                 payload: values,
             });
         });
@@ -238,15 +335,15 @@ export default class BlockList extends PureComponent {
     };
 
     renderSimpleForm() {
-        const { form, channelList, submitting } = this.props;
-        const { getFieldDecorator } = form;
+        const { form, channelList, submitting, blocks } = this.props;
+        const { getFieldDecorator, getFieldValue } = form;
         const channelInfo = Array.isArray(channelList) ? channelList : [];
         const channelOptions = channelInfo.map(channel => (
             <Option key={channel.id} value={channel.id}>
                 <span>{channel.name}</span>
             </Option>
         ));
-    
+
         const { channelSel } = this.state;
         const ChannelObj = channelInfo.filter(channel => channel.id === channelSel);
         const peersInChannel = ChannelObj.length > 0 ? ChannelObj[0].peers : [];
@@ -256,7 +353,10 @@ export default class BlockList extends PureComponent {
                     <span>{peer.name}</span>
                 </Option> : null
         ));
-    
+        const startTime = blocks.startTime ? moment(blocks.startTime) : '';
+        const endTime = blocks.endTime ? moment(blocks.endTime) : '';
+        const typeVal = blocks.type ? blocks.type : this.state.type;
+
         return (
             <Form onSubmit={this.handleSearch} layout="inline">
                 <Row gutter={{ md: 8, lg: 24, xl: 48 }}>
@@ -282,19 +382,6 @@ export default class BlockList extends PureComponent {
                         </FormItem>
                     </Col>
                     <Col md={8} sm={24}>
-                        <FormItem label={ intl.formatMessage(messages.blockNum) }>
-                            {getFieldDecorator('blockNum',{
-                                initialValue: this.state.number,
-                                rules: [{
-                                required: true,
-                                message:  intl.formatMessage(messages.inputQuery) ,
-                                }],
-                            })(<Input placeholder={ intl.formatMessage(messages.input) } />)}
-                        </FormItem>
-                    </Col>
-                </Row>
-                <Row gutter={{ md: 8, lg: 24, xl: 48 }}>
-                    <Col md={8} sm={24}>
                         <FormItem label={ intl.formatMessage(messages.peer) }>
                             {getFieldDecorator('peerName',
                                 {
@@ -304,17 +391,87 @@ export default class BlockList extends PureComponent {
                                         message:  intl.formatMessage(messages.selPeer) ,
                                     }],
                                 })
-                            (
+                                (
+                                    <Select
+                                        placeholder={ intl.formatMessage(messages.select) }
+                                        style={{ width: '100%' }}
+                                        onChange={value => this.onPeerChange(value)}
+                                    >
+                                        {peerOptions}
+                                    </Select>
+                            )}
+                        </FormItem>
+                    </Col>
+                    <Col md={8} sm={24}>
+                        <FormItem label={ intl.formatMessage(messages.condition) }>
+                            {getFieldDecorator('type',{
+                                initialValue: typeVal,
+                                rules: [{
+                                    required: true,
+                                    message: intl.formatMessage(messages.selCondition),
+                                }],
+                            })(
                                 <Select
                                     placeholder={ intl.formatMessage(messages.select) }
-                                    style={{ width: '100%' }}
-                                    onChange={value => this.onPeerChange(value)}
+                                    style={{ width: '100%', minWidth: 'auto' }}
                                 >
-                                    {peerOptions}
+                                    <Option value="0">{ intl.formatMessage(messages.block) }</Option>
+                                    <Option value="1">{ intl.formatMessage(messages.timeRange) }</Option>
                                 </Select>
                             )}
                         </FormItem>
                     </Col>
+                </Row>
+                <Row gutter={{ md: 8, lg: 24, xl: 48 }}>
+                    <Col md={8} sm={24}>
+                        {
+                            getFieldValue('type') === '0' ?
+                                <FormItem label={ intl.formatMessage(messages.blockNum) }>
+                                    {getFieldDecorator('blockNum',{
+                                        initialValue: this.state.number,
+                                        rules: [{
+                                            required: true,
+                                            message:  intl.formatMessage(messages.inputQuery) ,
+                                        }],
+                                    })(<Input placeholder={ intl.formatMessage(messages.input) } />)}
+                                </FormItem> :
+                                <FormItem
+                                    label={ intl.formatMessage(messages.startTime) }
+                                >
+                                    {getFieldDecorator('startTime',{
+                                        initialValue: startTime,
+                                        rules: [{
+                                            required: true,
+                                            message: intl.formatMessage(messages.selTime),
+                                        }],
+                                    })(<DatePicker
+                                        format='YYYY-MM-DD HH:mm:ss'
+                                        style={{ width: '100%', minWidth: 'auto' }}
+                                        showTime={{}}
+                                    />)}
+                                </FormItem>
+                        }
+                    </Col>
+                    {
+                        getFieldValue('type') !== '0' &&
+                        <Col md={8} sm={24}>
+                            <FormItem
+                                label={ intl.formatMessage(messages.endTime) }
+                            >
+                                {getFieldDecorator('endTime',{
+                                    initialValue: endTime,
+                                    rules: [{
+                                        required: true,
+                                        message: intl.formatMessage(messages.selEndTime),
+                                    }],
+                                })(<DatePicker
+                                    format='YYYY-MM-DD HH:mm:ss'
+                                    style={{ width: '100%', minWidth: 'auto' }}
+                                    showTime={{}}
+                                />)}
+                            </FormItem>
+                        </Col>
+                    }
                     <Col md={8} sm={24}>
                         <span className={styles.submitButtons}>
                             <Button type="primary" htmlType="submit" loading={submitting}>
@@ -322,28 +479,6 @@ export default class BlockList extends PureComponent {
                             </Button>
                         </span>
                     </Col>
-                </Row>
-                <Row gutter={{ md: 8, lg: 24, xl: 48 }}>
-                  {/*<Col md={8} sm={24}>
-
-                        <FormItem label="搜索条件">
-                            {getFieldDecorator('type',{
-                              initialValue: this.state.type,
-                              rules: [{
-                                required: true,
-                                message: '请选择搜索条件',
-                              }],
-                            })(
-                                <Select
-                                    placeholder="请选择"
-                                    style={{ width: '100%' }}
-                                >
-                                    <Option value="0">块数</Option>
-                                    <Option value="1">时间</Option>
-                                </Select>
-                            )}
-                        </FormItem>
-                    </Col>*/}
                 </Row>
             </Form>
         );
@@ -374,7 +509,7 @@ export default class BlockList extends PureComponent {
             showSizeChanger: true,
             showQuickJumper: true,
         };
-
+        
         if (typeof(blocks.channel) !== 'undefined') {
             this.setState({
                 channel: blocks.channel,
@@ -398,15 +533,15 @@ export default class BlockList extends PureComponent {
                     bordered={false}
                 >
                     <div className={styles.tableList}>
-                      <div className={styles.tableListForm}>{this.renderForm()}</div>
-                        <Table
-                            components={this.components}
-                            className={styles.table}
-                            loading={loadingInfo}
-                            dataSource={blocks.blocks}
-                            columns={columns}
-                            pagination={paginationProps}
-                        />
+                        <div className={styles.tableListForm}>{this.renderForm()}</div>
+                            <Table
+                                components={this.components}
+                                className={styles.table}
+                                loading={loadingInfo}
+                                dataSource={blocks.blocks}
+                                columns={columns}
+                                pagination={paginationProps}
+                            />
                     </div>
                     <Drawer
                         width = {640}
@@ -414,34 +549,48 @@ export default class BlockList extends PureComponent {
                         closable = {false}
                         onClose={this.onClose}
                         visible={this.state.visible}
-
                     >
-                        <p style={{ ...pStyle, marginBottom: 24, color: '#c21eb8'}}>{ intl.formatMessage(messages.blockInfo) }</p>
-                        <Row>
-                            <Col span={24}>
-                                <DescriptionItem title = { intl.formatMessage(messages.number) } content = {this.state.blockNumber}/>
-                            </Col>
-                        </Row>
-                        <Row>
-                            <Col span={24}>
-                                <DescriptionItem title = { intl.formatMessage(messages.hash) } content = {this.state.currentBlockHash}/>
-                            </Col>
-                        </Row>
-                        <Row>
-                            <Col span={24}>
-                                <DescriptionItem title = { intl.formatMessage(messages.dataHash) } content = {this.state.dataHash}/>
-                            </Col>
-                        </Row>
-                        <Row>
-                            <Col span={24}>
-                                <DescriptionItem title = { intl.formatMessage(messages.preHash) } content = {this.state.previousHash}/>
-                            </Col>
-                        </Row>
-                        <Row>
-                            <Col span={24}>
-                                <DescriptionItem title = { intl.formatMessage(messages.txCount) } content = {this.state.txCount}/>
-                            </Col>
-                        </Row>
+                        <div>
+                            <p style={{ ...pStyle, marginBottom: 24, color: '#c21eb8'}}>{ intl.formatMessage(messages.blockInfo) }</p>
+                            { blockListItem(intl.formatMessage(messages.number),this.state.blockNumber) }
+                            { blockListItem(intl.formatMessage(messages.hash),this.state.currentBlockHash) }
+                            { blockListItem(intl.formatMessage(messages.dataHash),this.state.dataHash) }
+                            { blockListItem(intl.formatMessage(messages.preHash),this.state.previousHash) }
+                            { blockListItem(intl.formatMessage(messages.txCount),this.state.txCount) }
+                        </div>
+                        <div>
+                            <Table
+                                components={this.components}
+                                className={styles.table}
+                                dataSource={this.state.txs}
+                                columns={this.state.txsColumns}
+                                pagination={paginationProps}
+                            />
+                        </div>
+                        <Drawer
+                            width = {640}
+                            placement = "right"
+                            closable = {false}
+                            onClose={this.onTxClose}
+                            visible={this.state.txVisible}
+    
+                        >
+                            <p style={{ ...pStyle, marginBottom: 24, color: '#c21eb8'}}>{ intl.formatMessage(messages.txinfo) }</p>
+                            <DescriptionItem title = { intl.formatMessage(messages.txId) } content = {this.state.txInfo.id}/>
+                            <DescriptionItem title = { intl.formatMessage(messages.txTime) } content = {moment(this.state.txInfo.time).format('YYYY-MM-DD HH:mm:ss')}/>
+                            <DescriptionItem title = { intl.formatMessage(messages.msp) } content = {this.state.txInfo.creatorMSP}/>
+                            <DescriptionItem title = { intl.formatMessage(messages.txType) } content = {this.state.txInfo.typeString}/>
+                            <DescriptionItem title = { intl.formatMessage(messages.name) } content = {this.state.txInfo.channelName}/>
+                            {this.state.actions.map( action => {
+                                return (<Actions
+                                    number = {this.state.actions.indexOf(action) + 1}
+                                    proposal_hash = {action.proposal_hash}
+                                    endorsements = {action.endorsements}
+                                    chaincode = {action.chaincode}
+                                    rwsets = {action.rwsets}
+                                />);
+                            })}
+                        </Drawer>
                     </Drawer>
                 </Card>
             </div>

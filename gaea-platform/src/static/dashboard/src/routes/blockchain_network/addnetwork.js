@@ -77,6 +77,15 @@ const messages = defineMessages({
         id: 'Network.CreateConsensusForSel',
         defaultMessage: 'Please choose the consensus',
     },
+    dbtypes: {
+        id: 'Network.CreateDbType',
+        defaultMessage: 'Database Type',
+
+    },
+    dbtypeForSel: {
+        id: 'Network.CreateDbTypeForSel',
+        defaultMessage: 'Please choose the database types',
+    },
     commit: {
         id: 'Network.CreateCommit',
         defaultMessage: 'Commit',
@@ -145,6 +154,7 @@ export default class CreateNet extends PureComponent {
           "peer_orgs":values.peerorgs,
           "host_id":values.host_id,
           "consensus_type": values.consensus_type,
+          "db_type": values.db_type,
           callback: this.submitCallback,
         };
         dispatch({
@@ -209,10 +219,17 @@ export default class CreateNet extends PureComponent {
       </Option>
     ));
 
-    const consensusoptions = ['kafka', 'solo'];
+    const consensusoptions = ['etcdraft', 'kafka', 'solo'];
     const ConsensusOptions = consensusoptions.map(consensusoption => (
       <Option value={consensusoption}>
         <span>{consensusoption}</span>
+      </Option>
+    ));
+
+    const dbtypeoptions = ['couchdb', 'leveldb'];
+    const DbtypeOptions = dbtypeoptions.map(dbtypeoption => (
+      <Option value={dbtypeoption}>
+        <span>{dbtypeoption}</span>
       </Option>
     ));
 
@@ -323,13 +340,23 @@ export default class CreateNet extends PureComponent {
                   },
                 ],
               })(<Select>{ConsensusOptions}</Select>)}
+             </FormItem>
+             <FormItem {...formItemLayout} label={intl.formatMessage(messages.dbtypes)}>
+              {getFieldDecorator('db_type', {
+                initialValue: '',
+                rules: [
+                  {
+                    required: true,
+                    message: intl.formatMessage(messages.dbtypeForSel),
+                  },
+                ],
+              })(<Select>{DbtypeOptions}</Select>)}
             </FormItem>
             <FormItem {...submitFormLayout} style={{ marginTop: 32 }}>
               <Button onClick={this.clickCancel} >{intl.formatMessage(messages.cancel)}</Button>
               <Button type="primary" htmlType="submit" loading={submitting} style={{ marginLeft: 8 }}>
                   {intl.formatMessage(messages.commit)}
               </Button>
-
             </FormItem>
           </Form>
         </Card>

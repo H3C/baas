@@ -78,7 +78,10 @@ let isMobile;
 enquireScreen(b => {
   isMobile = b;
 });
-
+@connect(({OrgUserList,loading }) => ({
+    OrgUserList,
+    submitting: loading.effects['OrgUserList/ResetAdminPassword'],
+}))
 class BasicLayout extends React.PureComponent {
   static childContextTypes = {
     location: PropTypes.object,
@@ -147,6 +150,13 @@ class BasicLayout extends React.PureComponent {
         )
     }
   };
+  changeAdminPassword = (data, callback) => {
+      this.props.dispatch({
+          type: 'OrgUserList/ResetAdminPassword',
+          payload: data,
+          callback
+      });
+  };
   render() {
     const { collapsed, routerData, match, location } = this.props;
     const bashRedirect = this.getBashRedirect();
@@ -171,6 +181,7 @@ class BasicLayout extends React.PureComponent {
               isMobile={this.state.isMobile}
               onCollapse={this.handleMenuCollapse}
               onMenuClick={this.handleMenuClick}
+              changeAdminPassword = {this.changeAdminPassword}
             />
           </Header>
           <Content style={{ margin: "24px 24px 0", height: "100%" }}>

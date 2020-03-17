@@ -94,7 +94,7 @@ export const getRouterData = app => {
       component: dynamicWrapper(app, ['organization'], () => import('../routes/organizations/orglist')),
     },
     '/organizations/addorg': {
-      component: dynamicWrapper(app, ['organization'], () => import('../routes/organizations/addorg')),
+      component: dynamicWrapper(app, ['organization','host'], () => import('../routes/organizations/addorg')),
     },
     '/blockchain_network/networklist': {
         component: dynamicWrapper(app, ['networklist'], () => import('../routes/blockchain_network/networklist')),

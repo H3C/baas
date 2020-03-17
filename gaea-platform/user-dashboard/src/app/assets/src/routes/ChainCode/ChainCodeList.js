@@ -438,8 +438,9 @@ export default class ChainCodeList extends PureComponent {
     DeleteChainCode=(row)=> {
         /* const { selectedRows } = this.state; */
         const { dispatch } = this.props;
+        const name = row.name;
         Modal.confirm({
-            title: intl.formatMessage(messages.confirm,{name:row.name}),
+            title: intl.formatMessage(messages.confirm,{name}),
             onOk() {
                 dispatch({
                     type: 'ChainCodeList/removeChainCode',

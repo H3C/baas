@@ -10,6 +10,8 @@ const moment = require('moment');
 const AdmZip = require('adm-zip');
 //const logger = helper.getLogger('Create-Channel');
 var agent = require('superagent-promise')(require('superagent'), Promise);
+var requester = require('request');
+let checkingHealthy = false;
 
 module.exports = app => {
   function getKeyStoreForOrg(keyValueStore, org) {
@@ -24,19 +26,18 @@ module.exports = app => {
       'ssl-target-name-override': network.orderer['server-hostname'],
     });
   }
-  function setupPeers(network, channel, org, client) {
-    for (const key in network[org].peers) {
-      const data = fs.readFileSync(network[org].peers[key].tls_cacerts);
-      const peer = client.newPeer(
-        network[org].peers[key].requests,
-        {
-          pem: Buffer.from(data).toString(),
-          'ssl-target-name-override': network[org].peers[key]['server-hostname'],
-        }
-      );
-      peer.setName(key);
-
-      channel.addPeer(peer);
+  function setupPeers(network, channel, client) {
+    for (const key in network.config.peers) {
+        let data = fs.readFileSync(network.config.peers[key].tlsCACerts.path);
+        let peer = client.newPeer(network.config.peers[key].url,
+            {
+                pem: Buffer.from(data).toString(),
+                'ssl-target-name-override': network.config.peers[key].grpcOptions['ssl-target-name-override']
+            }
+        );
+        peer.setName(key);
+        //因为启用了TLS，所以上面的代码就是指定TLS的CA证书
+        channel.addPeer(peer);
     }
   }
   /*
@@ -290,7 +291,9 @@ module.exports = app => {
         app.logger.info('instantiate proposal was good');
       } else {
         const err_message = proposalResponses[i].details;
+        const err_message2 = proposalResponses[i].message;
         app.logger.error(err_message);
+        app.logger.error("err_message2:",err_message2);
         all_good = false;
         throw new Error(err_message);
       }
@@ -1215,15 +1218,83 @@ module.exports = app => {
       return 'failed ' + error.toString();
     }
   }
-  async function invokeChainCode(network, peerNames, channelName, chainCodeName, fcn, args, username, org) {
+    
+    async function checkLedgerForPeers(network, targetPeers, channelName, chainCodeName, userName, orgName, recovery) {
+        let channel;
+        let ledger;
+        let num = 0;
+        let peersForJoin = [];
+        const peerGroup = [];
+        
+        for (const peer in targetPeers) {
+            if (targetPeers[peer].split('.')[1] === orgName) {
+                peerGroup.push(targetPeers[peer]);
+            }
+        }
+        
+        try {
+            // 创建client和channel对象
+            let client = await getClientForOrgCA(orgName, network, userName);
+            app.logger.debug('Successfully got the fabric client for the organization "%s"', orgName);
+            channel = client.getChannel(channelName);
+        } catch (error) {
+            app.logger.error('Failed to query due to error: ' + error.stack ? error.stack : error);
+            return error.toString();
+        }
+        
+        
+        for (const index in peerGroup) {
+            try {
+                ledger = await channel.queryInstantiatedChaincodes(peerGroup[index], true);
+                if (typeof ledger.chaincodes === 'undefined') {
+                    throw new Error('no ledger in the peer');
+                }
+                
+                for (num = 0; index < ledger.chaincodes.length; num++) {
+                    if (ledger.chaincodes[num].name === chainCodeName) {
+                        break;
+                    }
+                }
+                if (num === ledger.chaincodes.length) {
+                    throw new Error(`Can't find ledger ${chainCodeName}`);
+                }
+            }
+            catch (error) {
+                app.logger.error('Failed to query due to error: ' + error.stack ? error.stack : error);
+                peersForJoin.push(peerGroup[index]);
+            }
+        }
+        
+        try {
+            if (peersForJoin.length > 0) {
+                await joinChannel(network, channelName, peersForJoin, orgName, userName);
+                console.log(`The peer ${peersForJoin.join(',')} rejoin to channel success.`);
+                
+                await recovery.recoveryChaincode(peersForJoin, userName, recovery.chaincodeId, recovery.ctx, recovery.config);
+                console.log(`The peer ${peersForJoin.join(',')} reinstall chainCode success.`);
+            }
+        } catch (e) {
+            app.logger.error('Failed to query due to error: ' + e.stack ? e.stack : e);
+            return 'Rejoin channel fail:' + e.toString();
+        }
+    }
+    
+    async function invokeChainCode(network, peerNames, channelName, chainCodeName, fcn, args, username, org, recovery) {
     app.logger.debug(util.format('\n============ invoke transaction on channel %s ============\n', channelName));
     let error_message = null;
     let tx_id_string = null;
+    let badProposal = false;
     try {
       // first setup the client for this org
       const client = await getClientForOrgCA(org, network, username);
       app.logger.debug('Successfully got the fabric client for the organization "%s"', org);
-      const channel = client.getChannel(channelName);
+      const channel = client.newChannel(channelName);
+      let orderNames = [];
+        for (const key in network.config.orderers){
+            orderNames.push(network.config.orderers[key].grpcOptions['ssl-target-name-override'])
+        }
+      setupPeers(network, channel, client);
+        // const channel = client.getChannel(channelName);
       if (!channel) {
         const message = util.format('Channel %s was not defined in the connection profile', channelName);
         app.logger.error(message);
@@ -1265,14 +1336,14 @@ module.exports = app => {
           app.logger.error('invoke chaincode proposal was bad');
         }
         app.logger.error("chaincode Error: " + proposalResponses[0].message);
-        all_good = all_good & one_good;
+        all_good = all_good || one_good;
       }
 
       if (all_good) {
-        app.logger.info(util.format(
-          'Successfully sent Proposal and received ProposalResponse: Status - %s, message - "%s", metadata - "%s", endorsement signature: %s',
-          proposalResponses[0].response.status, proposalResponses[0].response.message,
-          proposalResponses[0].response.payload, proposalResponses[0].endorsement.signature));
+        //app.logger.info(util.format(
+          //'Successfully sent Proposal and received ProposalResponse: Status - %s, message - "%s", metadata - "%s", endorsement signature: %s',
+          //proposalResponses[0].response.status, proposalResponses[0].response.message,
+          //proposalResponses[0].response.payload, proposalResponses[0].endorsement.signature));
 
         // wait for the channel-based event hub to tell us
         // that the commit was good or bad on each peer in our organization
@@ -1320,7 +1391,19 @@ module.exports = app => {
           txId: tx_id,
           proposalResponses,
           proposal,
+          orderer: orderNames[0],
         };
+        for (let i= proposalResponses.length-1;i>=0;i--) {
+            if (proposalResponses && proposalResponses[i].response &&
+                proposalResponses[i].response.status === 200) {
+                console.log('keep good proposal ');
+                //proposalResponses[i].payload.write("666666");
+            } else {
+                badProposal = true;
+                console.log('delete bad  proposal', proposalResponses[i]);
+                proposalResponses.splice(i,1);
+            }
+        }
         const sendPromise = channel.sendTransaction(orderer_request);
         // put the send to the orderer last so that the events get registered and
         // are ready for the orderering and committing
@@ -1355,7 +1438,24 @@ module.exports = app => {
       app.logger.error('Failed to invoke due to error: ' + error.stack ? error.stack : error);
       error_message = error.toString();
     }
-
+    
+    if (badProposal) {
+      if (!checkingHealthy) {
+          checkingHealthy = true;
+          try {
+              new Promise(() => {
+                  checkLedgerForPeers(network, peerNames, channelName, chainCodeName, username, org, recovery);
+              }).catch(err => {
+                  console.log('recover peer error:', err.toString());
+                }
+              )
+          } catch (e) {
+              console.log('e', e.toString());
+          } finally {
+              checkingHealthy = false;
+          }
+      }
+    }
     if (!error_message) {
       const message = util.format(
         'Successfully invoked the chaincode %s to the channel \'%s\' for transaction ID: %s',
@@ -1382,7 +1482,14 @@ module.exports = app => {
       // first setup the client for this org
       const client = await getClientForOrgCA(org, network, username);
       app.logger.debug('Successfully got the fabric client for the organization "%s"', org);
-      const channel = await client.getChannel(channelName);
+     // const channel = await client.getChannel(channelName);
+      const channel = client.newChannel(channelName);
+      // let orderNames = [];
+      // for (const key in network.config.orderers){
+      //     orderNames.push(network.config.orderers[key].grpcOptions['ssl-target-name-override'])
+      // }
+      setupPeers(network, channel, client);
+        // const channel = client.getChannel(channelName);
       if (!channel) {
         const message = util.format('Channel %s was not defined in the connection profile', channelName);
         app.logger.error(message);
@@ -1404,17 +1511,17 @@ module.exports = app => {
       if (response_payloads) {
         for (let i = 0; i < response_payloads.length; i++) {
           const responseStr = response_payloads[i].toString('utf8');
-          if (responseStr.includes('Error:')) {
-            return {
-              success: false,
-              message: response_payloads[i].toString('utf8'),
-            };
+          if (!(responseStr.includes('Error:'))) {
+              return {
+                  success: true,
+                  result: response_payloads[i].toString('utf8'),
+              };
           }
-          return {
-            success: true,
-            result: response_payloads[i].toString('utf8'),
-          };
         }
+        return {
+          success: false,
+          message: response_payloads[0].toString('utf8'),
+        };
       } else {
         app.logger.error('response_payloads is null');
         return {
@@ -1693,7 +1800,7 @@ module.exports = app => {
       }
   }
 
-    async function getBlockInfoByNumber(network, peer, channelName, userName, orgName, number) {
+  async function getBlockInfoByNumber(network, peer, channelName, userName, orgName, number) {
         try {
             // 创建client和channel对象
             let client = await getClientForOrgCA(orgName, network, userName);
@@ -1851,6 +1958,369 @@ module.exports = app => {
           throw new Error('Failed to signChannelOrg the channel: ' + error.toString());
       }
   }
+
+    async function signSysChannelUpdate_forpeer(network, networkId, channelName, organizations_object, peer_org_dicts) {
+        const ctx = app.createAnonymousContext();
+        const { config } = this;
+        let requester = require('request');
+        const shell = require('shelljs');
+        let orgname;
+        let orgDoman;
+        let client;
+        let channel;
+        let result;
+        let cur_orgs = [];
+        let order =[];
+        const fabricFilePath = `${config.fabricDir}/${networkId}`;
+        const channelConfigPath = `${fabricFilePath}/channel-artifacts`;
+        let original_config_json;
+        let original_config_proto
+        let updated_config_json;
+        let updated_config_proto;
+        let formData;
+        for(let each in organizations_object) {
+            if(organizations_object[each].type === 'orderer'){
+                const orderName = organizations_object[each].name;
+                const orderDomainName = 'Admin@' + organizations_object[each].name + '.' + organizations_object[each].domain;
+                order.push({orderName: orderName, orderDomainName: orderDomainName});
+            }else if(organizations_object[each].type === 'peer'){
+                cur_orgs.push(organizations_object[each].name)
+            }
+        }
+
+        try {
+            for(let newOrg of peer_org_dicts) {
+                if ((newOrg.name in cur_orgs) === false) {
+                    orgname = newOrg.name;
+                    orgDoman = newOrg.name + '.' + newOrg.domain;
+                    let neworgUserName = 'Admin@' + orgDoman;
+                    // first setup the client for this org
+                    client = await getClientForOrgCA(order[0].orderName, network, neworgUserName);
+                    app.logger.debug('Successfully got the fabric client for the organization "%s"');
+                    channel = client.getChannel(channelName);
+                    if (!channel) {
+                        const message = util.format('Channel %s was not defined in the connection profile', channelName);
+                        app.logger.error(message);
+                        throw new Error(message);
+                    }
+
+                    var config_envelope = await channel.getChannelConfigFromOrderer();
+
+                    // original "config" object: protobuf
+                    original_config_proto = config_envelope.config.toBuffer();
+
+                    // use tool : configtxlator : pb->json
+                    var response = await agent.post('http://127.0.0.1:7059/protolator/decode/common.Config',
+                        original_config_proto).buffer();
+
+                    // original config: json
+                    original_config_json = response.text.toString();
+
+                    updated_config_json = original_config_json;
+
+                    commonFs.writeFileSync(`${fabricFilePath}/config.json`, original_config_json, function(err){
+                        if(err){
+                            app.logger.error('save failed');
+                        }
+                        else {
+                            app.logger.debug('save success');
+                        }
+                    });
+                    var OrgMSP = orgname.substring(0, 1).toUpperCase() + orgname.substring(1) + 'MSP';
+
+                    if (shell.exec(`cd ${fabricFilePath} && jq  -s '.[0] * {"channel_group":{"groups":{"Consortiums":{"groups":{"SampleConsortium":{"groups": {"${OrgMSP}":.[1]}}}}}}}' config.json ${channelConfigPath}/${orgname}.json > modified_config.json`).code !== 0) {
+                        ctx.logger.error('run failed');
+                        throw new Error('\r\n configtxlator failed');
+                    }
+
+                    updated_config_json = commonFs.readFileSync(`${fabricFilePath}/modified_config.json`);
+                    // configtxlator: json -> pb
+                    response = await agent.post('http://127.0.0.1:7059/protolator/encode/common.Config',
+                        updated_config_json.toString()).buffer();
+
+                    updated_config_proto = response.body;
+
+                    formData = {
+                        channel: channelName,
+                        original: {
+                            value: original_config_proto,
+                            options: {
+                                filename: 'original.proto',
+                                contentType: 'application/octet-stream'
+                            }
+                        },
+                        updated: {
+                            value: updated_config_proto,
+                            options: {
+                                filename: 'updated.proto',
+                                contentType: 'application/octet-stream'
+                            }
+                        }
+                    };
+
+                    response = await new Promise((resolve, reject) => {
+                        requester.post({
+                            url: 'http://127.0.0.1:7059/configtxlator/compute/update-from-configs',
+                            // if dont have 'encoding' and 'headers', it will: error authorizing update
+                            encoding: null,
+                            headers: {
+                                accept: '/',
+                                expect: '100-continue'
+                            },
+                            formData: formData
+                        }, (err, res, body) => {
+                            if (err) {
+                                app.logger.error('Failed to get the updated configuration ::' + err);
+                                reject(err);
+                            } else {
+                                const proto = Buffer.from(body, 'binary');
+                                resolve(proto);
+                            }
+                        });
+                    });
+
+                    app.logger.debug('Successfully had configtxlator compute the updated config object');
+                    let config_proto = response;
+
+                    let signatures = [];
+
+                    for (let each of order){
+                        client = await getClientForOrgCA(each.orderName, network, each.orderDomainName);
+                        let signature = client.signChannelConfig(config_proto);
+                        if (!signature) {
+                            let message = util.format('signature %s was not defined in the connection profile', config_proto);
+                            app.logger.error(message);
+                            console.log(message);
+                            throw new Error(message);
+                        }
+                        signatures.push(signature)
+                    }
+                    app.logger.debug('Successfully signed config update by orgs')
+
+                    client = await getClientForOrgCA(order[0].orderName, network, order[0].orderDomainName);
+                    let tx_id = client.newTransactionID();
+                    let request = {
+                        config: config_proto,
+                        signatures: signatures,
+                        name: channelName,
+                        orderer: channel.getOrderers()[0],
+                        txId: tx_id
+                    };
+
+                    result = await client.updateChannel(request);
+                    if (result.status && result.status === 'SUCCESS') {
+                        app.logger.debug('Successfully updated the channel.');
+                    } else {
+
+                        app.logger.error('Failed to update the channel.');
+                    }
+                }
+            }
+        } catch (error) {
+            app.logger.error('Failed to signChannelOrg due to error: ' + error.stack ? error.stack : error);
+            console.log(error);
+            throw new Error('Failed to signChannelOrg the channel: ' + error.toString());
+        }
+    }
+
+    async function signSysChannelUpdate_fororderer(network, networkId, channelName, organizations_object, orderer_org_dicts, request_host_ports) {
+        const ctx = app.createAnonymousContext();
+        const { config } = this;
+        let requester = require('request');
+        const shell = require('shelljs');
+        let orgname;
+        let orgHost;
+        let orgDoman;
+        let ordererhost;
+        let client;
+        let channel;
+        let result;
+        let cur_orgs = [];
+        let order =[];
+        const fabricFilePath = `${config.fabricDir}/${networkId}`;
+        const channelConfigPath = `${fabricFilePath}/channel-artifacts`;
+        let original_config_json;
+        let original_config_proto
+        let updated_config_json;
+        let updated_config_proto;
+        let formData;
+        for(let each in organizations_object) {
+            if(organizations_object[each].type === 'orderer'){
+                const orderName = organizations_object[each].name;
+                const orderDomainName = 'Admin@' + organizations_object[each].name + '.' + organizations_object[each].domain;
+                order.push({orderName: orderName, orderDomainName: orderDomainName});
+            }else if(organizations_object[each].type === 'peer'){
+                cur_orgs.push(organizations_object[each].name)
+            }
+        }
+
+        try {
+
+            for(let newOrg of orderer_org_dicts){
+                if ((newOrg.name in cur_orgs) === false){
+                    let new_config;
+                    let consenters_config;
+                    let hostcrtdir;
+                    let f1;
+
+                    orgHost = newOrg.ordererHostnames;
+                    orgname = newOrg.name;
+                    orgDoman = newOrg.name + '.' + newOrg.domain;
+
+                    let neworgUserName = 'Admin@' + orgDoman;
+                    // first setup the client for this org
+                    client = await getClientForOrgCA(order[0].orderName, network, neworgUserName);
+                    app.logger.debug('Successfully got the fabric client for the organization "%s"');
+                    channel = client.getChannel(channelName);
+                    if (!channel) {
+                        const message = util.format('Channel %s was not defined in the connection profile', channelName);
+                        app.logger.error(message);
+                        throw new Error(message);
+                    }
+
+                    var config_envelope = await channel.getChannelConfigFromOrderer();
+
+                    // original "config" object: protobuf
+                    original_config_proto = config_envelope.config.toBuffer();
+
+                    // use tool : configtxlator : pb->json
+                    var response = await agent.post('http://127.0.0.1:7059/protolator/decode/common.Config',
+                        original_config_proto).buffer();
+
+                    // original config: json
+                    original_config_json = response.text.toString();
+
+                    commonFs.writeFileSync(`${fabricFilePath}/config.json`, original_config_json, function(err){
+                        if(err){
+                            app.logger.error('save failed');
+                        }
+                        else {
+                            app.logger.debug('save success');
+                        }
+                    });
+
+                    var OrdererOrg = orgname.substring(0, 1).toUpperCase() + orgname.substring(1) + 'Org';
+
+                    if (shell.exec(`cd ${fabricFilePath} && jq  -s '.[0] * {"channel_group":{"groups":{"Orderer":{"groups": {"${OrdererOrg}":.[1]}}}}}' config.json ${channelConfigPath}/${orgname}.json > modified_config.json`).code !== 0) {
+                        ctx.logger.error('run failed');
+                        throw new Error('\r\n jq failed');
+                    }
+
+                    updated_config_json = commonFs.readFileSync(`${fabricFilePath}/modified_config.json`);
+                    let updated_config_temp = updated_config_json.toString();
+                    let updated_config = JSON.parse(updated_config_temp);
+                    new_config = updated_config.channel_group.values.OrdererAddresses.value.addresses;
+                    consenters_config = updated_config.channel_group.groups.Orderer.values.ConsensusType.value.metadata.consenters;
+                    //let tls_crt_config;
+                    let port = 0;
+                    for(let host of orgHost){
+                        ordererhost = `${host}-${orgname}`;
+                        new_config[new_config.length]=`${ordererhost}:${request_host_ports[port]}`;
+                        hostcrtdir = host + '.' + newOrg.domain;
+
+                        f1 = commonFs.readFileSync(`${fabricFilePath}/crypto-config/ordererOrganizations/${newOrg.domain}/orderers/${hostcrtdir}/tls/server.crt`);
+                        f1 = new Buffer(f1).toString('base64');
+                        //tls_crt_config = shell.exec(`cat ${fabricFilePath}/crypto-config/ordererOrganizations/${newOrg.domain}/orderers/${hostcrtdir}/tls/server.crt | base64`);
+                        consenters_config[consenters_config.length] = {'client_tls_cert':f1,'host':`${ordererhost}`,'port':request_host_ports[port],'server_tls_cert':f1}
+                        port += 1;
+                    }
+
+                    updated_config.channel_group.groups.Orderer.values.ConsensusType.value.metadata.consenters = consenters_config;
+                    updated_config.channel_group.values.OrdererAddresses.value.addresses = new_config;
+
+                    updated_config_json = JSON.stringify(updated_config);
+                    // configtxlator: json -> pb
+                    response = await agent.post('http://127.0.0.1:7059/protolator/encode/common.Config',
+                        updated_config_json.toString()).buffer();
+
+                    updated_config_proto = response.body;
+
+                    formData = {
+                        channel: channelName,
+                        original: {
+                            value: original_config_proto,
+                            options: {
+                                filename: 'original.proto',
+                                contentType: 'application/octet-stream'
+                            }
+                        },
+                        updated: {
+                            value: updated_config_proto,
+                            options: {
+                                filename: 'updated.proto',
+                                contentType: 'application/octet-stream'
+                            }
+                        }
+                    };
+
+                    response = await new Promise((resolve, reject) => {
+                        requester.post({
+                            url: 'http://127.0.0.1:7059/configtxlator/compute/update-from-configs',
+                            // if dont have 'encoding' and 'headers', it will: error authorizing update
+                            encoding: null,
+                            headers: {
+                                accept: '/',
+                                expect: '100-continue'
+                            },
+                            formData: formData
+                        }, (err, res, body) => {
+                            if (err) {
+                                app.logger.error('Failed to get the updated configuration ::' + err);
+                                reject(err);
+                            } else {
+                                const proto = Buffer.from(body, 'binary');
+                                resolve(proto);
+                            }
+                        });
+                    });
+
+                    app.logger.debug('Successfully had configtxlator compute the updated config object');
+                    let config_proto = response;
+
+                    let signatures = [];
+
+                    for (let each of order){
+                        client = await getClientForOrgCA(each.orderName, network, each.orderDomainName);
+                        let signature = client.signChannelConfig(config_proto);
+                        if (!signature) {
+                            let message = util.format('signature %s was not defined in the connection profile', config_proto);
+                            app.logger.error(message);
+                            console.log(message);
+                            throw new Error(message);
+                        }
+                        signatures.push(signature)
+                    }
+                    app.logger.debug('Successfully signed config update by orgs')
+
+                    client = await getClientForOrgCA(order[0].orderName, network, order[0].orderDomainName);
+                    let tx_id = client.newTransactionID();
+                    let request = {
+                        config: config_proto,
+                        signatures: signatures,
+                        name: channelName,
+                        orderer: channel.getOrderers()[0],
+                        txId: tx_id
+                    };
+
+                    result = await client.updateChannel(request);
+                    if (result.status && result.status === 'SUCCESS') {
+                        app.logger.debug('Successfully updated the channel.');
+                    } else {
+
+                        app.logger.error('Failed to update the channel.');
+                    }
+
+                }
+            }
+
+
+        } catch (error) {
+            app.logger.error('Failed to signChannelOrg due to error: ' + error.stack ? error.stack : error);
+            console.log(error);
+            throw new Error('Failed to signChannelOrg the channel: ' + error.toString());
+        }
+    }
+
   async function removeOrgFromChannel(network, channelName, org, orgId, username, channeldb, config, newOrgId, newOrgName,signedusers) {
       const requester = require('request');
       let config_proto;
@@ -1977,6 +2447,187 @@ module.exports = app => {
       }
   }
 
+    async function getChannelInfo(network, networkId, channelName, organizations_object, peer_org_dicts){
+      const { config } = this;
+      let orgs = network.config.organizations;
+      let cur_orgs = [];
+      let orgname;
+      let orgDoman;
+      let original_config_json;
+      let updated_config_json;
+      let updated_config;
+      let original_config_proto;
+      let response;
+      let client;
+      let channel;
+      let result;
+      //let orderName;
+      //let orderDomainName;
+      let order =[];
+      for(let each in organizations_object) {
+          if(organizations_object[each].type === 'orderer'){
+              const orderName = organizations_object[each].name;
+              const orderDomainName = 'Admin@' + organizations_object[each].name + '.' + organizations_object[each].domain;
+              order.push({orderName: orderName, orderDomainName: orderDomainName});
+          }else if(organizations_object[each].type === 'peer'){
+              cur_orgs.push(organizations_object[each].name)
+          }
+      }
+
+
+      console.log("order:",order);
+      try {
+          for(let newOrg of peer_org_dicts){
+              if((newOrg.name in cur_orgs)===false){
+                  //if(cur_orgs.indexOf(newOrg.name) < 0){
+                  orgname =  newOrg.name;
+                  orgDoman = newOrg.name + '.' + newOrg.domain;
+                  let neworgUserName = 'Admin@' + orgDoman;
+                  let admins = `${config.fabricDir}/${networkId}/crypto-config/peerOrganizations/${orgDoman}/msp/admincerts/Admin@${orgDoman}-cert.pem`;
+                  let root_certs = `${config.fabricDir}/${networkId}/crypto-config/peerOrganizations/${orgDoman}/msp/cacerts/ca.${orgDoman}-cert.pem`;
+                  let tls_root_certs = `${config.fabricDir}/${networkId}/crypto-config/peerOrganizations/${orgDoman}/msp/tlscacerts/tlsca.${orgDoman}-cert.pem`;
+                  let new_org = orgname;
+                  let cur_org = cur_orgs[0];
+                  let cur_MSP = cur_org.substring(0, 1).toUpperCase() + cur_org.substring(1) + 'MSP';
+                  let new_MSP = new_org.substring(0, 1).toUpperCase() + new_org.substring(1) + 'MSP';
+
+                  // first setup the client for this org
+                  client = await getClientForOrgCA(order[0].orderName, network, neworgUserName);
+                  app.logger.debug('Successfully got the fabric client for the organization "%s"');
+                  channel = client.getChannel(channelName);
+                  if (!channel) {
+                      const message = util.format('Channel %s was not defined in the connection profile', channelName);
+                      app.logger.error(message);
+                      throw new Error(message);
+                  }
+
+                  const config_envelope = await channel.getChannelConfigFromOrderer();
+                  original_config_proto = config_envelope.config.toBuffer();
+
+                  response = await agent.post('http://127.0.0.1:7059/protolator/decode/common.Config',
+                      original_config_proto).buffer();
+
+                  // original config: json
+                  original_config_json = response.text.toString();
+
+                  updated_config_json = original_config_json;
+
+                  updated_config = JSON.parse(updated_config_json);
+
+                  let new_config = JSON.stringify(updated_config.channel_group.groups.Consortiums.groups.SampleConsortium.groups[cur_MSP]);
+                  new_config = JSON.parse(new_config);
+                  new_config.policies.Admins.policy.value.identities[0].principal.msp_identifier = new_MSP;
+                  new_config.policies.Readers.policy.value.identities[0].principal.msp_identifier = new_MSP;
+                  new_config.policies.Writers.policy.value.identities[0].principal.msp_identifier = new_MSP;
+                  new_config.values.MSP.value.config.name = new_MSP;
+
+                  let f1 = fs.readFileSync(admins);
+                  let f2 = fs.readFileSync(root_certs);
+                  let f3 = fs.readFileSync(tls_root_certs);
+
+                  f1 = new Buffer(f1).toString('base64');
+                  f2 = new Buffer(f2).toString('base64');
+                  f3 = new Buffer(f3).toString('base64');
+
+                  new_config.values.MSP.value.config.admins[0] = f1;
+                  new_config.values.MSP.value.config.root_certs[0] = f2;
+                  new_config.values.MSP.value.config.tls_root_certs[0] = f3;
+
+                  updated_config.channel_group.groups.Consortiums.groups.SampleConsortium.groups[new_MSP] = new_config;
+              }
+          }
+
+          //console.log(JSON.stringify(updated_config))
+          updated_config_json = JSON.stringify(updated_config);
+
+          // configtxlator: json -> pb
+          response = await agent.post('http://127.0.0.1:7059/protolator/encode/common.Config',
+              updated_config_json.toString()).buffer();
+
+          let updated_config_proto = response.body;
+
+          let formData = {
+              channel: channelName,
+              original: {
+                  value: original_config_proto,
+                  options: {
+                      filename: 'original.proto',
+                      contentType: 'application/octet-stream'
+                  }
+              },
+              updated: {
+                  value: updated_config_proto,
+                  options: {
+                      filename: 'updated.proto',
+                      contentType: 'application/octet-stream'
+                  }
+              }
+          };
+
+          response = await new Promise((resolve, reject) => {
+              requester.post({
+                  url: 'http://127.0.0.1:7059/configtxlator/compute/update-from-configs',
+                  // if dont have 'encoding' and 'headers', it will: error authorizing update
+                  encoding: null,
+                  headers: {
+                      accept: '/',
+                      expect: '100-continue'
+                  },
+                  formData: formData
+              }, (err, res, body) => {
+                  if (err) {
+                      app.logger.error('Failed to get the updated configuration ::' + err);
+                      reject(err);
+                  } else {
+                      const proto = Buffer.from(body, 'binary');
+                      resolve(proto);
+                  }
+              });
+          });
+
+          app.logger.debug('Successfully had configtxlator compute the updated config object');
+          let config_proto = response;
+
+          let signatures = [];
+
+          for (let each of order){
+              client = await getClientForOrgCA(each.orderName, network, each.orderDomainName);
+              let signature = client.signChannelConfig(config_proto);
+              if (!signature) {
+                  let message = util.format('signature %s was not defined in the connection profile', config_proto);
+                  app.logger.error(message);
+                  console.log(message);
+                  throw new Error(message);
+              }
+              signatures.push(signature)
+          }
+          app.logger.debug('Successfully signed config update by orgs')
+
+          client = await getClientForOrgCA(order[0].orderName, network, order[0].orderDomainName);
+          let tx_id = client.newTransactionID();
+          let request = {
+              config: config_proto,
+              signatures: signatures,
+              name: channelName,
+              orderer: channel.getOrderers()[0],
+              txId: tx_id
+          };
+
+          result = await client.updateChannel(request);
+          if (result.status && result.status === 'SUCCESS') {
+              app.logger.debug('Successfully updated the channel.');
+          } else {
+
+              app.logger.error('Failed to update the channel.');
+          }
+
+      }catch(err){
+          app.logger.error('Failed to getChannel to error:' + err.message);
+          throw new Error(err.message);
+      }
+      return result;
+  }
+
   app.fabricHelperV1_4 = fabricHelper;
   // app.getClientForOrgV1_1 = getClientForOrg;
   app.getOrgAdminV1_4 = getOrgAdmin;
@@ -2004,5 +2655,7 @@ module.exports = app => {
   app.getLastBlockV1_4 = getLastBlock;
   app.getBlockInfoByNumberV1_4 = getBlockInfoByNumber;
   app.removeOrgFromChannelV1_4 = removeOrgFromChannel;
+  app.getChannelInfoV1_4 = signSysChannelUpdate_forpeer;
+  app.getChannelOrdererInfoV1_4 = signSysChannelUpdate_fororderer;
   // hfc.setLogger(app.logger);
 };

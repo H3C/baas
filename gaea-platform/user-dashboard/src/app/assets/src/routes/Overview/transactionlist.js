@@ -164,7 +164,7 @@ const ResizeableTitle = (props) => {
     );
 };
 
-const DescriptionItem = ({title, content}) => (
+export const DescriptionItem = ({title, content}) => (
     <div
 
     >
@@ -188,7 +188,7 @@ const DescriptionItem = ({title, content}) => (
     </div>
 );
 
-const Actions = ( {number, proposal_hash, endorsements, chaincode, rwsets} ) => (
+export const Actions = ( {number, proposal_hash, endorsements, chaincode, rwsets} ) => (
     <div
         style = {{
             fontSize: 14,
@@ -370,13 +370,20 @@ export default class TransactionList extends PureComponent {
                     render: val => <Ellipsis tooltip lines={1}>{val}</Ellipsis>,
                 }],
             channel:'',
-            type: '1',
+            type: '0',
             startTime: '',
             endTime: '',
             actions: [],
             channelSel: '',
             peerName: ''
         }
+    }
+    
+    componentDidMount() {
+        const { transactions } = this.props;
+        this.setState({
+            endTime: transactions.endTime ? transactions.endTime : ''
+        })
     }
 
     showDrawer = (row) => {
@@ -456,7 +463,7 @@ export default class TransactionList extends PureComponent {
     };
 
     renderSimpleForm() {
-        const { form, channelList, submitting } = this.props;
+        const { form, channelList, submitting, transactions } = this.props;
         const { getFieldDecorator, getFieldValue } = form;
         const channelInfo = Array.isArray(channelList) ? channelList : [];
         const channelOptions = channelInfo.map(channel => (
@@ -473,11 +480,13 @@ export default class TransactionList extends PureComponent {
                 <span>{peer.name}</span>
             </Option> : null
         ));
+    
+        const startTime = transactions.startTime ? moment(transactions.startTime) : '';
         
         return (
-            <Form onSubmit={this.handleSearch} layout="inline">
+            <Form onSubmit={this.handleSearch}>
                 <Row gutter={{ md: 8, lg: 24, xl: 48 }}>
-                    <Col md={8} sm={8}>
+                    <Col md={8} sm={24}>
                         <FormItem label={ intl.formatMessage(messages.channel) }>
                             {getFieldDecorator('channel',
                                 {
@@ -490,7 +499,7 @@ export default class TransactionList extends PureComponent {
                             (
                                 <Select
                                     placeholder={ intl.formatMessage(messages.select) }
-                                    style={{ width: '100%' }}
+                                    style={{ width: '100%', minWidth: 'auto' }}
                                     onChange={value => this.onChannelChange(value)}
                                 >
                                     {channelOptions}
@@ -498,7 +507,7 @@ export default class TransactionList extends PureComponent {
                             )}
                         </FormItem>
                     </Col>
-                    <Col md={8} sm={16}>
+                    <Col md={8} sm={24}>
                         <FormItem label={ intl.formatMessage(messages.peer) }>
                             {getFieldDecorator('peerName',
                                 {
@@ -511,7 +520,7 @@ export default class TransactionList extends PureComponent {
                             (
                                 <Select
                                     placeholder={ intl.formatMessage(messages.select) }
-                                    style={{ width: '100%' }}
+                                    style={{ width: '100%', minWidth: 'auto' }}
                                     onChange={value => this.onPeerChange(value)}
                                 >
                                     {peerOptions}
@@ -521,7 +530,7 @@ export default class TransactionList extends PureComponent {
                     </Col>
                 </Row>
                 <Row gutter={{ md: 8, lg: 24, xl: 48 }}>
-                    <Col md={8} sm={24} span={8}>
+                    <Col md={8} sm={24}>
                         <FormItem label={ intl.formatMessage(messages.condition) }>
                             {getFieldDecorator('type',{
                                 initialValue: this.state.type,
@@ -532,7 +541,7 @@ export default class TransactionList extends PureComponent {
                             })(
                                 <Select
                                     placeholder={ intl.formatMessage(messages.select) }
-                                    style={{ width: '100%' }}
+                                    style={{ width: '100%', minWidth: 'auto' }}
                                 >
                                     <Option value="0">{ intl.formatMessage(messages.block) }</Option>
                                     <Option value="1">{ intl.formatMessage(messages.sixhtx) }</Option>
@@ -540,19 +549,21 @@ export default class TransactionList extends PureComponent {
                             )}
                         </FormItem>
                     </Col>
-                    <Col md={8} sm={30} span={12}>
+                    <Col md={8} sm={24}>
                         {
                             getFieldValue('type') !== '0' ?
                                 <FormItem
                                     label={ intl.formatMessage(messages.startTime) }
                                 >
                                     {getFieldDecorator('timeInterval',{
+                                        initialValue: startTime,
                                         rules: [{
                                             required: true,
                                             message: intl.formatMessage(messages.selTime),
                                         }],
                                     })(<DatePicker
                                         format='YYYY-MM-DD HH:mm:ss'
+                                        style={{ width: '100%', minWidth: 'auto' }}
                                         showTime={{
 
                                         }}
@@ -574,7 +585,7 @@ export default class TransactionList extends PureComponent {
                                 </FormItem>
                         }
                     </Col>
-                    <Col md={8} sm={18} span={4}>
+                    <Col md={8} sm={18}>
                         <span className={styles.submitButtons}>
                             <Button type="primary" htmlType="submit" loading={submitting}>
                               { intl.formatMessage(messages.query) }

@@ -19,6 +19,7 @@ export default {
       search: `${apiBase}/user/search`,
       update: `${apiBase}/user/update`,
       login:  `${apiBase}/auth/login`,
+      reset:  `${apiBase}/user/resetPassword`,
     },
   },
 };

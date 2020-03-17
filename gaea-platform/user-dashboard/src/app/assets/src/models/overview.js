@@ -248,8 +248,14 @@ export default {
                 },
             });
         },
-        *fetchBlockByNumber({ payload }, {call, put}) {
-            const txs = yield call(queryBlockByNumber, payload);
+        *fetchBlock({ payload }, {call, put}) {
+            let txs;
+            if (payload.type === '0') {
+                txs = yield call(queryBlockByNumber, payload);
+            }
+            else {
+                txs = yield call(queryBlockByTime, payload);
+            }
 
             if (!txs.success) {
                 return;
@@ -264,12 +270,20 @@ export default {
                     dataHash: txs.blocks[i].dataHash,
                     number: txs.blocks[i].number,
                     previousHash: txs.blocks[i].previousHash,
-                    txCount: txs.blocks[i].transaction.length
+                    txCount: txs.blocks[i].transaction.length,
+                    txs: txs.blocks[i].transaction
                 });
             }
 
+            if (payload.type === '0') {
+                blockInfo.number = payload.blockNum;
+            }
+            else {
+                blockInfo.startTime = new Date(payload.startTime);
+                blockInfo.endTime = new Date(payload.endTime);
+            }
+            blockInfo.type = payload.type;
             blockInfo.channel = payload.channel;
-            blockInfo.number = payload.blockNum;
             blockInfo.blocks = blocks;
             blockInfo.peerName = payload.peerName;
 

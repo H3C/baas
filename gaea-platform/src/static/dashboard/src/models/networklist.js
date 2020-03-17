@@ -196,7 +196,8 @@ export default {
                         {
                             name: orgsInfor[org].name,
                             type: orgsInfor[org].type,
-                            id: orgsInfor[org].id
+                            id: orgsInfor[org].id,
+                            peerNum: orgsInfor[org].peerNum
                         }
                     );
                 }

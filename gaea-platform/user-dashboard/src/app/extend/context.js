@@ -78,8 +78,8 @@ module.exports = {
   get getPeersForOrg() {
     return this.app.getPeersForOrg;
   },
-  get getRegisteredUserV1_1() {
-    return this.app.getRegisteredUserV1_1;
+  get getRegisteredUserV1_4() {
+    return this.app.getRegisteredUserV1_4;
   },
   get getLastBlock() {
     return this.app.getLastBlock;
@@ -125,5 +125,11 @@ module.exports = {
   },
   get generateCRL() {
       return this.app.generateCRL;
+  },
+  get getChannelInfo(){
+      return this.app.getChannelInfo;
+  },
+  get getChannelOrdererInfo(){
+      return this.app.getChannelOrdererInfo;
   }
 };

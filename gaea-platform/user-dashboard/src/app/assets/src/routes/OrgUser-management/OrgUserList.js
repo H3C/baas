@@ -11,6 +11,7 @@ import {
     Icon,
     Modal,
     Switch,
+    Input,
 } from 'antd';
 import { stringify } from 'qs';
 import PageHeaderLayout from '../../layouts/PageHeaderLayout';
@@ -18,6 +19,7 @@ import Ellipsis from '../../components/Ellipsis'
 import styles from './OrgUserList.less';
 import {defineMessages, IntlProvider} from "react-intl";
 import {getLocale} from "../../utils/utils";
+import {message} from "antd/lib/index";
 
 const messages = defineMessages({
     updateUser:{
@@ -64,9 +66,45 @@ const messages = defineMessages({
         id: 'User.Reauth',
         defaultMessage: 'State',
     },
+    resetpasswd:{
+        id: 'User.ResetPassword',
+        defaultMessage: 'ResetPassword',
+    },
+    resetpasswdsuccess:{
+        id: 'User.ResetPasswordSuccess',
+        defaultMessage: 'ResetPassword success',
+    },
+    resetpasswdfailed:{
+        id: 'User.ResetPasswordFailed',
+        defaultMessage: 'ResetPassword failed',
+    },
+    passwordsDiff:{
+        id: 'User.Error.PasswordsDiff',
+        defaultMessage: 'Two passwords are different!',
+    },
     del:{
         id: 'User.Del',
         defaultMessage: 'Delete',
+    },
+    currentPassword:{
+        id: 'User.CurrentUserPassword',
+        defaultMessage: 'Current user password',
+    },
+    password:{
+        id: 'User.NewUser.NewPassword',
+        defaultMessage: 'Password',
+    },
+    inputPassword:{
+        id: 'User.NewUser.InputPassword',
+        defaultMessage: 'Please enter the password',
+    },
+    rePassword:{
+        id: 'User.NewUser.RePassword',
+        defaultMessage: 'Confirm Password',
+    },
+    reinputPassword:{
+        id: 'User.NewUser.ReInputPassword',
+        defaultMessage: 'Please enter the password',
     },
     description:{
         id: 'User.DescriptionUser',
@@ -164,6 +202,80 @@ const CreateForm = Form.create()(props => {
     );
 });
 
+const CreateFormForPassReset = Form.create()(props => {
+    const { passwdmodalVisible, form, handleReset,orgUserName,PasswdModalVisible } = props;
+    const okSubmit = () => {
+        form.validateFields((err, fieldsValue) => {
+            if (err) return;
+            handleReset(fieldsValue);
+        });
+    };
+
+    const submitFormLayout = {
+        wrapperCol: {
+            xs: { span: 24, offset: 0 },
+            sm: { span: 10, offset: 7 },
+        },
+    };
+    const formItemLayout = {
+        labelCol: {
+            xs: {span: 24},
+            sm: {span: 7},
+        },
+        wrapperCol: {
+            xs: {span: 24},
+            sm: {span: 12},
+            md: {span: 10},
+        },
+    };
+
+    return (
+        <Modal
+            title={ intl.formatMessage(messages.resetpasswd) }
+            visible={passwdmodalVisible}
+            onOk={okSubmit}
+            onCancel={() => PasswdModalVisible()}
+            destroyOnClose={true}
+        >
+            <FormItem {...formItemLayout} label={ intl.formatMessage(messages.currentPassword) }>
+                {form.getFieldDecorator('currentpassword', {
+                    rules: [
+                        {
+                            required: true,
+                            message: intl.formatMessage(messages.inputPassword),
+                        },
+                    ],
+                })(<Input type="password" style={{maxWidth: 515, width: '100%'}} placeholder={ intl.formatMessage(messages.inputPassword) }/>)}
+            </FormItem>
+            <FormItem {...formItemLayout} label={ intl.formatMessage(messages.userName) } >
+                {form.getFieldDecorator('name', {
+                    initialValue: orgUserName,
+                })(<span>{orgUserName}</span>)}
+            </FormItem>
+            <FormItem {...formItemLayout} label={ intl.formatMessage(messages.password) }>
+                {form.getFieldDecorator('password', {
+                    rules: [
+                        {
+                            required: true,
+                            message: intl.formatMessage(messages.inputPassword),
+                        },
+                    ],
+                })(<Input type="password" style={{maxWidth: 515, width: '100%'}} placeholder={ intl.formatMessage(messages.inputPassword) }/>)}
+            </FormItem>
+            <FormItem {...formItemLayout} label={ intl.formatMessage(messages.rePassword) }>
+                {form.getFieldDecorator('rePassword', {
+                    rules: [
+                        {
+                            required: true,
+                            message: intl.formatMessage(messages.reinputPassword),
+                        },
+                    ],
+                })(<Input type="password" style={{maxWidth: 515, width: '100%'}} placeholder={ intl.formatMessage(messages.reinputPassword) }/>)}
+            </FormItem>
+        </Modal>
+    );
+});
+
 
 @connect(({ OrgUserList,loading }) => ({
     OrgUserList,
@@ -215,6 +327,8 @@ export default class OrgUserList extends PureComponent {
                         <Divider type="vertical" />
                         <a  onClick={() => this.reEnrollOrgUser(row)}>{intl.formatMessage(messages.reauth)} </a>
                         <Divider type="vertical" />
+                        <a  onClick={() => this.handlePasswdModalVisible(true,row)}>{intl.formatMessage(messages.resetpasswd)} </a>
+                        <Divider type="vertical" />
                         <a  onClick={() => this.deleteOrgUser(row)}> {intl.formatMessage(messages.del)} </a>
                     </Fragment>
                 ),
@@ -255,6 +369,22 @@ export default class OrgUserList extends PureComponent {
         });
     };
 
+    handlePasswdModalVisible = (flag,row) => {
+        this.setState({
+            passwdmodalVisible: !!flag,
+            orgUserName:row.username,
+            password:row.password,
+            rePassword:row.rePassword,
+            currentpassword:row.currentpassword,
+        });
+    };
+
+    PasswdModalVisible = () => {
+        this.setState({
+            passwdmodalVisible: false,
+        });
+    };
+
     onChangeSwitch=(checked)=>{
         this.setState({
             activeState: checked,
@@ -275,6 +405,45 @@ export default class OrgUserList extends PureComponent {
         });
         this.setState({
             modalVisible: false,
+        });
+    };
+
+    resetResponse=(result)=>{
+        if(!result.success){
+            message.error(intl.formatMessage(messages.resetpasswdfailed));
+        }else{
+            message.success(intl.formatMessage(messages.resetpasswdsuccess));
+            this.setState({
+                passwdmodalVisible: false,
+            });
+        }
+    };
+
+    handleReset = (fields) => {
+        const {dispatch} = this.props;
+        this.props.form.validateFieldsAndScroll({ force: true }, (err) => {
+            if (!err) {
+                if(fields.password===fields.rePassword){
+                    const orguser = {
+                        "name":          fields.name,
+                        "curPassword":   fields.currentpassword,
+                        "password":      fields.password,
+                    };
+                    console.log("name:",orguser.name);
+                    console.log("password:",orguser.password);
+                    this.props.dispatch({
+                        type:    'OrgUserList/resetOrgUserPassword',
+                        payload:  {
+                            orguser:orguser,
+                        },
+                        callback: this.resetResponse,
+                    });
+                }
+                else{
+                    message.error(intl.formatMessage(messages.passwordsDiff));
+                }
+
+            }
         });
     };
 
@@ -358,7 +527,7 @@ export default class OrgUserList extends PureComponent {
         } = this.props;
 
         const {  modalVisible } = this.state;
-
+        const {  passwdmodalVisible } = this.state;
         const paginationProps = {
             showSizeChanger: true,
             showQuickJumper: true,
@@ -371,6 +540,9 @@ export default class OrgUserList extends PureComponent {
             onChangeSwitch:this.onChangeSwitch,
             orgUserName:this.state.orgUserName,
             ModalVisible:this.ModalVisible,
+            handleReset:this.handleReset,
+            PasswdModalVisible:this.PasswdModalVisible,
+            handlePasswdModalVisible:this.handlePasswdModalVisible,
         };
 
         const columns = this.state.columns.map((col, index) => ({
@@ -405,6 +577,7 @@ export default class OrgUserList extends PureComponent {
                     </div>
                 </Card>
                 <CreateForm {...parentMethods} modalVisible={modalVisible} />
+                <CreateFormForPassReset {...parentMethods} passwdmodalVisible={passwdmodalVisible} />
             </PageHeaderLayout>
         );
 

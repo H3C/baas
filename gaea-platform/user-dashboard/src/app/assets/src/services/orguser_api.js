@@ -46,6 +46,18 @@ export async function reEnrollOrgUser(params) {
     });
 }
 
+export async function resetOrgUserPassword(params) {
+    const name=params.orguser.name;
+    console.log("params:",params.orguser);
+    return request(`/v2/orgusers/resetpassword/${name}`, {
+        method: 'POST',
+        body: {
+            curPassword:params.orguser.curPassword,
+            password: params.orguser.password,
+        },
+    });
+}
+
 export async function removeOrgUser(params) {
       const name=params.orguser.name;
       const reason=params.orguser.reason;
@@ -73,6 +85,15 @@ export async function UpdateAffiliation(params) {
         method: 'PUT',
         body: {
             ...params,
+        },
+    });
+}
+
+export async function ResetAdminPassword(params) {
+    return request(`/v2/orgAdmin/${params.id}/changePassword`, {
+        method: 'POST',
+        body: {
+            ...params.data,
         },
     });
 }

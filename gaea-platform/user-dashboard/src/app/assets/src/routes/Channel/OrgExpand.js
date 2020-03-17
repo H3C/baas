@@ -297,33 +297,32 @@ export default class OrgExpand extends PureComponent {
                         </div>
                     </Card>
                 </FormItem>
-                {!this.state.modalVisible ? '' :
-                    <Modal
-                        title={intl.formatMessage(messages.modelTitle)}
-                        visible={this.state.modalVisible}
-                        onOk={this.commitOrg}
-                        onCancel={this.ModalCancel}
-                        okText={intl.formatMessage(messages.buttonOk)}
-                        cancelText={intl.formatMessage(messages.buttonCancel)}
-                        confirmLoading={submitting}
-                    >
-                        <Row gutter={8}>
-                            <Col span={7} style={{ align: 'right' }}>
-                                <span style={{ align: 'right' }}>{intl.formatMessage(messages.modelLabel)}</span>
-                            </Col>
-                            <Col span={17} style={{ align: 'left' }}>
-                                <Select
-                                    mode="multiple"
-                                    placeholder={intl.formatMessage(messages.modelInfo)}
-                                    onChange={this.onSelectOrgs}
-                                    style={{ width: '100%' }}
-                                >
-                                    {this.state.orgList}
-                                </Select>
-                            </Col>
-                        </Row>
-                    </Modal>
-                }
+                <Modal
+                    title={intl.formatMessage(messages.modelTitle)}
+                    visible={this.state.modalVisible}
+                    onOk={this.commitOrg}
+                    onCancel={this.ModalCancel}
+                    okText={intl.formatMessage(messages.buttonOk)}
+                    cancelText={intl.formatMessage(messages.buttonCancel)}
+                    confirmLoading={submitting}
+                    destroyOnClose={true}
+                >
+                    <Row gutter={8}>
+                        <Col span={7} style={{ align: 'right' }}>
+                            <span style={{ align: 'right' }}>{intl.formatMessage(messages.modelLabel)}</span>
+                        </Col>
+                        <Col span={17} style={{ align: 'left' }}>
+                            <Select
+                                mode="multiple"
+                                placeholder={intl.formatMessage(messages.modelInfo)}
+                                onChange={this.onSelectOrgs}
+                                style={{ width: '100%' }}
+                            >
+                                {this.state.orgList}
+                            </Select>
+                        </Col>
+                    </Row>
+                </Modal>
             </PageHeaderLayout>
         );
     }

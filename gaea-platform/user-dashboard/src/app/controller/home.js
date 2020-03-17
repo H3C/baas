@@ -17,20 +17,36 @@ class HomeController extends Controller {
         id: '',
         username: '',
         authority: '',
+        networkid: '',
       };
     } else {
       userInfo = {
         id: ctx.user.id,
         username: ctx.user.username,
         authority: ctx.user.role,
+        networkid: ctx.user.networkid,
       };
     }
+    const token = await ctx.service.user.generateToken(userInfo);
+    userInfo.token = token;
     data = {
       ...data,
       ...userInfo,
     };
     await ctx.render('index', data);
   }
+  // async login(){
+  //     const { ctx } = this;
+  //     const data = ctx.request.body;
+  //     const token = await ctx.service.user.generateToken(data);
+  //     const userInfo = await ctx.service.user.login(data);
+  //     let result = {};
+  //     result.token = token;
+  //     result.user = userInfo;
+  //     console.log("result:",result);
+  //     //ctx.login(userInfo);
+  //     return result;
+  // }
   async logout() {
     this.ctx.logout();
     this.ctx.redirect('/');

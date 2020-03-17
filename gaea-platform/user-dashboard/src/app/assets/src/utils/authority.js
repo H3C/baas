@@ -11,3 +11,7 @@ export function getAuthority() {
 export function setAuthority(authority) {
   return localStorage.setItem("cello-authority", authority);
 }
+
+export function setToken(token) {
+    return localStorage.setItem("gaea-token", token);
+}

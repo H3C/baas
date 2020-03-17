@@ -18,10 +18,12 @@ from resources import bp_index, \
     bp_cluster_view, bp_cluster_api, \
     bp_host_view, bp_host_api, bp_auth_api, \
     bp_login, bp_user_api, bp_user_view, front_rest_user_v2, \
-    bp_organization_api, bp_blockchain_network_api, bp_operator_log
+    bp_organization_api, bp_blockchain_network_api, bp_operator_log, bp_license
 from modules.user import User
 from sockets.custom import CustomSockets
 from flask_cors import *
+from threading import Thread
+
 logger = logging.getLogger(__name__)
 logger.setLevel(LOG_LEVEL)
 logger.addHandler(log_handler)
@@ -62,7 +64,6 @@ app.register_blueprint(front_rest_user_v2)
 app.register_blueprint(bp_organization_api)
 app.register_blueprint(bp_blockchain_network_api)
 app.register_blueprint(bp_operator_log)
-
 
 admin = os.environ.get("ADMIN", "admin")
 admin_password = os.environ.get("ADMIN_PASSWORD", "pass")
@@ -105,5 +106,9 @@ def load_user(id):
 socketio.on_namespace(CustomSockets('/socket.io'))
 
 if __name__ == '__main__':
+
+
     socketio.run(app, port=OPERATOR_SERVICE_PORT, host="0.0.0.0",
                  debug=os.environ.get('DEBUG', app.config.get("DEBUG", True)))
+
+

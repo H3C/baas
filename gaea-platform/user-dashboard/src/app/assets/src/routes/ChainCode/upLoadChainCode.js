@@ -179,12 +179,16 @@ export default class NewSmartContractCode extends PureComponent {
               //      formData.append('md5', this.state.md5);
                     formData.append('md5', values.md5);
                     this.setState({submitting: true});
+                    const token = `JWT ${localStorage.getItem('gaea-token')}`;
 
                     reqwest({
                         url:'/v2/chaincodes',
                         method:'post',
                         processData: false,
                         data: formData,
+                        headers:{
+                            Authorization: token,
+                        },
                         success: () => {
                             this.setState({
                                 submitting: false
@@ -270,14 +274,14 @@ export default class NewSmartContractCode extends PureComponent {
                 id: 'golang',
                 name: 'golang',
             },
-            /*  {
-                  id: 'Nodejs',
-                  name: 'Nodejs',
-              },
-              {
-                  id: 'Java',
-                  name: 'Java',
-              }, */
+            {
+                id: 'node',
+                name: 'node',
+            },
+            {
+                id: 'java',
+                name: 'java',
+            },
 
         ];
         

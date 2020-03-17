@@ -21,4 +21,5 @@ export default {
   outputPath: '../dist/',
   publicPath: 'static/dist/',
   hash: false,
+  es5ImcompatibleVersions: true,
 };

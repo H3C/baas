@@ -134,8 +134,12 @@ function checkStatus(response) {
  * @return {object}           An object containing either "data" or "err"
  */
 export default function request(url, options) {
+    const token = `JWT ${localStorage.getItem('gaea-token')}`;
     const defaultOptions = {
-        credentials: 'include',
+        credentials: "include",
+        headers: {
+            'Authorization': token,
+        }
     };
     const newOptions = { ...defaultOptions, ...options };
     if (newOptions.method === 'POST' || newOptions.method === 'PUT') {

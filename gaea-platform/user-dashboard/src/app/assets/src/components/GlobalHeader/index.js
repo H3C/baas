@@ -30,6 +30,10 @@ const messages = defineMessages({
             id: 'Head.ChangePassword',
             defaultMessage: 'Change Password',
         },
+        inputOldPassword: {
+            id: 'Head.InputOldPassword',
+            defaultMessage: 'Please input old password',
+        },
         inputNewPassword: {
             id: 'Head.InputNewPassword',
             defaultMessage: 'Please input new password',
@@ -61,6 +65,10 @@ const messages = defineMessages({
         changeSuccess: {
             id: 'Head.ChangeSuccess',
             defaultMessage: 'Successful password modification',
+        },
+        changeFailed: {
+            id: 'Head.ChangeFailed',
+            defaultMessage: 'Password modification failed',
         }
     },
 });
@@ -80,7 +88,6 @@ const CreateForm = Form.create()(props => {
     const okHandle = () => {
         form.validateFields((err, fieldsValue) => {
             if (err) return;
-            form.resetFields();
             handleAdd(fieldsValue);
         });
     };
@@ -97,17 +104,28 @@ const CreateForm = Form.create()(props => {
     };
 
     return (
-        isClose ? null :
         <Modal
             title={intl.formatMessage(messages.menus.changePassword)}
             visible={modalVisible}
             onOk={okHandle}
             onCancel={() => handleModalVisible(false)}
             width={600}
+            destroyOnClose={true}
         >
             <div style={{ width: 500}}>
                 <Form {...formItemLayout}>
-        
+
+                    <FormItem {...formItemLayout} label={intl.formatMessage(messages.menus.inputOldPassword) + ':'} >
+                        {form.getFieldDecorator('old_password', {
+                            initialValue: '',
+                            rules: [
+                                {
+                                    required: true,
+                                    message: intl.formatMessage(messages.menus.inputOldPassword),
+                                },
+                            ],
+                        })(<Input type="password" placeholder={intl.formatMessage(messages.menus.inputOldPassword)} />)}
+                    </FormItem>
                     <FormItem {...formItemLayout} label={intl.formatMessage(messages.menus.inputNewPassword) + ':'} >
                         {form.getFieldDecorator('new_password', {
                             initialValue: '',
@@ -204,44 +222,57 @@ export default class GlobalHeader extends PureComponent {
 
         });
     };
+    
+    changePasswordCallback = data =>{
+        if (data.success) {
+            this.setState({
+                submitting: false,
+                modalVisible: false,
+                isClose: true
+            });
+            message.success(intl.formatMessage(messages.menus.changeSuccess));
+        }
+        else {
+            this.setState({
+                submitting: false,
+                isClose: false,
+            });
+            message.error(intl.formatMessage(messages.menus.changeFailed));
+        }
+    };
 
       handleAdd = fields => {
-            const password=fields.new_password;
+          const { changeAdminPassword } = this.props;
+          const old_password=fields.old_password;
+          const password=fields.new_password;
             const orguser={password:password};
             if (fields.new_password === fields.reNewPass) {
                 const org=window.username.split('@');
                 const orgName=org[0];
+                const token = `JWT ${localStorage.getItem('gaea-token')}`;
 
                 if(`${orgName}`=== 'Admin'){
                     const formData = new FormData();
+                    formData.append('old_password', fields.old_password);
                     formData.append('new_password', fields.new_password);
-                    reqwest({
-                        url: 'http://' + window.location.hostname + `:8071/api/user/${window.id}/resetPassword`,
-                        method: 'post',
-                        processData: false,
-                        data: formData,
-                        success: () => {
-                            this.setState({
-                                submitting: false,
-                                modalVisible: false,
-                                isClose: true
-                            });
-                            message.success(intl.formatMessage(messages.menus.changeSuccess));
-                        },
-                        error: () => {
-                            this.setState({
-                                submitting: false,
-                                isClose: false,
-                            });
-                        }
-                    });
+                    const passwordInfo = {
+                        old_password: fields.old_password,
+                        new_password: fields.new_password
+                    };
+                    const reqInfo = {
+                        id: window.id,
+                        data: passwordInfo
+                    };
+    
+                    changeAdminPassword(reqInfo, this.changePasswordCallback);
                 }
                 else {
                     reqwest({
-                        url: window.location.origin + '/v2/orgusers?password='+`${password}`,
+                        url: window.location.origin + `/v2/orgusers?old_password=${old_password}&&password=${password}`,
                         type: 'json',
                         method: 'put',
                      //   data: orguser,//{'orguser': orguser},
+                        headers: { Authorization: token },
                         success: () => {
                             this.setState({
                                 submitting: false,
@@ -255,6 +286,7 @@ export default class GlobalHeader extends PureComponent {
                                 submitting: false,
                                 isClose: false,
                             });
+                            message.error(intl.formatMessage(messages.menus.changeFailed));
                         }
                     });
                 }
