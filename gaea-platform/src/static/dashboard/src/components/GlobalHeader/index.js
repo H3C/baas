@@ -8,7 +8,7 @@ import { Link } from 'dva/router';
 import styles from './index.less';
 import { getLang, getLocale } from '../../utils/utils';
 import reqwest from 'reqwest';
-import Gaea from '../../../public/Gaea.png';
+import Gaea from '../../../public/favicon.png';
 import Ver from '../../../package.json';
 import { defineMessages, IntlProvider } from "react-intl";
 

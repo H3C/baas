@@ -18,7 +18,7 @@ from resources import bp_index, \
     bp_cluster_view, bp_cluster_api, \
     bp_host_view, bp_host_api, bp_auth_api, \
     bp_login, bp_user_api, bp_user_view, front_rest_user_v2, \
-    bp_organization_api, bp_blockchain_network_api, bp_operator_log, bp_license
+    bp_organization_api, bp_blockchain_network_api, bp_operator_log
 from modules.user import User
 from sockets.custom import CustomSockets
 from flask_cors import *

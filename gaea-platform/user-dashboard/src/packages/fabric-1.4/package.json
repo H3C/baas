@@ -4,9 +4,9 @@
   "description": "Cello User Dashboard",
   "private": true,
   "dependencies": {
-    "fabric-ca-client": "1.4.0",
-    "fabric-client": "1.4.0",
-    "fabric-network": "~1.4.0"
+    "fabric-ca-client": "1.4.4",
+    "fabric-client": "1.4.4",
+    "fabric-network": "1.4.4"
   },
   "engines": {
     "node": ">=8.9.0"
