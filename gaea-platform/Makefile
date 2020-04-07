@@ -51,7 +51,7 @@ else
 endif
 
 # Docker images needed to run cello services
-DOCKER_IMAGES = mongo engine operator-dashboard watchdog user-dashboard
+DOCKER_IMAGES =baseimage operator-dashboard user-dashboard
 DUMMY = .$(IMG_TAG)
 
 ifeq ($(DOCKER_BASE), )
