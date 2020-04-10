@@ -1,4 +1,4 @@
-import { queryNetworks, removeNetwork, addNetwork, queryNetwork, netAddOrg, queryServiceendpoints, queryCpuInfo, queryMemoryInfo, queryNetworkInfo } from '../services/network_api';
+import { queryNetworks, removeNetwork, addNetwork, queryNetwork, netAddOrg, queryCpuInfo, queryMemoryInfo, queryNetworkInfo, queryNetworkHealthy } from '../services/network_api';
 import { routerRedux } from "dva/router";
 import { queryHost, queryHosts } from "../services/host.js";
 import { queryOrgList, queryOrgByName } from "../services/orgs_api";
@@ -50,7 +50,8 @@ export default {
     state: {
         blockchain_networks: [],
         peerInfo: [],
-        orgInfo: []
+        orgInfo: [],
+        healthyList: [],
     },
 
     effects: {
@@ -173,19 +174,6 @@ export default {
                 });
                 return ;
             }
-
-            //请求节点信息
-            const serviceEndPoint = yield call(queryServiceendpoints, payload.netId);
-    
-            if (typeof(serviceEndPoint.service_endpoints) === 'undefined'){
-                networkDetail.orderer_orgs = [];
-                networkDetail.peer_orgs = [];
-                Modal.warning({
-                    title:intl.formatMessage(messages.fetchPeerFail),
-                    content: orgs.msg
-                });
-                return ;
-            }
             
             //整合数据，筛选加入到当前网络的组织
             const Orgs = [];
@@ -202,50 +190,6 @@ export default {
                     );
                 }
             }
-            
-            //将节点信息合入组织列表
-            const peerInfo = serviceEndPoint.service_endpoints;
-            for (let i = 0;i < Orgs.length; i++) {
-                const orgName = Orgs[i].name;
-                
-                if (Orgs[i].type === 'peer') {
-                    Orgs[i].peer = [];
-                    Orgs[i].ca = [];
-                    Orgs[i].couchdb = [];
-                }
-                else {
-                    Orgs[i].orderer = [];
-                }
-                
-                for (let j = 0;j< peerInfo.length;j++) {
-                    if (orgName === peerInfo[j].org_name) {
-                        if (peerInfo[j].service_type === 'peer' && peerInfo[j].peer_port_proto === 'grpc') {
-                            Orgs[i].peer.push({
-                                name: peerInfo[j].service_name,
-                                ip: peerInfo[j].service_ip + ':' + peerInfo[j].service_port
-                            })
-                        }
-                        else if (peerInfo[j].service_type === 'ca') {
-                            Orgs[i].ca.push({
-                                name: peerInfo[j].service_name,
-                                ip: peerInfo[j].service_ip + ':' + peerInfo[j].service_port
-                            })
-                        }
-                        else if (peerInfo[j].service_type === 'couchdb') {
-                            Orgs[i].couchdb.push({
-                                name: peerInfo[j].service_name,
-                                ip: peerInfo[j].service_ip + ':' + peerInfo[j].service_port
-                            })
-                        }
-                        else if (peerInfo[j].service_type === 'orderer') {
-                            Orgs[i].orderer.push({
-                                name: peerInfo[j].service_name,
-                                ip: peerInfo[j].service_ip + ':' + peerInfo[j].service_port
-                            })
-                        }
-                    }
-                }
-            }
 
             networkDetail.list = Orgs;
 
@@ -253,6 +197,26 @@ export default {
                 type: 'save',
                 payload: networkDetail
             })
+        },
+        *fetchNetworkHealthy({ payload }, { call, put }) {
+            const response = yield call(queryNetworkHealthy, payload.netId);
+            const healthyList = response.healthy || [];
+            const groups = {};
+            let ret = [];
+            healthyList.forEach(item => {
+                const orgName = item.org_name;
+                groups[orgName] = groups[orgName] || [];
+                groups[orgName].push(item);
+            })
+            ret = Object.keys(groups).map(o => {
+                return {org_name: o, serviceList: groups[o]}
+            }).sort((a,b) => {
+                return b.serviceList.length - a.serviceList.length
+            })
+            yield put({
+                type: 'queryHealthyList',
+                payload: ret,
+            });
         },
         *remove({ payload, callback }, { call, put }) {
             const response = yield call(removeNetwork, payload);
@@ -399,6 +363,12 @@ export default {
                 ...state,
                 peerInfo: []
             }
-        }
+        },
+        queryHealthyList(state, action) {
+            return {
+                ...state,
+                healthyList: action.payload,
+            };
+        },
     },
 };

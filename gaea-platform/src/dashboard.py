@@ -22,7 +22,7 @@ from resources import bp_index, \
 from modules.user import User
 from sockets.custom import CustomSockets
 from flask_cors import *
-from threading import Thread
+from flask_apscheduler import APScheduler
 
 logger = logging.getLogger(__name__)
 logger.setLevel(LOG_LEVEL)
@@ -105,8 +105,11 @@ def load_user(id):
 
 socketio.on_namespace(CustomSockets('/socket.io'))
 
-if __name__ == '__main__':
 
+if __name__ == '__main__':
+    scheduler = APScheduler()
+    scheduler.init_app(app)
+    scheduler.start()
 
     socketio.run(app, port=OPERATOR_SERVICE_PORT, host="0.0.0.0",
                  debug=os.environ.get('DEBUG', app.config.get("DEBUG", True)))

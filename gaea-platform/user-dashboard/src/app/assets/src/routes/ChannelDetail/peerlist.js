@@ -52,6 +52,14 @@ const messages = defineMessages({
         id: 'Channel.AppendOrg.buttonOk',
         defaultMessage: 'Ok',
     },
+    healthyNormal: {
+        id: 'Channel.Detail.NodeList.healthyNormal',
+        defaultMessage: 'Normal',
+    },
+    healthyFault: {
+        id: 'Channel.Detail.NodeList.healthyFault',
+        defaultMessage: 'Fault',
+    },
 });
 
 const currentLocale = getLocale();
@@ -74,7 +82,7 @@ export default class PeerList extends PureComponent {
         modalEndorsingPeer: true,
         modalLedgerQuery: true
     };
-
+    
     clickCancel = () => {
         this.props.dispatch(
             routerRedux.push({
@@ -82,7 +90,7 @@ export default class PeerList extends PureComponent {
             })
         );
     };
-
+    
     onAddPeer = ()  =>{
         const {channelId}=this.props;
         this.props.dispatch(
@@ -93,7 +101,7 @@ export default class PeerList extends PureComponent {
                 })
             })
         )
-
+        
     };
     
     changeRole = (row) => {
@@ -156,13 +164,13 @@ export default class PeerList extends PureComponent {
     };
     
     render() {
-
+        
         const {
             peers,
             loadingPeers,
             submitting
         } = this.props;
-
+        
         const deployColumns = [
             {
                 title: intl.formatMessage(messages.colContainerName),
@@ -183,7 +191,14 @@ export default class PeerList extends PureComponent {
                 title: intl.formatMessage(messages.healthy),
                 dataIndex: 'healthyState',
                 key: 'healthyState',
-                render: val => <Badge status={'success'} text={val} />,
+                render: val =>
+                    <Badge
+                        status={val ? 'success': 'error'}
+                        text={val ?
+                            intl.formatMessage(messages.healthyNormal) :
+                            intl.formatMessage(messages.healthyFault)
+                        }
+                    />,
             },
             {
                 title: intl.formatMessage(messages.nodeRole),
@@ -203,7 +218,7 @@ export default class PeerList extends PureComponent {
                     title={intl.formatMessage(messages.pageTitle)}
                     bordered={false}
                 >
-
+                    
                     <div className={styles.tableList}>
                         <Table
                             pagination={false}

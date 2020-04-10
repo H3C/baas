@@ -55,7 +55,7 @@ const messages = defineMessages({
     },
     role:{
         id: 'User.NewUser.Role',
-            defaultMessage: 'Role',
+        defaultMessage: 'Role',
     },
     selectRole:{
         id: 'User.NewUser.SelectRole',
@@ -125,6 +125,10 @@ const messages = defineMessages({
         id: 'User.NewUser.Submit',
         defaultMessage: 'Ok',
     },
+    sso:{
+        id: 'User.SSOUser',
+        defaultMessage: 'SSO User',
+    }
 });
 
 const currentLocale = getLocale();
@@ -137,14 +141,14 @@ const { intl } = intlProvider.getChildContext();
 
 const CreateForm = Form.create()(props => {
     const { modalVisible,
-            form,
-            handleModalVisible,
-            handleAdd,
-            needAddValue,
-
-
+        form,
+        handleModalVisible,
+        handleAdd,
+        needAddValue,
+        
+        
     } = props;
-
+    
     const okHandle = () => {
         form.validateFields((err, fieldsValue) => {
             if (err) return;
@@ -152,34 +156,34 @@ const CreateForm = Form.create()(props => {
             handleAdd(fieldsValue);
         });
     };
-
+    
     let newAffData='';
-
+    
     if(needAddValue){
         newAffData=needAddValue+'. '+' ';
     }
     else{
         newAffData=needAddValue+' ';
     }
-
+    
     return (!modalVisible ? null :
-        <Modal
-            title={ intl.formatMessage(messages.createDepartment) }
-            visible={modalVisible}
-            onOk={okHandle}
-            onCancel={() => handleModalVisible()}
-        >
-             <FormItem
-                labelCol={{ span: 6 }} wrapperCol={{ span: 18 }} label={ intl.formatMessage(messages.newDepartment) } >
-                {form.getFieldDecorator('Aff', {
-                    initialValue: '',
-                })(<div>
-                        <span>{newAffData}</span>
-                        <Input style={{ width: 'auto'}} placeholder={ intl.formatMessage(messages.addDepartment) }/>
-                    </div>
-                  )}
-            </FormItem>
-        </Modal>
+            <Modal
+                title={ intl.formatMessage(messages.createDepartment) }
+                visible={modalVisible}
+                onOk={okHandle}
+                onCancel={() => handleModalVisible()}
+            >
+                <FormItem
+                    labelCol={{ span: 6 }} wrapperCol={{ span: 18 }} label={ intl.formatMessage(messages.newDepartment) } >
+                    {form.getFieldDecorator('Aff', {
+                        initialValue: '',
+                    })(<div>
+                            <span>{newAffData}</span>
+                            <Input style={{ width: 'auto'}} placeholder={ intl.formatMessage(messages.addDepartment) }/>
+                        </div>
+                    )}
+                </FormItem>
+            </Modal>
     );
 });
 
@@ -191,8 +195,8 @@ const CreateEditForm = Form.create()(props => {
         handleEdit,
         needAddValue,
     } = props;
-
-
+    
+    
     const okHandle = () => {
         form.validateFields((err, fieldsValue) => {
             if (err) return;
@@ -200,7 +204,7 @@ const CreateEditForm = Form.create()(props => {
             handleEdit(fieldsValue);
         });
     };
-
+    
     return (!modalVisible ? null :
             <Modal
                 title={ intl.formatMessage(messages.modDepartment) }
@@ -240,15 +244,15 @@ export default class extends PureComponent {
         modalVisibleEDT: false,
         AffGather:[],
         needAddValue:'',
-
+        
     };
-
+    
     componentWillMount() {
         this.props.dispatch({
             type: 'OrgUserList/getAffiliation',
         });
     }
-
+    
     clickCancel = () => {
         this.props.dispatch(
             routerRedux.push({
@@ -256,13 +260,13 @@ export default class extends PureComponent {
             })
         );
     };
-
-
+    
+    
     handleEdit =(fields) =>{
-
+        
         const affBefore=fields.Before;
         const affEdit=fields.Aff;
-
+        
         this.props.dispatch({
             type:    'OrgUserList/updateAffiliation',
             payload:  {
@@ -272,9 +276,9 @@ export default class extends PureComponent {
                 },
             },
         });
-
-
-           const list = this.state.AffGather;
+        
+        
+        const list = this.state.AffGather;
         /*    const index=list.indexOf(affBefore);
 
             list.splice(index,1,affEdit);
@@ -284,12 +288,12 @@ export default class extends PureComponent {
             AffGather: list,
             needAddValue:affEdit,
         });
-
+        
     };
-
-
+    
+    
     handleAdd = (fields) => {
-
+        
         let  AffData='' ;
         if(this.state.needAddValue){
             AffData=this.state.needAddValue+'.'+fields.Aff;
@@ -298,37 +302,37 @@ export default class extends PureComponent {
             AffData=fields.Aff;
         }
         if(this.state.AffGather.indexOf(AffData) !== -1)
-            {
-
-                message.error( intl.formatMessage(messages.alreadyExist) );
-                return;
-            }
-
+        {
+            
+            message.error( intl.formatMessage(messages.alreadyExist) );
+            return;
+        }
+        
         const list = this.state.AffGather;
         list.push(AffData);
-
+        
         this.props.dispatch({
             type:    'OrgUserList/createAffiliation',
             payload:  {
                 AffData:AffData,
             },
         });
-
+        
         this.setState({
             modalVisible: false,
             AffGather: list,
             needAddValue:AffData,
         });
     };
-
+    
     AffiliationSelect = (value)=> {
         this.setState({
             needAddValue: value.toString(),
         });
-
+        
     };
-
-
+    
+    
     handleSubmit = e => {
         const {
             OrgUserList:{getAffili},
@@ -340,17 +344,24 @@ export default class extends PureComponent {
             if (!err) {
                 if(values.password===values.rePassword){
                     const orguser = {
-                            "name":          values.name+orgDomain,
-                            "role":          values.role ,
-                            "password":      values.password,
-                            "delegateRoles": values.role ,
-                            "affiliation":   values.affiliation,
-                            "affiliationMgr": "true",
-                            "revoker":        "true",
-                            "gencrl":         "true",
-
+                        "name":          values.name+orgDomain,
+                        "role":          values.role ,
+                        "password":      values.password,
+                        "delegateRoles": values.role ,
+                        "affiliation":   values.affiliation,
+                        "affiliationMgr": "true",
+                        "revoker":        "true",
+                        "gencrl":         "true",
+                        
                     };
-
+                    
+                    if (window.localStorage["cello-authority"] === "admin") {
+                        orguser.SSOUser = values.SSOUser;
+                    }
+                    else {
+                        orguser.SSOUser = '';
+                    }
+                    
                     this.props.dispatch({
                         type:    'OrgUserList/createOrgUser',
                         payload:  {
@@ -361,207 +372,216 @@ export default class extends PureComponent {
                 else{
                     message.success(intl.formatMessage(messages.passwordsDiff));
                 }
-
+                
             }
         });
     };
-
-
-
+    
+    
+    
     handleModalVisible = (flag) => {
         this.setState({
             modalVisible: !!flag,
         });
     };
-
+    
     handleModalVisibleEDT = (flag) => {
         this.setState({
             modalVisibleEDT: !!flag,
         });
     };
-
-  render() {
-    const {
-        OrgUserList:{getAffili},
-        submitting,
+    
+    render() {
+        const {
+            OrgUserList:{getAffili},
+            submitting,
         }=this.props;
-    const {getFieldDecorator} = this.props.form;
-
-    const {
-        modalVisible,
-        modalVisibleEDT,
-        AffGather,
-    } = this.state;
-
-    const AffSelect= Array(getAffili)? getAffili:[] ;
-    this.state.AffGather=AffSelect;
-
-    const parentMethods = {
-          handleAdd: this.handleAdd,
-          handleModalVisible: this.handleModalVisible,
-          ModalVisible:this.modalVisible,
-          onChange:this.onChange,
-          needAddValue:this.state.needAddValue,
-      };
-
-      const parentMethodsEDT = {
-          handleEdit: this.handleEdit,
-          handleModalVisible: this.handleModalVisibleEDT,
-          ModalVisible:this.modalVisibleEDT,
-          onChange:this.onChange,
-          needAddValue:this.state.needAddValue,
-      };
-
-    const formItemLayout = {
-        labelCol: {
-            xs: {span: 24},
-            sm: {span: 7},
-        },
-        wrapperCol: {
-            xs: {span: 24},
-            sm: {span: 12},
-            md: {span: 10},
-        },
-    };
-
-      const submitFormLayout = {
-          wrapperCol: {
-              xs: {span: 24, offset: 0},
-              sm: {span: 10, offset: 14},
-          },
-      };
-
-      const OrgRole = [
-          {
-              id: 'org_admin',
-              name:  intl.formatMessage(messages.administrator) ,
-          },
-          {
-              id: 'org_user',
-              name:  intl.formatMessage(messages.operator) ,
-          },
-
-      ];
-
-      const org=window.username.split('@');
-      const orgDomain='@'+org[1];
-
-
-    return (
-        <PageHeaderLayout
-            title={ intl.formatMessage(messages.createUser) }
-            content={ intl.formatMessage(messages.description)}
-            logo={<Icon type="user" style={{fontSize: 30, color: '#722ed1'}} />}
-        >
-            <Card bordered={false}>
-                <Form onSubmit={this.handleSubmit} hideRequiredMark style={{marginTop: 8}}>
-                    <FormItem
-                        {...formItemLayout}
-                        label={ intl.formatMessage(messages.userName) }
-                    >
-                        {getFieldDecorator('name', {
-                            initialValue: '',
-                            rules: [
-                                {
-                                    required: true,
-                                    message:  intl.formatMessage(messages.selectUser) ,
-                                },
-                            ],
-                        })(<div >
-                            <Input style={{ width: '30%'}} placeholder={ intl.formatMessage(messages.inputUser) }/>
-                            <span>{orgDomain}</span>
-                           </div>)}
-                    </FormItem>
-                    <FormItem {...formItemLayout} label={ intl.formatMessage(messages.role) }>
-                        {getFieldDecorator('role', {
-                            initialValue: '',
-                            rules: [
-                                {
-                                    required: true,
-                                    message: intl.formatMessage(messages.selectRole),
-                                },
-                            ],
-                        })(
-                            <Select
-                                placeholder={ intl.formatMessage(messages.selectRole) }
-                            >
-                                {OrgRole.map(OrgRole => (
-                                    <Option key={OrgRole.id} value={OrgRole.id}>
-                                        {OrgRole.name}
-                                    </Option>
-                                )) }
-                            </Select >
-
-                        )}
-                    </FormItem>
-                    <FormItem {...formItemLayout} label={ intl.formatMessage(messages.department) }>
-                        {getFieldDecorator('affiliation', {
-                            initialValue: this.state.needAddValue,
-                        })(
-                            <div>
+        const {getFieldDecorator} = this.props.form;
+        
+        const {
+            modalVisible,
+            modalVisibleEDT,
+            AffGather,
+        } = this.state;
+        
+        const AffSelect= Array(getAffili)? getAffili:[] ;
+        this.state.AffGather=AffSelect;
+        
+        const parentMethods = {
+            handleAdd: this.handleAdd,
+            handleModalVisible: this.handleModalVisible,
+            ModalVisible:this.modalVisible,
+            onChange:this.onChange,
+            needAddValue:this.state.needAddValue,
+        };
+        
+        const parentMethodsEDT = {
+            handleEdit: this.handleEdit,
+            handleModalVisible: this.handleModalVisibleEDT,
+            ModalVisible:this.modalVisibleEDT,
+            onChange:this.onChange,
+            needAddValue:this.state.needAddValue,
+        };
+        
+        const formItemLayout = {
+            labelCol: {
+                xs: {span: 24},
+                sm: {span: 7},
+            },
+            wrapperCol: {
+                xs: {span: 24},
+                sm: {span: 12},
+                md: {span: 10},
+            },
+        };
+        
+        const submitFormLayout = {
+            wrapperCol: {
+                xs: {span: 24, offset: 0},
+                sm: {span: 10, offset: 14},
+            },
+        };
+        
+        const OrgRole = [
+            {
+                id: 'org_admin',
+                name:  intl.formatMessage(messages.administrator) ,
+            },
+            {
+                id: 'org_user',
+                name:  intl.formatMessage(messages.operator) ,
+            },
+        
+        ];
+        
+        const org=window.username.split('@');
+        const orgDomain='@'+org[1];
+        
+        
+        return (
+            <PageHeaderLayout
+                title={ intl.formatMessage(messages.createUser) }
+                content={ intl.formatMessage(messages.description)}
+                logo={<Icon type="user" style={{fontSize: 30, color: '#722ed1'}} />}
+            >
+                <Card bordered={false}>
+                    <Form onSubmit={this.handleSubmit} hideRequiredMark style={{marginTop: 8}}>
+                        <FormItem
+                            {...formItemLayout}
+                            label={ intl.formatMessage(messages.userName) }
+                        >
+                            {getFieldDecorator('name', {
+                                initialValue: '',
+                                rules: [
+                                    {
+                                        required: true,
+                                        message:  intl.formatMessage(messages.selectUser) ,
+                                    },
+                                ],
+                            })(<div >
+                                <Input style={{ width: '30%'}} placeholder={ intl.formatMessage(messages.inputUser) }/>
+                                <span>{orgDomain}</span>
+                            </div>)}
+                        </FormItem>
+                        <FormItem {...formItemLayout} label={ intl.formatMessage(messages.role) }>
+                            {getFieldDecorator('role', {
+                                initialValue: '',
+                                rules: [
+                                    {
+                                        required: true,
+                                        message: intl.formatMessage(messages.selectRole),
+                                    },
+                                ],
+                            })(
                                 <Select
-                                placeholder={ intl.formatMessage(messages.selectDepartment) }
-                                onSelect={(value)=>this.AffiliationSelect(value)}
-                                value={this.state.needAddValue}
+                                    placeholder={ intl.formatMessage(messages.selectRole) }
                                 >
-                                        {AffGather.map(AffGather => (
-                                                <Option  value={AffGather}>
-                                                    {AffGather}
-                                                </Option>
-                                    ))}
+                                    {OrgRole.map(OrgRole => (
+                                        <Option key={OrgRole.id} value={OrgRole.id}>
+                                            {OrgRole.name}
+                                        </Option>
+                                    )) }
                                 </Select >
-                                {window.localStorage["cello-authority"] === "operator" ? "" :
-                                    <div>
-                                        <Button onClick={() => this.handleModalVisible(true)}>
-                                            { intl.formatMessage(messages.create) }
-                                        </Button>
-                                        < Button onClick={() => this.handleModalVisibleEDT(true)} style={{marginLeft: 10}}>
-                                            { intl.formatMessage(messages.modify) }
-                                        </Button>
-                                    </div>
-                                }
-                            </div>
-                        )}
-                    </FormItem>
-                    <FormItem {...formItemLayout} label={ intl.formatMessage(messages.password) }>
-
-                                        {getFieldDecorator('password', {
-                                            rules: [
-                                                {
-                                                    required: true,
-                                                    message: intl.formatMessage(messages.inputPassword),
-                                                },
-                                            ],
-                                        })(<Input type="password" style={{maxWidth: 515, width: '100%'}} placeholder={ intl.formatMessage(messages.inputPassword) }/>)}
-
-                    </FormItem>
-                    <FormItem {...formItemLayout} label={ intl.formatMessage(messages.rePassword) }>
-
-                        {getFieldDecorator('rePassword', {
-                            rules: [
-                                {
-                                    required: true,
-                                    message: intl.formatMessage(messages.reinputPassword),
-                                },
-                            ],
-                        })(<Input type="password" style={{maxWidth: 515, width: '100%'}} placeholder={ intl.formatMessage(messages.reinputPassword) }/>)}
-
-                    </FormItem>
-                    <FormItem {...submitFormLayout} style={{marginTop: 32}}>
-                        <Button onClick={this.clickCancel}>
-                            { intl.formatMessage(messages.cancel) }
-                        </Button>
-                        <Button loading={submitting} type="primary" htmlType="submit" style={{marginLeft: 10}}>
-                            { intl.formatMessage(messages.submit) }
-                        </Button>
-                    </FormItem>
-                </Form>
-            </Card>
-            <CreateForm {...parentMethods} modalVisible={modalVisible} />
-            <CreateEditForm {...parentMethodsEDT} modalVisible={modalVisibleEDT} />
-        </PageHeaderLayout>
-    );
-  };
+                            
+                            )}
+                        </FormItem>
+                        <FormItem {...formItemLayout} label={ intl.formatMessage(messages.department) }>
+                            {getFieldDecorator('affiliation', {
+                                initialValue: this.state.needAddValue,
+                            })(
+                                <div>
+                                    <Select
+                                        placeholder={ intl.formatMessage(messages.selectDepartment) }
+                                        onSelect={(value)=>this.AffiliationSelect(value)}
+                                        value={this.state.needAddValue}
+                                    >
+                                        {AffGather.map(AffGather => (
+                                            <Option  value={AffGather}>
+                                                {AffGather}
+                                            </Option>
+                                        ))}
+                                    </Select >
+                                    {window.localStorage["cello-authority"] === "operator" ? "" :
+                                        <div>
+                                            <Button onClick={() => this.handleModalVisible(true)}>
+                                                { intl.formatMessage(messages.create) }
+                                            </Button>
+                                            < Button onClick={() => this.handleModalVisibleEDT(true)} style={{marginLeft: 10}}>
+                                                { intl.formatMessage(messages.modify) }
+                                            </Button>
+                                        </div>
+                                    }
+                                </div>
+                            )}
+                        </FormItem>
+                        <FormItem {...formItemLayout} label={ intl.formatMessage(messages.password) }>
+                            
+                            {getFieldDecorator('password', {
+                                rules: [
+                                    {
+                                        required: true,
+                                        message: intl.formatMessage(messages.inputPassword),
+                                    },
+                                ],
+                            })(<Input type="password" style={{maxWidth: 515, width: '100%'}} placeholder={ intl.formatMessage(messages.inputPassword) }/>)}
+                        
+                        </FormItem>
+                        <FormItem {...formItemLayout} label={ intl.formatMessage(messages.rePassword) }>
+                            
+                            {getFieldDecorator('rePassword', {
+                                rules: [
+                                    {
+                                        required: true,
+                                        message: intl.formatMessage(messages.reinputPassword),
+                                    },
+                                ],
+                            })(<Input type="password" style={{maxWidth: 515, width: '100%'}} placeholder={ intl.formatMessage(messages.reinputPassword) }/>)}
+                        
+                        </FormItem>
+                        {
+                            window.localStorage["cello-authority"] === "admin" &&
+                            <FormItem {...formItemLayout} label={ intl.formatMessage(messages.sso) }>
+                                
+                                {getFieldDecorator('SSOUser', {
+                                })(<Input style={{maxWidth: 515, width: '100%'}} placeholder={ intl.formatMessage(messages.sso) }/>)}
+                            
+                            </FormItem>
+                        }
+                        <FormItem {...submitFormLayout} style={{marginTop: 32}}>
+                            <Button onClick={this.clickCancel}>
+                                { intl.formatMessage(messages.cancel) }
+                            </Button>
+                            <Button loading={submitting} type="primary" htmlType="submit" style={{marginLeft: 10}}>
+                                { intl.formatMessage(messages.submit) }
+                            </Button>
+                        </FormItem>
+                    </Form>
+                </Card>
+                <CreateForm {...parentMethods} modalVisible={modalVisible} />
+                <CreateEditForm {...parentMethodsEDT} modalVisible={modalVisibleEDT} />
+            </PageHeaderLayout>
+        );
+    };
 }
 
 

@@ -2,9 +2,9 @@ import { stringify } from 'qs';
 import request from '../utils/request';
 
 export async function getPeersForOrg() {
-
-  return request('/v2/peers');
-
+    
+    return request('/v2/peers');
+    
 }
 
 export async function getPeersForChannel(params) {
@@ -12,22 +12,22 @@ export async function getPeersForChannel(params) {
 }
 
 export async function removeRule(params) {
-  return request('/api/rule', {
-    method: 'POST',
-    body: {
-      ...params,
-      method: 'delete',
-    },
-  });
+    return request('/api/rule', {
+        method: 'POST',
+        body: {
+            ...params,
+            method: 'delete',
+        },
+    });
 }
 
 export async function addPeers(params) {
-  const res = request(`/v2/channels/${params.channelId}/peerJoin`, {
-    method: 'POST',
-    body: {
-        peers: params.peers,
-    },
-  });
-  return res;
+    const res = request(`/v2/channels/${params.channelId}/peerJoin`, {
+        method: 'POST',
+        body: {
+            peers: params.peers,
+        },
+    });
+    return res;
 }
 

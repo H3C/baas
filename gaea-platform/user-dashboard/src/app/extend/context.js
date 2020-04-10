@@ -54,9 +54,6 @@ module.exports = {
   get getChannelHeight() {
     return this.app.getChannelHeight;
   },
-  get getBlockByNumber() {
-    return this.app.getBlockByNumber;
-  },
   get getRecentBlock() {
     return this.app.getRecentBlock;
   },
@@ -80,12 +77,6 @@ module.exports = {
   },
   get getRegisteredUserV1_4() {
     return this.app.getRegisteredUserV1_4;
-  },
-  get getLastBlock() {
-    return this.app.getLastBlock;
-  },
-  get getBlockInfoByNumber() {
-    return this.app.getBlockInfoByNumber;
   },
   get enrollAdmin() {
     return this.app.enrollAdmin;

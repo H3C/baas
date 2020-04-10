@@ -2,14 +2,12 @@
 SPDX-License-Identifier: Apache-2.0
 */
 import React, { PureComponent } from 'react';
-import { Menu, Form, Modal, Icon, Input, Spin, Dropdown, Avatar, Divider, Row, message, Col, Button } from 'antd';
+import { Menu, Form, Modal, Icon, Input, Spin, Dropdown, Avatar, Divider, message, Button } from 'antd';
 import Debounce from 'lodash-decorators/debounce';
 import { Link } from 'dva/router';
 import styles from './index.less';
 import { getLang, getLocale } from '../../utils/utils';
 import reqwest from 'reqwest';
-import Gaea from '../../../public/favicon.png';
-import Ver from '../../../package.json';
 import { defineMessages, IntlProvider } from "react-intl";
 
 const currentLocale = getLocale();
@@ -43,18 +41,6 @@ const messages = defineMessages({
             id: 'Head.DiffPassword',
             defaultMessage: '两次输入的密码不一致',
         },
-        abortGaea: {
-            id: 'Head.AbortGaea',
-            defaultMessage: '关于Gaea',
-        },
-        version: {
-            id: 'Head.Version',
-            defaultMessage: '版本',
-        },
-        newBeginning: {
-            id: 'Head.NewBeginning',
-            defaultMessage: '新起点 新未来',
-        },
         logOut: {
             id: 'Head.LogOut',
             defaultMessage: '退出登录',
@@ -71,21 +57,21 @@ const messages = defineMessages({
 });
 
 const CreateForm = Form.create()(props => {
-
-  const {
-    modalVisible,
-    form,
-    handleAdd,
-    handleModalVisible,
-  } = props;
-
-  const okHandle = () => {
-    form.validateFields((err, fieldsValue) => {
-      if (err) return;
-      handleAdd(fieldsValue);
-    });
-  };
-
+    
+    const {
+        modalVisible,
+        form,
+        handleAdd,
+        handleModalVisible,
+    } = props;
+    
+    const okHandle = () => {
+        form.validateFields((err, fieldsValue) => {
+            if (err) return;
+            handleAdd(fieldsValue);
+        });
+    };
+    
     const formItemLayout = {
         labelCol: {
             xs: { span: 24 },
@@ -96,53 +82,53 @@ const CreateForm = Form.create()(props => {
             sm: { span: 12 },
         },
     };
-
+    
     return (
-    <Modal
-      title={intl.formatMessage(messages.menus.changePassword)}
-      visible={modalVisible}
-      onOk={okHandle}
-      onCancel={() => handleModalVisible(false)}
-      width={600}
-      destroyOnClose={true}
-    >
-        <Form {...formItemLayout} style={{ width: 500}}>
-        <FormItem {...formItemLayout} label={intl.formatMessage(messages.menus.inputOldPassword) + ':'} >
-            {form.getFieldDecorator('oldPassword', {
-              initialValue: '',
-              rules: [
-                {
-                  required: true,
-                  message: intl.formatMessage(messages.menus.inputOldPassword),
-                },
-              ],
-            })(<Input type="password" placeholder={intl.formatMessage(messages.menus.inputNewPassword)} />)}
-          </FormItem>
-          <FormItem {...formItemLayout} label={intl.formatMessage(messages.menus.inputNewPassword) + ':'} >
-            {form.getFieldDecorator('newPassword', {
-              initialValue: '',
-              rules: [
-                {
-                  required: true,
-                  message: intl.formatMessage(messages.menus.inputNewPassword),
-                },
-              ],
-            })(<Input type="password" placeholder={intl.formatMessage(messages.menus.inputNewPassword)} />)}
-          </FormItem>
-          <FormItem {...formItemLayout} label={intl.formatMessage(messages.menus.inputNewPasswordAgain) + ':'} >
-            {form.getFieldDecorator('againPassword', {
-              initialValue: '',
-              rules: [
-                {
-                  required: true,
-                  message: intl.formatMessage(messages.menus.inputNewPasswordAgain),
-                },
-              ],
-            })(<Input type="password" placeholder={intl.formatMessage(messages.menus.inputNewPasswordAgain)} />)}
-          </FormItem>
-        </Form>
-    </Modal>
-  );
+        <Modal
+            title={intl.formatMessage(messages.menus.changePassword)}
+            visible={modalVisible}
+            onOk={okHandle}
+            onCancel={() => handleModalVisible(false)}
+            width={600}
+            destroyOnClose={true}
+        >
+            <Form {...formItemLayout} style={{ width: 500}}>
+                <FormItem {...formItemLayout} label={intl.formatMessage(messages.menus.inputOldPassword) + ':'} >
+                    {form.getFieldDecorator('oldPassword', {
+                        initialValue: '',
+                        rules: [
+                            {
+                                required: true,
+                                message: intl.formatMessage(messages.menus.inputOldPassword),
+                            },
+                        ],
+                    })(<Input type="password" placeholder={intl.formatMessage(messages.menus.inputNewPassword)} />)}
+                </FormItem>
+                <FormItem {...formItemLayout} label={intl.formatMessage(messages.menus.inputNewPassword) + ':'} >
+                    {form.getFieldDecorator('newPassword', {
+                        initialValue: '',
+                        rules: [
+                            {
+                                required: true,
+                                message: intl.formatMessage(messages.menus.inputNewPassword),
+                            },
+                        ],
+                    })(<Input type="password" placeholder={intl.formatMessage(messages.menus.inputNewPassword)} />)}
+                </FormItem>
+                <FormItem {...formItemLayout} label={intl.formatMessage(messages.menus.inputNewPasswordAgain) + ':'} >
+                    {form.getFieldDecorator('againPassword', {
+                        initialValue: '',
+                        rules: [
+                            {
+                                required: true,
+                                message: intl.formatMessage(messages.menus.inputNewPasswordAgain),
+                            },
+                        ],
+                    })(<Input type="password" placeholder={intl.formatMessage(messages.menus.inputNewPasswordAgain)} />)}
+                </FormItem>
+            </Form>
+        </Modal>
+    );
 });
 
 const language = getLang();
@@ -154,7 +140,7 @@ export default class GlobalHeader extends PureComponent {
             modalVisible: false,
         };
     };
-
+    
     componentWillUnmount() {
         this.triggerResizeEvent.cancel();
     }
@@ -174,49 +160,19 @@ export default class GlobalHeader extends PureComponent {
         localStorage.setItem('language', language === 'en' ? 'zh-CN' : 'en');
         window.location.reload();
     };
-
+    
     handleModalVisible = (flag) => {
         this.setState({
             modalVisible: flag,
         });
     };
-
-    abortGaea = () => {
-        Modal.info({
-            title: intl.formatMessage(messages.menus.abortGaea),
-            content: (
-                <div>
-                    <Row gutter={4}>
-                        <Col span={7}>
-                            <img width='60px' src={Gaea} />
-                        </Col>
-                        <Col span={17}>
-                            <Row>
-                                <Col span={6}>
-                                    {intl.formatMessage(messages.menus.version)}
-                                </Col>
-                                <Col span={18}>
-                                    {Ver.version}
-                                </Col>
-                            </Row>
-                            <Row>
-                                <Col><h3>{intl.formatMessage(messages.menus.newBeginning)}</h3></Col>
-                            </Row>
-                        </Col>
-                    </Row>
-                </div>
-            ),
-            onOk() {}
-
-        });
-    };
-
+    
     handleAdd = fields => {
         if(fields.newPassword === fields.againPassword){
             const formData = new FormData();
             formData.append('new_password', fields.newPassword);
             formData.append('old_password', fields.oldPassword);
-
+            
             reqwest({
                 url:`/api/user/${window.user_id}/changePassword`,
                 method:'post',
@@ -229,7 +185,7 @@ export default class GlobalHeader extends PureComponent {
                     });
                     message.success(intl.formatMessage(messages.menus.changeSuccess));
                 },
-
+                
                 error: () => {
                     this.setState({
                         submitting:false,
@@ -242,7 +198,7 @@ export default class GlobalHeader extends PureComponent {
             message.error(intl.formatMessage(messages.menus.diffPassword));
         }
     };
-
+    
     render() {
         const { collapsed, isMobile, logo, onMenuClick } = this.props;
         const {  modalVisible } = this.state;
@@ -250,14 +206,11 @@ export default class GlobalHeader extends PureComponent {
             handleAdd: this.handleAdd,
             handleModalVisible: this.handleModalVisible,
         };
-
+        
         const menu = (
             <Menu className={styles.menu} selectedKeys={[]} >
                 <Menu.Item  key="password"  onClick={() =>this.handleModalVisible(true) } >
                     <Icon type="key" />{intl.formatMessage(messages.menus.changePassword)}
-                </Menu.Item>
-                <Menu.Item  key="abort"  onClick={this.abortGaea} >
-                    <Icon type="info" />{intl.formatMessage(messages.menus.abortGaea)}
                 </Menu.Item>
                 <Menu.Item key="logout" onClick={onMenuClick}>
                     <Icon type="logout" />{intl.formatMessage(messages.menus.logOut)}
@@ -285,17 +238,17 @@ export default class GlobalHeader extends PureComponent {
                     }
                     {window.username ? (
                         <Dropdown overlay={menu}>
-              <span className={`${styles.action} ${styles.account}`}>
-                <Avatar size="small" className={styles.avatar} icon="user" />
-                <span className={styles.name}>{window.username}</span>
-              </span>
-            </Dropdown>
-          ) : (
-            <Spin size="small" style={{ marginLeft: 8 }} />
-          )}
-        </div>
-        <CreateForm {...parentMethods} modalVisible={modalVisible} />
-      </div>
-    );
-  }
+                            <span className={`${styles.action} ${styles.account}`}>
+                                <Avatar size="small" className={styles.avatar} icon="user" />
+                                <span className={styles.name}>{window.username}</span>
+                            </span>
+                        </Dropdown>
+                    ) : (
+                        <Spin size="small" style={{ marginLeft: 8 }} />
+                    )}
+                </div>
+                <CreateForm {...parentMethods} modalVisible={modalVisible} />
+            </div>
+        );
+    }
 }

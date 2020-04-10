@@ -9,11 +9,11 @@ export async function queryStatus(params) {
 }
 
 export async function queryTransactionRealtime(params) {
-  return request(`/v2/txrealtime/${params.channel_id}/${params.peerName}/${params.minutes}`);
+    return request(`/v2/txrealtime/${params.channel_id}/${params.peerName}/${params.minutes}`);
 }
 
 export async function queryBlockByNumber(params) {
-  return request(`/v2/blocks/${params.channel}/${params.peerName}?number=${params.blockNum}`);
+    return request(`/v2/blocks/${params.channel}/${params.peerName}?number=${params.blockNum}`);
 }
 
 export async function queryBlockByTime(params) {

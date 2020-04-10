@@ -204,19 +204,19 @@ export default class TableList extends PureComponent {
                 title: intl.formatMessage(messages.colRole),
                 width: '70%',
                 render: (text, record) => ( data.selected.includes(record.key) ? record.role :
-                        <div style={{wordWrap: 'break-word', wordBreak: 'break-all'}}>
-                            <Select style={{minWidth: 150, marginLeft: 0}} mode={'multiple'} onChange={val => this.selectRoles(record,val)} >
-                                <Option key={1} value={'chaincodeQuery'}>
-                                    <span>{'chaincodeQuery'}</span>
-                                </Option>
-                                <Option key={2} value={'endorsingPeer'}>
-                                    <span>{'endorsingPeer'}</span>
-                                </Option>
-                                <Option key={3} value={'ledgerQuery'}>
-                                    <span>{'ledgerQuery'}</span>
-                                </Option>
-                            </Select>
-                        </div>
+                    <div style={{wordWrap: 'break-word', wordBreak: 'break-all'}}>
+                        <Select style={{minWidth: 150, marginLeft: 0}} mode={'multiple'} onChange={val => this.selectRoles(record,val)} >
+                            <Option key={1} value={'chaincodeQuery'}>
+                                <span>{'chaincodeQuery'}</span>
+                            </Option>
+                            <Option key={2} value={'endorsingPeer'}>
+                                <span>{'endorsingPeer'}</span>
+                            </Option>
+                            <Option key={3} value={'ledgerQuery'}>
+                                <span>{'ledgerQuery'}</span>
+                            </Option>
+                        </Select>
+                    </div>
                 )
             },
         ];

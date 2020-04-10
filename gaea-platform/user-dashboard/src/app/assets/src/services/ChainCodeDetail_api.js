@@ -5,7 +5,7 @@ import request from '../utils/request';
 
 export async function queryRule() {
     return request('/v2/chaincodes', {method:'GET'});
-  //  return request(`/api/getChainCodeDetail?${stringify(params)}`);
+    //  return request(`/api/getChainCodeDetail?${stringify(params)}`);
 }
 
 export async function removeRule(params) {

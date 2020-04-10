@@ -165,41 +165,41 @@ export default class ChainCodeDetail extends PureComponent {
                 content={description}
             >
 
-                    <Row gutter={24}>
-                        <Col xl={12} lg={24} md={24} sm={24} xs={24}>
-                            <Card
-                                bordered={false}
-                                title={intl.formatMessage(messages.nodeLists)}
-                            >
-                                <div className={styles.standardTable}>
-                                    <Table
-                                        className={styles.table}
-                                        loading={loading}
-                                        columns={PeerColumns}
-                                        dataSource={ccpeers}
-                                        pagination={paginationProps}
-                                    />
-                                </div>
-                            </Card>
-                        </Col>
-                        <Col xl={12} lg={24} md={24} sm={24} xs={24}>
-                            <Card
-                                bordered={false}
-                                title={intl.formatMessage(messages.channelLists)}
-                            >
-                                <div className={styles.standardTable}>
-                                    <Table
+                <Row gutter={24}>
+                    <Col xl={12} lg={24} md={24} sm={24} xs={24}>
+                        <Card
+                            bordered={false}
+                            title={intl.formatMessage(messages.nodeLists)}
+                        >
+                            <div className={styles.standardTable}>
+                                <Table
+                                    className={styles.table}
+                                    loading={loading}
+                                    columns={PeerColumns}
+                                    dataSource={ccpeers}
+                                    pagination={paginationProps}
+                                />
+                            </div>
+                        </Card>
+                    </Col>
+                    <Col xl={12} lg={24} md={24} sm={24} xs={24}>
+                        <Card
+                            bordered={false}
+                            title={intl.formatMessage(messages.channelLists)}
+                        >
+                            <div className={styles.standardTable}>
+                                <Table
 
-                                        className={styles.table}
-                                        loading={loading}
-                                        columns={ChannleColumns}
-                                        dataSource={chaincodes.channelName}
-                                        pagination={paginationProps}
-                                    />
-                                </div>
-                            </Card>
-                        </Col>
-                    </Row>
+                                    className={styles.table}
+                                    loading={loading}
+                                    columns={ChannleColumns}
+                                    dataSource={chaincodes.channelName}
+                                    pagination={paginationProps}
+                                />
+                            </div>
+                        </Card>
+                    </Col>
+                </Row>
                 <div>
                     <Button icon="rollback" type="primary" style={{ marginTop: 20 }} onClick={this.clickCancel}>
                         {intl.formatMessage(messages.back)}

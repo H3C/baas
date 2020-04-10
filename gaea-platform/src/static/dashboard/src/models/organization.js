@@ -1,5 +1,5 @@
 import { routerRedux } from 'dva/router';
-import { queryOrgList, createOrg, searchOrgByName, deleteOrg, searchOrgById, updateOrg } from '../services/orgs_api';
+import { queryOrgList, createOrg, searchOrgByName, deleteOrg, searchOrgById, updateOrg, appendPeer } from '../services/orgs_api';
 import { queryNetwork, queryNetworks } from '../services/network_api';
 import { createUser, query, deleteUser } from '../services/user';
 import { Modal} from "antd/lib/index";
@@ -243,6 +243,13 @@ export default {
             }
 
             yield put({type: 'fetch'});
+        },
+    
+        *appendPeer({payload, callback}, {call, put}){
+            const response = yield call(appendPeer, payload);
+            if (callback) {
+                callback(response);
+            }
         },
     },
 

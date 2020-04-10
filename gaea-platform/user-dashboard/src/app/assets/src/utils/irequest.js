@@ -112,7 +112,7 @@ function checkStatus(response) {
         duration:0,
     };
     notification.error(args);
-
+    
     if ([400, 500].indexOf(response.status) < 0) {
         const error = new Error(errortext);
         error.name = response.status;
@@ -134,7 +134,7 @@ function checkStatus(response) {
  * @return {object}           An object containing either "data" or "err"
  */
 export default function request(url, options) {
-    const token = `JWT ${localStorage.getItem('gaea-token')}`;
+    const token = `JWT ${localStorage.getItem('cello-token')}`;
     const defaultOptions = {
         credentials: "include",
         headers: {
@@ -159,7 +159,7 @@ export default function request(url, options) {
             };
         }
     }
-
+    
     return fetch(url, newOptions)
         .then(checkStatus)
         .then(response => {

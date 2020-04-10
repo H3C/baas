@@ -396,11 +396,12 @@ class HostHandler(object):
         :return: Updated host
         """
         host = self.get_by_id(id)
+        ins = HostModel.objects.get(id=id)
         if not host:
             logger.warning("No host found with id=" + id)
             return False
         if not self.host_agents[host.type]\
-                .refresh_status(host.worker_api):
+                .refresh_status(ins.k8s_param):
             logger.warning("Host {} is inactive".format(id))
             self.db_set_by_id(id, **{"status": "inactive"})
             return False

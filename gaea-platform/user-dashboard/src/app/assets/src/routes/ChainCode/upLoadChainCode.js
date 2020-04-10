@@ -179,7 +179,7 @@ export default class NewSmartContractCode extends PureComponent {
               //      formData.append('md5', this.state.md5);
                     formData.append('md5', values.md5);
                     this.setState({submitting: true});
-                    const token = `JWT ${localStorage.getItem('gaea-token')}`;
+                    const token = `JWT ${localStorage.getItem('cello-token')}`;
 
                     reqwest({
                         url:'/v2/chaincodes',

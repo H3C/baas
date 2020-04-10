@@ -39,7 +39,7 @@ data:
 #      app: zookeeper
 #  minAvailable: 2
 ---
-apiVersion: apps/v1beta1
+apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: zoo
@@ -47,6 +47,9 @@ metadata:
 spec:
   serviceName: zoo
   replicas: 3
+  selector:
+    matchLabels:
+      app: zookeeper
   template:
     metadata:
       labels:
@@ -65,7 +68,7 @@ spec:
       containers:
       - name: zookeeper
         imagePullPolicy: IfNotPresent
-        image: h3c/fabric-zookeeper:0.4.15
+        image: hyperledger/fabric-zookeeper:0.4.15
         resources:
           requests:
             #memory: "2Gi"

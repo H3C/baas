@@ -103,60 +103,60 @@ const { intl } = intlProvider.getChildContext();
 
 @Form.create()
 export default class InstallChainCode extends PureComponent {
-  state = {
-    submitting: false,
-    endorsementPolicy:{},
-  };
-
-  componentDidMount() {
-      const location = this.props.location || this.context.location;
-      const search = new URLSearchParams(location.search);
-      const chaincodeId = search.get('id');
-     /* this.props.dispatch({
-          type: 'InstantChainCode/fetch',
-          payload: {
-               id:chaincodeId,
-          },
-      });  */
-      this.props.dispatch({
-          type:'ChannelList/fetch',
-      });
-  }
-
-  clickCancel = () => {
-    this.props.dispatch(
-      routerRedux.push({
-        pathname: 'ChainCodeList',
-      })
-    );
-  };
-  handleSubmit = e => {
-      e.preventDefault();
-      const location = this.props.location || this.context.location;
-      const search = new URLSearchParams(location.search);
-      const chaincodeId = search.get('id');
-      this.props.form.validateFieldsAndScroll({ force: true }, (err, values) => {
-          if (!err) {
+    state = {
+        submitting: false,
+        endorsementPolicy:{},
+    };
+    
+    componentDidMount() {
+        const location = this.props.location || this.context.location;
+        const search = new URLSearchParams(location.search);
+        const chaincodeId = search.get('id');
+        /* this.props.dispatch({
+             type: 'InstantChainCode/fetch',
+             payload: {
+                  id:chaincodeId,
+             },
+         });  */
+        this.props.dispatch({
+            type:'ChannelList/fetch',
+        });
+    }
+    
+    clickCancel = () => {
+        this.props.dispatch(
+            routerRedux.push({
+                pathname: 'ChainCodeList',
+            })
+        );
+    };
+    handleSubmit = e => {
+        e.preventDefault();
+        const location = this.props.location || this.context.location;
+        const search = new URLSearchParams(location.search);
+        const chaincodeId = search.get('id');
+        this.props.form.validateFieldsAndScroll({ force: true }, (err, values) => {
+            if (!err) {
                 const instantiate={
                     channel_id:values.channel_id,
-                          args:values.args,
+                    args:values.args,
                     functionName:values.functionName,
                     endorsementPolicy:JSON.parse(values.endorsementPolicy),
                 };
                 console.log('instantiate');
                 console.log(instantiate);
-              this.props.dispatch({
-                  type: 'InstantChainCode/instantiate',
-                  payload: {
-                               id: chaincodeId,   //链码ID值
-                      instantiate: instantiate,
-
-                  },
-              });
-          }
-      });
-  };
-
+                this.props.dispatch({
+                    type: 'InstantChainCode/instantiate',
+                    payload: {
+                        id: chaincodeId,   //链码ID值
+                        instantiate: instantiate,
+                        
+                    },
+                });
+            }
+        });
+    };
+    
     onChangeChoose=(channelId)=>{
         const { dispatch } = this.props;
         dispatch({
@@ -170,7 +170,7 @@ export default class InstallChainCode extends PureComponent {
         const {
             Identities:{OrgRole},
         } = this.props;
-
+        
         var signed=[];
         var policy={};
         for(let i=0;i<OrgRole.length;i++){
@@ -180,8 +180,8 @@ export default class InstallChainCode extends PureComponent {
             const number =`${OrgRole.length}-of`;
             policy[number]=signed;
             this.state.endorsementPolicy={
-               identities: OrgRole,
-               policy: policy,
+                identities: OrgRole,
+                policy: policy,
             };
         }
         else if(e.target.value==='2'){
@@ -192,122 +192,122 @@ export default class InstallChainCode extends PureComponent {
             };
         }
         else{
-
+        
         }
     };
-  render() {
-    const {
-        ChannelList:{channels},
-        submitting,
-    } = this.props;
-    const {getFieldDecorator} = this.props.form;
-    const allChannels = Array.isArray(channels) ? channels : [];    //获取通道信息选项
-    const channelOptions = allChannels.map(channels => (
-        <Option key={channels.id} value={channels.id}>
-            <span>{channels.name}</span>
-        </Option>
-    ));
-
-    const formItemLayout = {
-      labelCol: {
-        xs: { span: 24 },
-        sm: { span: 7 },
-      },
-      wrapperCol: {
-        xs: { span: 24 },
-        sm: { span: 12 },
-        md: { span: 10 },
-      },
-    };
-    const submitFormLayout = {
-      wrapperCol: {
-        xs: { span: 24, offset: 0 },
-        sm: { span: 10, offset: 14 },
-      },
-    };
-
-    return (
-        <PageHeaderLayout
-            title={intl.formatMessage(messages.title)}
-            content={intl.formatMessage(messages.description)}
-            logo={<Icon type="link" style={{fontSize: 30, color: '#722ed1'}} />}
-        >
-            <Card bordered={false}>
-                <Form onSubmit={this.handleSubmit} hideRequiredMark style={{marginTop: 8}}>
-                    <FormItem {...formItemLayout} label={intl.formatMessage(messages.channelName)}>
-                        {getFieldDecorator('channel_id', {
-                            initialValue:'',
-                            rules: [
-                                {
-                                    required: true,
-                                    message: intl.formatMessage(messages.channelNameSel),
-                                },
-                            ],
-                        })(
-                            <Select
-                                placeholder={intl.formatMessage(messages.channelNameSel)}
-                                style={{maxWidth: 510, width: '100%'}}
-                                onChange={(value) => this.onChangeChoose(value)}
-                            >
-                                {channelOptions}
-                            </Select>
-                        )}
-                    </FormItem>
-                    <FormItem {...formItemLayout}  label={intl.formatMessage(messages.parameters)} extra={intl.formatMessage(messages.parametersTips)}>
-                        {getFieldDecorator('args', {
-                            initialValue: '',
-                            rules: [
-                                {   pattern: new RegExp("^[A-Za-z0-9]+[,A-Za-z0-9]*$"),
-                                    message: intl.formatMessage(messages.parametersErr),
-                                },
-                            ],
-                        })(<Input placeholder={intl.formatMessage(messages.parametersSel)} />)}
-                    </FormItem>
-                    <FormItem {...formItemLayout}  label={intl.formatMessage(messages.functionName)} >
-                        {getFieldDecorator('functionName', {
-                            initialValue: '',
-                            rules: [
-                                {
-                                    message: intl.formatMessage(messages.operation),
-                                },
-                            ],
-                        })(<Input placeholder={intl.formatMessage(messages.functionNameSel)} />)}
-                    </FormItem>
-                    <FormItem {...formItemLayout}  label={intl.formatMessage(messages.operation)}  style={{ marginTop: 18 }}  >
-                        {getFieldDecorator('operation', {
-                            initialValue: '',
-                        })(
-                            <Radio.Group onChange={(value)=>this.onChangeOperation(value)} >
-                                <Radio style={{ fontSize: 14, marginLeft: 30 }} value="1" >{intl.formatMessage(messages.operationAnd)}</Radio>
-                                <Radio style={{fontSize: 14, marginLeft: 30 }}  value="2" >{intl.formatMessage(messages.operationOr)}</Radio>
-                                <Radio style={{fontSize: 14, marginLeft: 30 }}  value="3" >{intl.formatMessage(messages.operationUserDefined)}</Radio>
-                            </Radio.Group>
-                        )}
-                    </FormItem>
-                    <FormItem {...formItemLayout} label={intl.formatMessage(messages.endorsementPolicy)} >
-                        {getFieldDecorator('endorsementPolicy', {
-                            initialValue: JSON.stringify(this.state.endorsementPolicy),
-                            rules: [
-                                {
-                                    required: true,
-                                     message: intl.formatMessage(messages.endorsementPolicySel),
-                                },
-                            ],
-                        })(<TextArea autosize={{minRows:8,maxRows:12}} />)}
-                    </FormItem>
-                    <FormItem {...submitFormLayout} style={{marginTop: 32}}>
-                        <Button onClick={this.clickCancel}>
-                            {intl.formatMessage(messages.cancel)}
-                        </Button>
-                        <Button loading={submitting} type="primary" htmlType="submit" style={{marginLeft: 10}}>
-                            {intl.formatMessage(messages.submit)}
-                        </Button>
-                    </FormItem>
-                </Form>
-            </Card>
-        </PageHeaderLayout>
-    );
-  }
+    render() {
+        const {
+            ChannelList:{channels},
+            submitting,
+        } = this.props;
+        const {getFieldDecorator} = this.props.form;
+        const allChannels = Array.isArray(channels) ? channels : [];    //获取通道信息选项
+        const channelOptions = allChannels.map(channels => (
+            <Option key={channels.id} value={channels.id}>
+                <span>{channels.name}</span>
+            </Option>
+        ));
+        
+        const formItemLayout = {
+            labelCol: {
+                xs: { span: 24 },
+                sm: { span: 7 },
+            },
+            wrapperCol: {
+                xs: { span: 24 },
+                sm: { span: 12 },
+                md: { span: 10 },
+            },
+        };
+        const submitFormLayout = {
+            wrapperCol: {
+                xs: { span: 24, offset: 0 },
+                sm: { span: 10, offset: 14 },
+            },
+        };
+        
+        return (
+            <PageHeaderLayout
+                title={intl.formatMessage(messages.title)}
+                content={intl.formatMessage(messages.description)}
+                logo={<Icon type="link" style={{fontSize: 30, color: '#722ed1'}} />}
+            >
+                <Card bordered={false}>
+                    <Form onSubmit={this.handleSubmit} hideRequiredMark style={{marginTop: 8}}>
+                        <FormItem {...formItemLayout} label={intl.formatMessage(messages.channelName)}>
+                            {getFieldDecorator('channel_id', {
+                                initialValue:'',
+                                rules: [
+                                    {
+                                        required: true,
+                                        message: intl.formatMessage(messages.channelNameSel),
+                                    },
+                                ],
+                            })(
+                                <Select
+                                    placeholder={intl.formatMessage(messages.channelNameSel)}
+                                    style={{maxWidth: 510, width: '100%'}}
+                                    onChange={(value) => this.onChangeChoose(value)}
+                                >
+                                    {channelOptions}
+                                </Select>
+                            )}
+                        </FormItem>
+                        <FormItem {...formItemLayout}  label={intl.formatMessage(messages.parameters)} extra={intl.formatMessage(messages.parametersTips)}>
+                            {getFieldDecorator('args', {
+                                initialValue: '',
+                                rules: [
+                                    {   pattern: new RegExp("^[A-Za-z0-9]+[,A-Za-z0-9]*$"),
+                                        message: intl.formatMessage(messages.parametersErr),
+                                    },
+                                ],
+                            })(<Input placeholder={intl.formatMessage(messages.parametersSel)} />)}
+                        </FormItem>
+                        <FormItem {...formItemLayout}  label={intl.formatMessage(messages.functionName)} >
+                            {getFieldDecorator('functionName', {
+                                initialValue: '',
+                                rules: [
+                                    {
+                                        message: intl.formatMessage(messages.operation),
+                                    },
+                                ],
+                            })(<Input placeholder={intl.formatMessage(messages.functionNameSel)} />)}
+                        </FormItem>
+                        <FormItem {...formItemLayout}  label={intl.formatMessage(messages.operation)}  style={{ marginTop: 18 }}  >
+                            {getFieldDecorator('operation', {
+                                initialValue: '',
+                            })(
+                                <Radio.Group onChange={(value)=>this.onChangeOperation(value)} >
+                                    <Radio style={{ fontSize: 14, marginLeft: 30 }} value="1" >{intl.formatMessage(messages.operationAnd)}</Radio>
+                                    <Radio style={{fontSize: 14, marginLeft: 30 }}  value="2" >{intl.formatMessage(messages.operationOr)}</Radio>
+                                    <Radio style={{fontSize: 14, marginLeft: 30 }}  value="3" >{intl.formatMessage(messages.operationUserDefined)}</Radio>
+                                </Radio.Group>
+                            )}
+                        </FormItem>
+                        <FormItem {...formItemLayout} label={intl.formatMessage(messages.endorsementPolicy)} >
+                            {getFieldDecorator('endorsementPolicy', {
+                                initialValue: JSON.stringify(this.state.endorsementPolicy),
+                                rules: [
+                                    {
+                                        required: true,
+                                        message: intl.formatMessage(messages.endorsementPolicySel),
+                                    },
+                                ],
+                            })(<TextArea autosize={{minRows:8,maxRows:12}} />)}
+                        </FormItem>
+                        <FormItem {...submitFormLayout} style={{marginTop: 32}}>
+                            <Button onClick={this.clickCancel}>
+                                {intl.formatMessage(messages.cancel)}
+                            </Button>
+                            <Button loading={submitting} type="primary" htmlType="submit" style={{marginLeft: 10}}>
+                                {intl.formatMessage(messages.submit)}
+                            </Button>
+                        </FormItem>
+                    </Form>
+                </Card>
+            </PageHeaderLayout>
+        );
+    }
 }
 
 

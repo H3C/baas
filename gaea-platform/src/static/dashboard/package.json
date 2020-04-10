@@ -1,6 +1,6 @@
 {
-  "name": "cello-operator",
-  "version": "0.8.9",
+  "name": "Cello-operator",
+  "version": "0.9.0",
   "description": "Cello operator dashboard ui",
   "private": true,
   "scripts": {

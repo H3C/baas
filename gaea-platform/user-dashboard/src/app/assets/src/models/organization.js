@@ -13,9 +13,9 @@ export default {
             const response = yield call(queryOrgList, payload);   // 获取组织列表
             const orgList=response.organizations;
 
-            const orgName=window.username;   //8081用户登录名,如 admin@org1.h3c.com
-            const org=orgName.split('@');   //拆分成admin 和 org1.h3c.com
-            const orgData=org[1].split('.'); // 再拆分得到[org1, h3c, com]
+            const orgName=window.username;   //8081用户登录名,如 admin@org1.cello.com
+            const org=orgName.split('@');   //拆分成admin 和 org1.cello.com
+            const orgData=org[1].split('.'); // 再拆分得到[org1, cello, com]
             const orgNeed=orgData[0];
 
             var netID;

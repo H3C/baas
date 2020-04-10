@@ -21,7 +21,7 @@ export async function updateUserInfo(params) {
 }
 
 export async function createOrgUser(params) {
-
+    
     return request('/v2/orgusers', {
         method: 'POST',
         body: {
@@ -59,8 +59,8 @@ export async function resetOrgUserPassword(params) {
 }
 
 export async function removeOrgUser(params) {
-      const name=params.orguser.name;
-      const reason=params.orguser.reason;
+    const name=params.orguser.name;
+    const reason=params.orguser.reason;
     return request(`/v2/orgusers?name=${name}&reason=${reason}`, {
         method: 'DELETE',
     });
@@ -95,5 +95,12 @@ export async function ResetAdminPassword(params) {
         body: {
             ...params.data,
         },
+    });
+}
+
+export async function SetSSOUser(params) {
+    return request(`/v2/orgusers/setssouser`, {
+        method: 'PUT',
+        body: params
     });
 }

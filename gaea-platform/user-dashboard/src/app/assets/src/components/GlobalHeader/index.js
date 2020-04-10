@@ -8,8 +8,6 @@ import { Link } from 'dva/router';
 import styles from './index.less';
 import { getLang, getLocale } from '../../utils/utils';
 import reqwest from 'reqwest';
-import Gaea from '../../assets/Gaea.png';
-import Ver from '../../../../../package.json'
 import { defineMessages, IntlProvider } from "react-intl";
 
 const currentLocale = getLocale();
@@ -45,18 +43,6 @@ const messages = defineMessages({
         diffPassword: {
             id: 'Head.DiffPassword',
             defaultMessage: 'Two new passwords are inconsistent',
-        },
-        abortGaea: {
-            id: 'Head.AbortGaea',
-            defaultMessage: 'Abort Gaea',
-        },
-        version: {
-            id: 'Head.Version',
-            defaultMessage: 'Version',
-        },
-        newBeginning: {
-            id: 'Head.NewBeginning',
-            defaultMessage: 'New Beginning New Future',
         },
         logOut: {
             id: 'Head.LogOut',
@@ -192,36 +178,6 @@ export default class GlobalHeader extends PureComponent {
             isClose: !flag
         });
     };
-
-    abortGaea = () => {
-        Modal.info({
-            title: intl.formatMessage(messages.menus.abortGaea),
-            content: (
-                <div>
-                    <Row gutter={4}>
-                        <Col span={7}>
-                            <img width='60px' src={Gaea} />
-                        </Col>
-                        <Col span={17}>
-                            <Row>
-                                <Col span={6}>
-                                    {intl.formatMessage(messages.menus.version)}
-                                </Col>
-                                <Col span={18}>
-                                    {Ver.version}
-                                </Col>
-                            </Row>
-                            <Row>
-                                <Col><h3>{intl.formatMessage(messages.menus.newBeginning)}</h3></Col>
-                            </Row>
-                        </Col>
-                    </Row>
-                </div>
-            ),
-            onOk() {}
-
-        });
-    };
     
     changePasswordCallback = data =>{
         if (data.success) {
@@ -249,7 +205,7 @@ export default class GlobalHeader extends PureComponent {
             if (fields.new_password === fields.reNewPass) {
                 const org=window.username.split('@');
                 const orgName=org[0];
-                const token = `JWT ${localStorage.getItem('gaea-token')}`;
+                const token = `JWT ${localStorage.getItem('cello-token')}`;
 
                 if(`${orgName}`=== 'Admin'){
                     const formData = new FormData();
@@ -314,9 +270,6 @@ export default class GlobalHeader extends PureComponent {
           </Menu.Item>
         <Menu.Item  key="password"  onClick={() =>this.handleModalVisible(true)} >
           <Icon type="key" />{intl.formatMessage(messages.menus.changePassword)}
-        </Menu.Item>
-        <Menu.Item  key="abort"  onClick={this.abortGaea} >
-           <Icon type="info" />{intl.formatMessage(messages.menus.abortGaea)}
         </Menu.Item>
         <Menu.Item key="logout" onClick={onMenuClick}>
           <Icon type="logout" />{intl.formatMessage(messages.menus.logOut)}

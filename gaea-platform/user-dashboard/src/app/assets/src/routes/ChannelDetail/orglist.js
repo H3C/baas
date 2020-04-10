@@ -50,16 +50,16 @@ const { intl } = intlProvider.getChildContext();
 
 @Form.create()
 export default class OrgList extends PureComponent {
-
+    
     clickCancel = () => {
         const { dispatch} = this.props;
-       dispatch(
+        dispatch(
             routerRedux.push({
                 pathname: 'ChannelList',
             })
         );
     };
-
+    
     onAddOrg = () =>{
         const { dispatch} = this.props;
         const {
@@ -68,21 +68,21 @@ export default class OrgList extends PureComponent {
         dispatch(
             routerRedux.push({
                 pathname: 'OrgExpand',
-                   search: stringify({
-                       id: channelId
-                   }),
+                search: stringify({
+                    id: channelId
+                }),
             })
         )
     };
-
-
+    
+    
     render() {
         const {
             orgs,
             loadingInfo,
         } = this.props;
-
-
+        
+        
         const deployColumns = [
             {
                 title: intl.formatMessage(messages.colName),
@@ -97,12 +97,12 @@ export default class OrgList extends PureComponent {
                 key: 'orgID',
                 /*  render: text => text.name, */
             },
-          /*  {
-                title: '组织类型',
-                dataIndex: 'orgRole',
-                key: 'orgRole',
-                   render: text => text.version,
-            },  */
+            /*  {
+                  title: '组织类型',
+                  dataIndex: 'orgRole',
+                  key: 'orgRole',
+                     render: text => text.version,
+              },  */
         ];
         return (
             <div>

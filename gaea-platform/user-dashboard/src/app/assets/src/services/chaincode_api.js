@@ -5,7 +5,7 @@ import request from '../utils/request';
 
 export async function queryChainCode() {
     return request('/v2/chaincodes', {method:'GET'});
- // return request(`/api/getChaincode?${stringify(params)}`);installChainCode
+    // return request(`/api/getChaincode?${stringify(params)}`);installChainCode
 }
 
 export async function queryOneChainCode(params) {
@@ -24,7 +24,7 @@ export async function installChainCode(params) {
         },
     });
 }
-    // return request(`/api/getChaincode?${stringify(params)}`);
+// return request(`/api/getChaincode?${stringify(params)}`);
 
 
 export async function instantiateCC(params) {
@@ -48,29 +48,29 @@ export async function deleteChainCode(params) {
 
 
 export async function removeChainCode(params) {
-  return request(`/v2/chaincodes/${params}`, {
-    method: 'POST',
-    body: {
-      ...params,
-      method: 'delete',
-    },
-  });
+    return request(`/v2/chaincodes/${params}`, {
+        method: 'POST',
+        body: {
+            ...params,
+            method: 'delete',
+        },
+    });
 }
 
 export async function createChainCode(params) {
-  return request('/api/createChaincode', {
-    method: 'POST',
-    body:  params,
-  });
+    return request('/api/createChaincode', {
+        method: 'POST',
+        body:  params,
+    });
 }
 export async function addChainCode(params) {
-  return request('/api/rule', {
-    method: 'POST',
-    body: {
-        ...params,
-        method: 'post',
-    },
-  });
+    return request('/api/rule', {
+        method: 'POST',
+        body: {
+            ...params,
+            method: 'post',
+        },
+    });
 }
 
 export async function upgradeCC(params) {

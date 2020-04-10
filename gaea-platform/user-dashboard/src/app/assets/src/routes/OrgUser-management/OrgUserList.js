@@ -12,6 +12,8 @@ import {
     Modal,
     Switch,
     Input,
+    Dropdown,
+    Menu
 } from 'antd';
 import { stringify } from 'qs';
 import PageHeaderLayout from '../../layouts/PageHeaderLayout';
@@ -46,9 +48,29 @@ const messages = defineMessages({
         id: 'User.Relationship',
         defaultMessage: 'Department',
     },
-    net:{
-        id: 'User.BlockNet',
-        defaultMessage: 'Network',
+    sso:{
+        id: 'User.SSOUser',
+        defaultMessage: 'SSO User',
+    },
+    setSSO:{
+        id: 'User.setSSOUser',
+        defaultMessage: 'set SSO user',
+    },
+    more:{
+        id: 'User.More',
+        defaultMessage: 'More',
+    },
+    ssoInputCheck:{
+        id: 'User.SSOInputCheck',
+        defaultMessage: 'Please input SSO user.',
+    },
+    setSSOSuccess:{
+        id: 'User.SetSSOSuccess',
+        defaultMessage: 'Set SSO user successfully.',
+    },
+    setSSOFail:{
+        id: 'User.SetSSOFail',
+        defaultMessage: 'Set SSO user fail.',
     },
     state:{
         id: 'User.State',
@@ -150,7 +172,7 @@ const { intl } = intlProvider.getChildContext();
 
 const ResizeableTitle = (props) => {
     const { onResize, width, ...restProps } = props;
-
+    
     if (!width) {
         return <th {...restProps} />;
     }
@@ -172,14 +194,14 @@ const CreateForm = Form.create()(props => {
             handleAdd(fieldsValue);
         });
     };
-
+    
     const submitFormLayout = {
         wrapperCol: {
             xs: { span: 24, offset: 0 },
             sm: { span: 10, offset: 7 },
         },
     };
-
+    
     return (
         <Modal
             title={ intl.formatMessage(messages.updateUser) }
@@ -195,7 +217,7 @@ const CreateForm = Form.create()(props => {
             </FormItem>
             <FormItem labelCol={{ span: 5 }} wrapperCol={{ span: 15 }} label={ intl.formatMessage(messages.userState) }>
                 {form.getFieldDecorator('state', {
-
+                
                 })(<Switch checkedChildren={<Icon type="check"/>} unCheckedChildren={<Icon type="close"/>} checked={activeState} onChange={onChangeSwitch}/>)}
             </FormItem>
         </Modal>
@@ -210,7 +232,7 @@ const CreateFormForPassReset = Form.create()(props => {
             handleReset(fieldsValue);
         });
     };
-
+    
     const submitFormLayout = {
         wrapperCol: {
             xs: { span: 24, offset: 0 },
@@ -228,7 +250,7 @@ const CreateFormForPassReset = Form.create()(props => {
             md: {span: 10},
         },
     };
-
+    
     return (
         <Modal
             title={ intl.formatMessage(messages.resetpasswd) }
@@ -276,16 +298,345 @@ const CreateFormForPassReset = Form.create()(props => {
     );
 });
 
+const SetSSOUser = Form.create()(props => {
+    const { ssoModalVisible, form, setSSOUser, SSOModalVisible, targetUserId, orgUserName } = props;
+    const okHandle = () => {
+        form.validateFields((err, fieldsValue) => {
+            if (err) return;
+            form.resetFields();
+            setSSOUser({
+                id: targetUserId,
+                SSOUser: fieldsValue.SSOUser
+            });
+        });
+    };
+    
+    return (
+        <Modal
+            title={ intl.formatMessage(messages.setSSO) }
+            visible={ssoModalVisible}
+            onOk={okHandle}
+            onCancel={() => SSOModalVisible()}
+            destroyOnClose={ true }
+        >
+            <FormItem
+                labelCol={{ span: 5 }} wrapperCol={{ span: 15 }} label={ intl.formatMessage(messages.userName) } >
+                {form.getFieldDecorator('name', {
+                    initialValue: orgUserName,
+                })(<span>{orgUserName}</span>)}
+            </FormItem>
+            <FormItem labelCol={{ span: 5 }} wrapperCol={{ span: 15 }} label={ intl.formatMessage(messages.sso) }>
+                {form.getFieldDecorator('SSOUser', {
+                    rules: [
+                        {
+                            required: true,
+                            message: intl.formatMessage(messages.ssoInputCheck),
+                        },
+                    ],
+                })(<Input style={{maxWidth: 515, width: '100%'}} placeholder={ intl.formatMessage(messages.sso) }/>)}
+            </FormItem>
+        </Modal>
+    );
+});
 
 @connect(({ OrgUserList,loading }) => ({
     OrgUserList,
     loading: loading.models.OrgUserList,
-  //  loadingInfo:loading.effects['peerList/fetch'],
+    //  loadingInfo:loading.effects['peerList/fetch'],
 }))
 @Form.create()
 export default class OrgUserList extends PureComponent {
     state = {
-        columns: [
+        modalVisible: false,
+        passwdmodalVisible: false,
+        ssoModalVisible: false
+    };
+    toDetail = val => {
+        this.props.dispatch(
+            routerRedux.push({
+                pathname: 'UserDetail',
+                search: stringify({
+                    name: val,
+                })
+                
+            })
+        )
+    };
+    
+    componentDidMount() {
+        const { dispatch } = this.props;
+        dispatch({
+            type: 'OrgUserList/fetch',
+        });
+    }
+    
+    
+    handleModalVisible = (flag,row) => {
+        this.setState({
+            modalVisible: !!flag,
+            activeState: row.active==="false"?false:true,
+            orgUserName:row.username,
+        });
+    };
+    
+    ModalVisible = () => {
+        this.setState({
+            modalVisible: false,
+        });
+    };
+    
+    handleSSOModalVisible = row => {
+        this.setState({
+            targetUserId: row._id,
+            orgUserName: row.username
+        });
+        
+        this.SSOModalVisible();
+    };
+    
+    SSOModalVisible = () => {
+        this.setState({
+            ssoModalVisible: !this.state.ssoModalVisible
+        });
+    };
+    
+    handlePasswdModalVisible = (flag,row) => {
+        this.setState({
+            passwdmodalVisible: !!flag,
+            orgUserName:row.username,
+            password:row.password,
+            rePassword:row.rePassword,
+            currentpassword:row.currentpassword,
+        });
+    };
+    
+    PasswdModalVisible = () => {
+        this.setState({
+            passwdmodalVisible: false,
+        });
+    };
+    
+    onChangeSwitch=(checked)=>{
+        this.setState({
+            activeState: checked,
+        });
+    };
+    
+    handleAdd = (fields) => {
+        const {dispatch} = this.props;
+        const orguser={name};
+        orguser.name=fields.name;
+        orguser.active=`${(this.state.activeState)}`;
+        dispatch({
+            type: 'OrgUserList/updateOrgUser',
+            payload: {
+                orguser: orguser,
+                dispatch: dispatch
+            },
+        });
+        this.setState({
+            modalVisible: false,
+        });
+    };
+    
+    resetResponse=(result)=>{
+        if(!result.success){
+            message.error(intl.formatMessage(messages.resetpasswdfailed));
+        }else{
+            message.success(intl.formatMessage(messages.resetpasswdsuccess));
+            this.setState({
+                passwdmodalVisible: false,
+            });
+        }
+    };
+    
+    handleReset = (fields) => {
+        const {dispatch} = this.props;
+        this.props.form.validateFieldsAndScroll({ force: true }, (err) => {
+            if (!err) {
+                if(fields.password===fields.rePassword){
+                    const orguser = {
+                        "name":          fields.name,
+                        "curPassword":   fields.currentpassword,
+                        "password":      fields.password,
+                    };
+                    this.props.dispatch({
+                        type:    'OrgUserList/resetOrgUserPassword',
+                        payload:  {
+                            orguser:orguser,
+                        },
+                        callback: this.resetResponse,
+                    });
+                }
+                else{
+                    message.error(intl.formatMessage(messages.passwordsDiff));
+                }
+                
+            }
+        });
+    };
+    
+    reEnrollOrgUser =(row) => {
+        const { dispatch } = this.props;
+        const orguser={
+            name:row.username,
+            reason:"cacompromise",
+        };
+        
+        Modal.confirm({
+            title: `${intl.formatMessage(messages.reauthenticate)}‘${row.username}’?`,
+            onOk() {
+                dispatch({
+                    type: 'OrgUserList/reEnrollOrgUser',
+                    payload: { orguser, msg: intl.formatMessage(messages.successofreauth)},
+                    
+                });
+            },
+        });
+    };
+    
+    
+    deleteOrgUser =(row) => {
+        const { dispatch } = this.props;
+        const orguser={
+            name:row.username,
+            reason:"cacompromise",
+        };
+        
+        Modal.confirm({
+            title: `${intl.formatMessage(messages.delete)}‘${row.username}’?`,
+            onOk() {
+                dispatch({
+                    type: 'OrgUserList/removeOrgUser',
+                    payload: { orguser },
+                });
+            },
+        });
+    };
+    
+    
+    
+    /* handleSelectRows = rows => {
+       this.setState({
+         selectedRows: rows,
+       });
+     };  */
+    
+    
+    onAddNewOrgUser = () =>{
+        this.props.dispatch(
+            routerRedux.push({
+                pathname: 'NewOrgUser',
+            })
+        )
+    };
+    
+    components = {
+        header: {
+            cell: ResizeableTitle,
+        },
+    };
+    
+    handleResize = index => (e, { size }) => {
+        this.setState(({ columns }) => {
+            const nextColumns = [...columns];
+            nextColumns[index] = {
+                ...nextColumns[index],
+                width: size.width,
+            };
+            return { columns: nextColumns };
+        });
+    };
+    
+    setSSOUser = fields => {
+        const { dispatch } = this.props;
+        
+        dispatch({
+            type: 'OrgUserList/SetSSOUser',
+            payload: {
+                setuser: {
+                    id: fields.id,
+                    SSOUser: fields.SSOUser
+                }
+            },
+            callback: this.callbackForSetSSOUser
+        });
+    };
+    
+    callbackForSetSSOUser = response => {
+        if ( !response.success ) {
+            message.error(intl.formatMessage(messages.setSSOFail));
+        }
+        else {
+            message.success(intl.formatMessage(messages.setSSOSuccess));
+            this.SSOModalVisible();
+            
+            const { dispatch } = this.props;
+            dispatch({
+                type: 'OrgUserList/fetch',
+            });
+        }
+    };
+    
+    render() {
+        const {
+            OrgUserList: { orgusers },
+            loading,
+        } = this.props;
+        
+        const {  modalVisible } = this.state;
+        const {  passwdmodalVisible } = this.state;
+        const {  ssoModalVisible } = this.state;
+        const paginationProps = {
+            showSizeChanger: true,
+            showQuickJumper: true,
+        };
+        
+        const parentMethods = {
+            handleAdd: this.handleAdd,
+            handleModalVisible: this.handleModalVisible,
+            activeState:this.state.activeState,
+            onChangeSwitch:this.onChangeSwitch,
+            orgUserName:this.state.orgUserName,
+            ModalVisible:this.ModalVisible,
+            handleReset:this.handleReset,
+            PasswdModalVisible:this.PasswdModalVisible,
+            handlePasswdModalVisible:this.handlePasswdModalVisible,
+            targetUserId: this.state.targetUserId,
+            SSOModalVisible: this.SSOModalVisible,
+            setSSOUser: this.setSSOUser
+        };
+        
+        const menu = row => (
+            <Menu>
+                <Menu.Item>
+                    <a  onClick={() => this.reEnrollOrgUser(row)}>{intl.formatMessage(messages.reauth)} </a>
+                </Menu.Item>
+                <Menu.Item>
+                    <a  onClick={() => this.handlePasswdModalVisible(true,row)}>{intl.formatMessage(messages.resetpasswd)} </a>
+                </Menu.Item>
+                {
+                    window.localStorage["cello-authority"] === "admin" &&
+                    <Menu.Item>
+                        <a onClick={() => this.handleSSOModalVisible(row)}> {intl.formatMessage(messages.setSSO)} </a>
+                    </Menu.Item>
+                }
+                <Menu.Item>
+                    <a  onClick={() => this.deleteOrgUser(row)}> {intl.formatMessage(messages.del)} </a>
+                </Menu.Item>
+            </Menu>
+        );
+        
+        const MoreBtn = row => (
+            <Dropdown overlay={menu(row)}>
+                <a>
+                    {intl.formatMessage(messages.more)}
+                    <Icon type="down" />
+                </a>
+            </Dropdown>
+        );
+        
+        const columnsList = [
             {
                 title:  intl.formatMessage(messages.name) ,
                 dataIndex: 'username',
@@ -306,9 +657,9 @@ export default class OrgUserList extends PureComponent {
                 width: 80,
             },
             {
-                title: intl.formatMessage(messages.net),
-                dataIndex: 'network_name',
-                key: 'net_name',
+                title: intl.formatMessage(messages.sso),
+                dataIndex: 'SSOUser',
+                key: 'SSOUser',
                 width: 100,
             },
             {
@@ -325,235 +676,20 @@ export default class OrgUserList extends PureComponent {
                     <Fragment>
                         <a  onClick={() => this.handleModalVisible(true,row)}> {intl.formatMessage(messages.update)} </a>
                         <Divider type="vertical" />
-                        <a  onClick={() => this.reEnrollOrgUser(row)}>{intl.formatMessage(messages.reauth)} </a>
-                        <Divider type="vertical" />
-                        <a  onClick={() => this.handlePasswdModalVisible(true,row)}>{intl.formatMessage(messages.resetpasswd)} </a>
-                        <Divider type="vertical" />
-                        <a  onClick={() => this.deleteOrgUser(row)}> {intl.formatMessage(messages.del)} </a>
+                        <MoreBtn {...row}/>
                     </Fragment>
                 ),
-            }],
-    };
-    
-    toDetail = val => {
-        this.props.dispatch(
-            routerRedux.push({
-                pathname: 'UserDetail',
-                search: stringify({
-                    name: val,
-                })
-            
-            })
-        )
-    };
-
-    componentDidMount() {
-             const { dispatch } = this.props;
-             dispatch({
-                 type: 'OrgUserList/fetch',
-             });
-    }
-
-
-    handleModalVisible = (flag,row) => {
-        this.setState({
-            modalVisible: !!flag,
-            activeState: row.active==="false"?false:true,
-            orgUserName:row.username,
-        });
-    };
-
-    ModalVisible = () => {
-        this.setState({
-            modalVisible: false,
-        });
-    };
-
-    handlePasswdModalVisible = (flag,row) => {
-        this.setState({
-            passwdmodalVisible: !!flag,
-            orgUserName:row.username,
-            password:row.password,
-            rePassword:row.rePassword,
-            currentpassword:row.currentpassword,
-        });
-    };
-
-    PasswdModalVisible = () => {
-        this.setState({
-            passwdmodalVisible: false,
-        });
-    };
-
-    onChangeSwitch=(checked)=>{
-        this.setState({
-            activeState: checked,
-        });
-    };
-
-    handleAdd = (fields) => {
-        const {dispatch} = this.props;
-        const orguser={name};
-         orguser.name=fields.name;
-         orguser.active=`${(this.state.activeState)}`;
-        dispatch({
-            type: 'OrgUserList/updateOrgUser',
-            payload: {
-                orguser: orguser,
-                dispatch: dispatch
-            },
-        });
-        this.setState({
-            modalVisible: false,
-        });
-    };
-
-    resetResponse=(result)=>{
-        if(!result.success){
-            message.error(intl.formatMessage(messages.resetpasswdfailed));
-        }else{
-            message.success(intl.formatMessage(messages.resetpasswdsuccess));
-            this.setState({
-                passwdmodalVisible: false,
-            });
-        }
-    };
-
-    handleReset = (fields) => {
-        const {dispatch} = this.props;
-        this.props.form.validateFieldsAndScroll({ force: true }, (err) => {
-            if (!err) {
-                if(fields.password===fields.rePassword){
-                    const orguser = {
-                        "name":          fields.name,
-                        "curPassword":   fields.currentpassword,
-                        "password":      fields.password,
-                    };
-                    console.log("name:",orguser.name);
-                    console.log("password:",orguser.password);
-                    this.props.dispatch({
-                        type:    'OrgUserList/resetOrgUserPassword',
-                        payload:  {
-                            orguser:orguser,
-                        },
-                        callback: this.resetResponse,
-                    });
-                }
-                else{
-                    message.error(intl.formatMessage(messages.passwordsDiff));
-                }
-
-            }
-        });
-    };
-
-    reEnrollOrgUser =(row) => {
-        const { dispatch } = this.props;
-        const orguser={
-            name:row.username,
-            reason:"cacompromise",
-        };
-
-        Modal.confirm({
-            title: `${intl.formatMessage(messages.reauthenticate)}‘${row.username}’?`,
-            onOk() {
-                dispatch({
-                    type: 'OrgUserList/reEnrollOrgUser',
-                    payload: { orguser, msg: intl.formatMessage(messages.successofreauth)},
-
-                });
-            },
-        });
-    };
-
-
-    deleteOrgUser =(row) => {
-        const { dispatch } = this.props;
-        const orguser={
-            name:row.username,
-            reason:"cacompromise",
-        };
-
-        Modal.confirm({
-            title: `${intl.formatMessage(messages.delete)}‘${row.username}’?`,
-            onOk() {
-                dispatch({
-                    type: 'OrgUserList/removeOrgUser',
-                    payload: { orguser },
-                });
-            },
-        });
-    };
-
-
-
-    /* handleSelectRows = rows => {
-       this.setState({
-         selectedRows: rows,
-       });
-     };  */
-
-
-    onAddNewOrgUser = () =>{
-        this.props.dispatch(
-            routerRedux.push({
-                pathname: 'NewOrgUser',
-            })
-        )
-    };
-
-    components = {
-        header: {
-            cell: ResizeableTitle,
-        },
-    };
-
-    handleResize = index => (e, { size }) => {
-        this.setState(({ columns }) => {
-            const nextColumns = [...columns];
-            nextColumns[index] = {
-                ...nextColumns[index],
-                width: size.width,
-            };
-            return { columns: nextColumns };
-        });
-    };
-
-
-    render() {
-        const {
-            OrgUserList: { orgusers },
-            loading,
-        } = this.props;
-
-        const {  modalVisible } = this.state;
-        const {  passwdmodalVisible } = this.state;
-        const paginationProps = {
-            showSizeChanger: true,
-            showQuickJumper: true,
-        };
-
-        const parentMethods = {
-            handleAdd: this.handleAdd,
-            handleModalVisible: this.handleModalVisible,
-            activeState:this.state.activeState,
-            onChangeSwitch:this.onChangeSwitch,
-            orgUserName:this.state.orgUserName,
-            ModalVisible:this.ModalVisible,
-            handleReset:this.handleReset,
-            PasswdModalVisible:this.PasswdModalVisible,
-            handlePasswdModalVisible:this.handlePasswdModalVisible,
-        };
-
-        const columns = this.state.columns.map((col, index) => ({
+            }];
+        
+        const columns = columnsList.map((col, index) => ({
             ...col,
             onHeaderCell: column => ({
                 width: column.width,
                 onResize: this.handleResize(index),
             }),
         }));
-
-
+        
+        
         return (
             <PageHeaderLayout title={ intl.formatMessage(messages.userList) }
                               content={ intl.formatMessage(messages.description) }
@@ -561,9 +697,9 @@ export default class OrgUserList extends PureComponent {
                 <Card bordered={false}>
                     <div className={styles.tableList}>
                         <div className={styles.tableListOperator}>
-                                <Button icon="plus" type="primary" onClick={this.onAddNewOrgUser}>
-                                    { intl.formatMessage(messages.createUser) }
-                                </Button>
+                            <Button icon="plus" type="primary" onClick={this.onAddNewOrgUser}>
+                                { intl.formatMessage(messages.createUser) }
+                            </Button>
                         </div>
                         <Table
                             components={this.components}
@@ -578,8 +714,9 @@ export default class OrgUserList extends PureComponent {
                 </Card>
                 <CreateForm {...parentMethods} modalVisible={modalVisible} />
                 <CreateFormForPassReset {...parentMethods} passwdmodalVisible={passwdmodalVisible} />
+                <SetSSOUser {...parentMethods} ssoModalVisible={ssoModalVisible} />
             </PageHeaderLayout>
         );
-
+        
     }
 }

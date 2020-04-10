@@ -106,19 +106,19 @@ export default {
         },
     },
 
-        reducers: {
-            save(state, action) {
-                return {
-                    ...state,
-                    channels: action.payload,
-                };
-            },
-            oneClRes(state, action) {
-                return {
-                    ...state,
-                    channel: action.payload,
-                };
-
-            },
+    reducers: {
+        save(state, action) {
+            return {
+                ...state,
+                channels: action.payload,
+            };
         },
+        oneClRes(state, action) {
+            return {
+                ...state,
+                channel: action.payload,
+            };
+
+        },
+    },
 }

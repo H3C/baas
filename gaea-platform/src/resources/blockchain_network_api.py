@@ -19,7 +19,7 @@ from common.api_exception import BadRequest, UnsupportedMediaType, InternalServe
 
 # sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 from common import log_handler, LOG_LEVEL, \
-    CODE_CREATED, make_ok_gaea_resp, \
+    CODE_CREATED, make_ok_my_resp, \
     request_debug
 
 logger = logging.getLogger(__name__)
@@ -152,7 +152,7 @@ def blockchain_network_create():
             resCode=200,
             operator=operator,
             opDetails=opDetails)
-        return make_ok_gaea_resp(resource='blockchain_network', result=network)
+        return make_ok_my_resp(resource='blockchain_network', result=network)
     except Exception as e:
         error_msg = "blockchain_network create failed {}".format(e)
         logger.error(error_msg)
@@ -187,7 +187,7 @@ def blockchain_network_add_org(blockchain_network_id):
         network = network_handler.addorgtonetwork(id = blockchain_network_id,
                                peer_orgs = peer_orgs, orderer_orgs = orderer_orgs,
                                )
-        return make_ok_gaea_resp(resource='blockchain_network', result=network)
+        return make_ok_my_resp(resource='blockchain_network', result=network)
     except Exception as e:
         msg = "blockchain_network add org failed {}".format(e)
         logger.error(msg)
@@ -212,7 +212,7 @@ def blockchain_network_create_yarml_for_neworgs(blockchain_network_id):
         network = network_handler.createyamlforneworgs(id = blockchain_network_id,
                                peer_orgs = peer_orgs,orderer_orgs = orderer_orgs,
                                )
-        return make_ok_gaea_resp(resource='blockchain_network', result=network)
+        return make_ok_my_resp(resource='blockchain_network', result=network)
     except Exception as e:
         msg = "blockchain_network add org failed {}".format(e)
         logger.error(msg)
@@ -226,7 +226,7 @@ def blockchain_network_list():
     network_handler = BlockchainNetworkHandler()
     items = list(network_handler.list(filter_data=col_filter))
 
-    return make_ok_gaea_resp(resource='blockchain_networks',result=items)
+    return make_ok_my_resp(resource='blockchain_networks',result=items)
 
 
 @bp_blockchain_network_api.route('/blockchain_networks/<blockchain_network_id>', methods=['GET'])
@@ -236,7 +236,7 @@ def blockchain_network_query(blockchain_network_id):
     result = network_handler.schema(network_handler.get_by_id(blockchain_network_id))
     logger.debug(result)
     if result:
-        return make_ok_gaea_resp(resource='blockchain_network', result=result)
+        return make_ok_my_resp(resource='blockchain_network', result=result)
     else:
         error_msg = "blockchain_network not found with id=" + blockchain_network_id
         logger.warning(error_msg)
@@ -250,7 +250,7 @@ def service_endporint_query(blockchain_network_id):
     col_filter = blockchain_network_id
     items = list(network_handler.get_endpoints_list(filter_data=col_filter))
 
-    return make_ok_gaea_resp(resource='service_endpoints',result=items)
+    return make_ok_my_resp(resource='service_endpoints',result=items)
 
 @bp_blockchain_network_api.route('/blockchain_networks/<blockchain_network_id>', methods=['DELETE'])
 def blockchain_network_delete(blockchain_network_id):
@@ -290,7 +290,7 @@ def blockchain_network_delete(blockchain_network_id):
                 opDetails=opDetails
                  )
 
-            return make_ok_gaea_resp(resource='delete success!',result={})
+            return make_ok_my_resp(resource='delete success!',result={})
     except Exception as e:
         error_msg = "blockchain_network {id} delete failed, for {err}".\
                                  format(id = blockchain_network_id, err = e)
@@ -317,7 +317,7 @@ def blockchain_network_delete(blockchain_network_id):
             operator=operator,
             opDetails=opDetails)
 
-        return make_ok_gaea_resp(resource='delete success!', result={})
+        return make_ok_my_resp(resource='delete success!', result={})
     except Exception as e:
         error_msg = "blockchain_network {id} delete failed, for {err}". \
                                  format(id=blockchain_network_id, err=e)
@@ -334,46 +334,34 @@ def blockchain_network_delete(blockchain_network_id):
 
         raise InternalServerError(msg=error_msg)
 
-@bp_blockchain_network_api.route('/blockchain_networks/<blockchain_network_id>/nodeCpuInfo/<node_name>', methods=['GET'])
-def blockchain_network_node_cpuinfo_query(blockchain_network_id, node_name):
+@bp_blockchain_network_api.route('/blockchain_networks/<blockchain_network_id>/networkhealthy', methods=['GET'])
+def net_healthy_query(blockchain_network_id):
     request_debug(r, logger)
     network_handler = BlockchainNetworkHandler()
-    filters = dict((key, int(r.args.get(key))) for key in r.args)
-    try:
-        result = network_handler.get_node_cpuinfo(blockchain_network_id, node_name, filters)
-        return make_ok_gaea_resp(resource='node_cpuinfo', result=result)
-    except Exception as e:
-        msg = "blockchain_network get node cpu info failed, reason {}".format(e)
-        logger.error(msg)
-        raise InternalServerError(msg=msg)
 
-@bp_blockchain_network_api.route('/blockchain_networks/<blockchain_network_id>/nodeMemInfo/<node_name>', methods=['GET'])
-def blockchain_network_node_meminfo_query(blockchain_network_id, node_name):
+    col_filter = blockchain_network_id
+    infos = network_handler.get_endpoints_list(filter_data=col_filter)
+    for info in infos:
+        if info["service_type"] == 'peer' and info["peer_port_proto"] == 'cc_listen':
+            infos.remove(info)
+            continue
+
+    return make_ok_my_resp(resource='healthy',result=infos)
+
+@bp_blockchain_network_api.route('/blockchain_networks/<organization_id>/organizationhealthy', methods=['GET'])
+def org_healthy_query(organization_id):
     request_debug(r, logger)
     network_handler = BlockchainNetworkHandler()
-    filters = dict((key, int(r.args.get(key))) for key in r.args)
-    try:
-        result = network_handler.get_node_meminfo(blockchain_network_id, node_name, filters)
-        return make_ok_gaea_resp(resource='node_meminfo', result=result)
-    except Exception as e:
-        msg = "blockchain_network get node memory info failed, reason {}".format(e)
-        logger.error(msg)
-        raise InternalServerError(msg=msg)
 
-@bp_blockchain_network_api.route('/blockchain_networks/<blockchain_network_id>/nodeNetInfo/<node_name>', methods=['GET'])
-def blockchain_network_node_netinfo_query(blockchain_network_id, node_name):
-    request_debug(r, logger)
-    network_handler = BlockchainNetworkHandler()
-    filters = dict((key, int(r.args.get(key))) for key in r.args)
-    try:
-        result = network_handler.get_node_netinfo(blockchain_network_id, node_name, filters)
-        return make_ok_gaea_resp(resource='node_netinfo', result=result)
-    except Exception as e:
-        msg = "blockchain_network get node net info failed, reason {}".format(e)
-        logger.error(msg)
-        raise InternalServerError(msg=msg)
+    serviceEndpoints = modelv2.ServiceEndpoint.objects(org_name=organization_id)
+    infos = network_handler.endports_schema(serviceEndpoints, many=True)
 
+    for info in infos:
+        if info["service_type"] == 'peer' and info["peer_port_proto"] == 'cc_listen':
+            infos.remove(info)
+            continue
 
+    return make_ok_my_resp(resource='healthy', result=infos)
 
 
 

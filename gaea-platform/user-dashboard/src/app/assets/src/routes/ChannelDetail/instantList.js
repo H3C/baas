@@ -222,7 +222,7 @@ export default class Chaincode extends Component {
         
         let result = InstantList.result;
         let resInfo;
-        if (typeof result !== 'undefined' && result !== null) {
+        if (typeof result !== 'undefined' && result !== null && result !== '') {
              console.log("result",result);
              console.log('indexOf',result.indexOf('\u0000'));
             if(result.indexOf('\u0000') !== -1) {

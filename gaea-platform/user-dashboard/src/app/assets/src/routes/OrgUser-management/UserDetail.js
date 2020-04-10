@@ -96,7 +96,7 @@ const { intl } = intlProvider.getChildContext();
 }))
 @Form.create()
 export default class PersonalCenter extends PureComponent {
-
+    
     componentDidMount() {
         const { dispatch } = this.props;
         const location = this.props.location || this.context.location;
@@ -109,7 +109,7 @@ export default class PersonalCenter extends PureComponent {
             }
         });
     }
-
+    
     onBtnCancel = () => {
         this.props.dispatch(
             routerRedux.push({

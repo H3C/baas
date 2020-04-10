@@ -1,7 +1,7 @@
 import React, { PureComponent, Fragment } from 'react';
 import { connect } from 'dva';
 import { stringify } from 'qs';
-import { Card, Modal, Button, Icon, Divider } from 'antd';
+import { Card, Modal, Button, Icon, Divider, Form, Input } from 'antd';
 import { routerRedux } from 'dva/router';
 import PageHeaderLayout from '../../layouts/PageHeaderLayout';
 import styles from './orglist.less';
@@ -66,6 +66,30 @@ const messages = defineMessages({
         id: 'Organization.OrgAdd',
         defaultMessage: 'Add',
     },
+    operateAppendPeer: {
+        id: 'Organization.AppendPeer',
+        defaultMessage: 'Add peer'
+    },
+    buttonOk: {
+        id: 'Organization.OK',
+        defaultMessage: 'Ok'
+    },
+    buttonCancel: {
+        id: 'Organization.Cancel',
+        defaultMessage: 'Cancel'
+    },
+    peerNumForAdd: {
+        id: 'Organization.PeerNumForAdd',
+        defaultMessage: 'Number of new peers'
+    },
+    peerNumForAddWarning: {
+        id: 'Organization.peerNumForAddWarning',
+        defaultMessage: 'The number of new peers must be integer greater than 0.'
+    },
+    addPeerFail: {
+        id: 'Organization.addPeerFail',
+        defaultMessage: 'Failed to add peer.'
+    }
 });
 const currentLocale = getLocale();
 const intlProvider = new IntlProvider(
@@ -73,15 +97,20 @@ const intlProvider = new IntlProvider(
     {}
 );
 const { intl } = intlProvider.getChildContext();
+const FormItem = Form.Item;
 
 @connect(({ organization,loading }) => ({
     organization,
     loading: loading.models.organization,
+    addingPeer: loading.effects['organization/appendPeer']
 }))
 
+@Form.create()
 export default class OrganizationList extends PureComponent {
     state = {
         formValues: {},
+        addPeerVisible: false,
+        targetOrgForAddPeer: {}
     };
 
     constructor(props) {
@@ -190,14 +219,61 @@ export default class OrganizationList extends PureComponent {
         }
         return str.replace(/[^\x00-\xff]/g, "01").length;
     };
+    
+    onClickAppendPeer = org => {
+        this.setState({
+            addPeerVisible: true,
+            targetOrgForAddPeer: org
+        })
+    };
+    
+    commitPeerNum = e => {
+        e.preventDefault();
+        this.props.form.validateFieldsAndScroll({ force: true }, (err, values) => {
+            if (!err) {
+                this.props.dispatch({
+                    type: 'organization/appendPeer',
+                    payload: {
+                        organization_id: this.state.targetOrgForAddPeer.id,
+                        peerNum: {
+                            peerNum: parseInt(values.number)
+                        }
+                    },
+                    callback: this.appendPeerCallback
+                });
+            }
+        });
+    };
+    
+    appendPeerCallback = response => {
+        if (response.status === 'OK') {
+            this.setState({
+                addPeerVisible: false
+            });
+        }
+        else {
+            Modal.error({
+                title:intl.formatMessage(messages.addPeerFail),
+            });
+        }
+    };
+    
+    cancelForAddPeer = () => {
+        this.setState({
+            addPeerVisible: false,
+            targetOrgForAddPeer: {}
+        })
+    };
 
     render() {
         const {
             organization : {organization},
+            addingPeer,
             loading,
         } = this.props;
 
         const orgs = Array.isArray(organization) ? organization : [];
+        const { getFieldDecorator } = this.props.form;
 
         const columns = [
             {
@@ -225,13 +301,38 @@ export default class OrganizationList extends PureComponent {
                 render: row => (
                     <Fragment>
                         <a onClick={() => this.onClickEdit(row)}>{intl.formatMessage(messages.operateDetails)}</a>
+                        {
+                            row.type === 'peer' &&
+                            <span>
+                                <Divider type="vertical" />
+                                <a onClick={() => this.onClickAppendPeer(row)}>{intl.formatMessage(messages.operateAppendPeer)}</a>
+                            </span>
+                        }
                         <Divider type="vertical" />
                         <a onClick={() => this.onClickDel(row)}>{intl.formatMessage(messages.operateDelete)}</a>
                     </Fragment>
                 ),
             },
         ];
-
+    
+        const formItemLayout = {
+            labelCol: {
+                xs: {span: 24},
+                sm: {span: 7},
+            },
+            wrapperCol: {
+                xs: {span: 24},
+                sm: {span: 12},
+                md: {span: 10},
+            },
+        };
+    
+        const submitFormLayout = {
+            wrapperCol: {
+                xs: {span: 24, offset: 0},
+                sm: {span: 10, offset: 14},
+            },
+        };
 
         return (
             <PageHeaderLayout
@@ -259,6 +360,33 @@ export default class OrganizationList extends PureComponent {
                         />
                     </Card>
                 </div>
+                <Modal
+                    title={intl.formatMessage(messages.operateAppendPeer)}
+                    visible={this.state.addPeerVisible}
+                    destroyOnClose={true}
+                    footer={null}
+                >
+                    <Form onSubmit={this.commitPeerNum} style={{marginTop: 8}}>
+                        <FormItem
+                            {...formItemLayout}
+                            label={intl.formatMessage(messages.peerNumForAdd)}
+                        >
+                            {getFieldDecorator('number', {
+                                rules: [{required: true,
+                                    pattern: new RegExp("^[1-9]\\d*$"),
+                                    message: intl.formatMessage(messages.peerNumForAddWarning)}],
+                            })(<Input style={{width: '100%'}} placeholder={intl.formatMessage(messages.peerNumForAdd)}/>)}
+                        </FormItem>
+                        <FormItem {...submitFormLayout} style={{marginTop: 32}}>
+                            <Button onClick={this.cancelForAddPeer}>
+                                {intl.formatMessage(messages.buttonCancel)}
+                            </Button>
+                            <Button loading={addingPeer} type="primary" htmlType="submit" style={{marginLeft: 10}}>
+                                {intl.formatMessage(messages.buttonOk)}
+                            </Button>
+                        </FormItem>
+                    </Form>
+                </Modal>
             </PageHeaderLayout>
         );
     }

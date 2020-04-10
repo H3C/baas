@@ -23,7 +23,7 @@ const messages = defineMessages({
         },
         pageDescription: {
             id: 'Guide.Description',
-            defaultMessage: '使用向导帮助您使用Gaea系统构建区块链网络。',
+            defaultMessage: '使用向导帮助您使用Cello系统构建区块链网络。',
         },
         title: {
             id: 'Guide.ContentTitle',
@@ -35,7 +35,7 @@ const messages = defineMessages({
         },
         hostContent: {
             id: 'Guide.HostContent',
-            defaultMessage: '主机是运行区块链网络的载体，添加主机前需要确认主机网络连接正常，到主机管理页面，将目标主机添加到Gaea系统中。',
+            defaultMessage: '主机是运行区块链网络的载体，添加主机前需要确认主机网络连接正常，到主机管理页面，将目标主机添加到Cello系统中。',
         },
         orgMenu: {
             id: 'Guide.OrgMenu',

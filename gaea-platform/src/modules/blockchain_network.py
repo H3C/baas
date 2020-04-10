@@ -44,6 +44,56 @@ fabric_image_version = {
 CELLO_MASTER_FABRIC_DIR = '/opt/fabric/'
 CELLO_SECRET_FOR_TOKEN_DIR = '/opt/secret/'
 
+
+def health_check():
+    #print("test block chain healthy !!")
+    #logger.info("block chain healthy ")
+    networks = modelv2.BlockchainNetwork.objects().all()
+    if not networks:
+        print("no blockchain !!")
+        time.sleep(10)
+        return
+    for network in networks:
+        service_endpoints = modelv2.ServiceEndpoint.objects(network=network)
+        if not service_endpoints:
+            network.update(set__healthy=False)
+            print("no endpoints !!")
+            continue
+        end_healthy = True
+        healthy = False
+
+        time.sleep(5)
+        for ep in service_endpoints:
+            # event port is not needed in fabric 1.4
+            # don't do health check on event port to avoid health check fail on fabric 1.3 later
+            if ep.service_type == 'peer' and ep.peer_port_proto == 'cc_listen':
+                ep.update(set__healthy=True)
+                continue
+
+            ip = ep.service_ip
+            port = ep.service_port
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            try:
+                sock.connect((ip, port))
+                #logger.info("connect {}:{} succeed".format(ip, port))
+                healthy = True
+                end_healthy = healthy and end_healthy
+                ep.update(set__healthy=True)
+            except Exception as e:
+                logger.error("connect {}:{} fail, reason {}".format(ip, port, e))
+                healthy = False
+                ep.update(set__healthy=False)
+                # break
+            finally:
+                sock.close()
+
+        if not healthy:
+            network.update(set__healthy=False)
+            return
+        else:
+            network.update(set__healthy=True)
+            return
+
 class BlockchainNetworkHandler(object):
     """ Main handler to operate the cluster in pool
 
@@ -122,6 +172,7 @@ class BlockchainNetworkHandler(object):
             for org_id in network.peer_orgs:
                 peer_org = org_handler().schema(org_handler().get_by_id(org_id))
                 host_id = peer_org['host_id']
+                host_handler.refresh_status(host_id)
                 host = host_handler.get_active_host_by_id(host_id)
                 host.update(pull__clusters=network.id)
                 self.host_agents[host.type].delete_peer_org(peer_org, host, net_id)
@@ -131,6 +182,7 @@ class BlockchainNetworkHandler(object):
             for org_id in network.orderer_orgs:
                 orderer_org = org_handler().schema(org_handler().get_by_id(org_id))
                 host_id = orderer_org['host_id']
+                host_handler.refresh_status(host_id)
                 host = host_handler.get_active_host_by_id(host_id)
                 consensus_type = network.consensus_type
                 host.update(pull__clusters=network.id)
@@ -239,6 +291,7 @@ class BlockchainNetworkHandler(object):
 
             for orderer_org in network_config['orderer_org_dicts']:
                 host_id = orderer_org['host_id']
+                host_handler.refresh_status(host_id)
                 host = host_handler.get_active_host_by_id(host_id)
                 host.update(add_to_set__clusters=[net_id])
                 self.host_agents[host.type].create_orderer_org(orderer_org, consensus_type, host, net_id, net_name,
@@ -247,18 +300,20 @@ class BlockchainNetworkHandler(object):
 
             for peer_org in network_config['peer_org_dicts']:
                 host_id = peer_org['host_id']
+                host_handler.refresh_status(host_id)
                 host = host_handler.get_active_host_by_id(host_id)
                 host.update(add_to_set__clusters=[net_id])
                 self.host_agents[host.type].create_peer_org(peer_org, couchdb_enabled, host, net_id, net_name,
                                                             fabric_version, request_host_ports, portid)
 
             network.update(set__status='running')
-            for peer_org in network_config['peer_org_dicts']:
-                org_obj = modelv2.Organization.objects.get(id=peer_org['id'])
-                org_obj.update(set__network=network)
-            for orderer_org in network_config['orderer_org_dicts']:
-                org_obj = modelv2.Organization.objects.get(id=orderer_org['id'])
-                org_obj.update(set__network=network)
+            # zsh修改，为解决网络创建过程中，还可以继续操作组织的问题，将给组织增加网络的动作放到前面
+            # for peer_org in network_config['peer_org_dicts']:
+            #     org_obj = modelv2.Organization.objects.get(id=peer_org['id'])
+            #     org_obj.update(set__network=network)
+            # for orderer_org in network_config['orderer_org_dicts']:
+            #     org_obj = modelv2.Organization.objects.get(id=orderer_org['id'])
+            #     org_obj.update(set__network=network)
             logger.info("Create network OK, id={}".format(net_id))
 
             def check_health_work(network):
@@ -311,14 +366,69 @@ class BlockchainNetworkHandler(object):
                 org_obj.update(set__network=network)
             logger.info("Update network OK, id={}".format(net_id))
 
+        except Exception as e:
+            logger.error("network {} update failed for {}".format(net_id, e))
+            # will not call self.delete(network) in case of nested exception
+            #self.delete(network)
+            raise e
+
+    def _update_network_for_addpeers(self, network_config, request_host_ports):
+        net_id = network_config['id']
+        network = modelv2.BlockchainNetwork.objects.get(id=net_id)
+
+        try:
+            #self.host_agents[host.type].update(network_config, request_host_ports)
+            # # service urls can only be calculated after service is create
+            # if host.type == WORKER_TYPE_K8S:
+            #     service_urls = self.host_agents[host.type] \
+            #         .get_services_urls(net_id)
+            # else:
+            #     service_urls = self.gen_service_urls(net_id)
+            net_id = network_config['id']
+            net_name = network_config['name']
+            peer_org = network_config['peer_org_dict']
+            couchdb_enabled = False
+            if network_config['db_type'] == 'couchdb':
+                couchdb_enabled = True
+            fabric_version = fabric_image_version[network_config['fabric_version']]
+            portid = []
+            portid.append(0)
+
+            host_id = peer_org['host_id']
+            host = host_handler.get_active_host_by_id(host_id)
+            host_handler.refresh_status(host_id)
+            self.host_agents[host.type].create_peer_org(peer_org, couchdb_enabled, host, net_id, net_name,
+                                                        fabric_version, request_host_ports, portid)
+
+
+            network.update(set__status='running')
+
+            logger.info("Update network OK, id={}".format(net_id))
 
         except Exception as e:
             logger.error("network {} update failed for {}".format(net_id, e))
             # will not call self.delete(network) in case of nested exception
             #self.delete(network)
             raise e
+
     def create(self, id, name, description, fabric_version,
-            orderer_orgs, peer_orgs, host, consensus_type, db_type, create_ts):
+               orderer_orgs, peer_orgs, host, consensus_type, db_type, create_ts):
+
+        peer_org_dicts = []
+        orderer_org_dicts = []
+        for org_id in peer_orgs:
+            peer_org_dict = org_handler().schema(org_handler().get_by_id(org_id))
+            # blocakchain_network_id非空，表明该组织已添加到其他nework中
+            if peer_org_dict['blockchain_network_id']:
+                error_msg = ': this org has been added by another network!'
+                raise Exception(error_msg)
+            peer_org_dicts.append(peer_org_dict)
+        for org_id in orderer_orgs:
+            orderer_org_dict = org_handler().schema(org_handler().get_by_id(org_id))
+            if orderer_org_dict['blockchain_network_id']:
+                error_msg = ': this org has been added by another network!'
+                raise Exception(error_msg)
+            orderer_org_dicts.append(orderer_org_dict)
 
         network = modelv2.BlockchainNetwork(id=id,
                                             name=name,
@@ -333,14 +443,6 @@ class BlockchainNetworkHandler(object):
                                             status="creating")
         network.save()
 
-        peer_org_dicts = []
-        orderer_org_dicts = []
-        for org_id in peer_orgs:
-            peer_org_dict = org_handler().schema(org_handler().get_by_id(org_id))
-            peer_org_dicts.append(peer_org_dict)
-        for org_id in orderer_orgs:
-            orderer_org_dict = org_handler().schema(org_handler().get_by_id(org_id))
-            orderer_org_dicts.append(orderer_org_dict)
         order_orgs_domain = []
         for each in orderer_org_dicts:
             if each['domain'] not in order_orgs_domain:
@@ -358,10 +460,15 @@ class BlockchainNetworkHandler(object):
         peer_org_num = len(peer_org_dicts)
         peer_num = 0
         orderer_num = 0
+        # zsh修改，原本在_create_network中，为组织增加network信息，前调到这里
         for org in peer_org_dicts:
             peer_num += org['peerNum']
+            org_obj = modelv2.Organization.objects.get(id=org['id'])
+            org_obj.update(set__network=network)
         for org in orderer_org_dicts:
             orderer_num += len(org['ordererHostnames'])
+            org_obj = modelv2.Organization.objects.get(id=org['id'])
+            org_obj.update(set__network=network)
 
         if couchdb_enabled is True:
             request_host_port_num = peer_org_num * CA_NODE_HOSTPORT_NUM + \
@@ -373,7 +480,7 @@ class BlockchainNetworkHandler(object):
                                         peer_num * PEER_NODE_HOSTPORT_NUM + \
                                         orderer_num * ORDERER_NODE_HOSTPORT_NUM
 
-        request_host_ports =  self.find_free_start_ports (request_host_port_num, host)
+        request_host_ports = self.find_free_start_ports (request_host_port_num, host)
         if len(request_host_ports) != request_host_port_num:
             error_msg = "no enough ports for network service containers"
             logger.error(error_msg)
@@ -432,6 +539,7 @@ class BlockchainNetworkHandler(object):
             # os.chdir(origin_dir)
         except Exception as e:
             error_msg = 'create certificate or genesis block failed!'
+            self.remove_network(network)
             raise Exception(error_msg)
 
         try:
@@ -439,6 +547,7 @@ class BlockchainNetworkHandler(object):
             file_define.fabric_ca_config_files(id, fabric_version, CELLO_MASTER_FABRIC_DIR, peer_org_dicts)
         except:
             error_msg = 'create fabric_ca_config_files failed!.'
+            self.remove_network(network)
             raise Exception(error_msg)
 
 
@@ -557,6 +666,84 @@ class BlockchainNetworkHandler(object):
         t.start()
 
         return self._schema(ins)
+
+    def addpeertonetwork(self, id, peer_org, peers_num):
+        ins = modelv2.BlockchainNetwork.objects.get(id=id)
+        host = ins.host
+        fabric_version = ins.fabric_version
+        name = ins.name
+
+        peer_org_dict = org_handler().schema(org_handler().get_by_id(peer_org))
+
+        db_type = ins.db_type
+        couchdb_enabled = False
+        if db_type == 'couchdb':
+            couchdb_enabled = True
+        ### get fabric service ports
+        peer_num = peers_num
+        peer_org_dict['peerNum'] += peers_num
+        
+        if couchdb_enabled is True:
+            request_host_port_num = peer_num * PEER_NODE_HOSTPORT_NUM + \
+                                    peer_num * COUCHDB_NODE_HOSTPORT_NUM
+        else:
+            request_host_port_num = peer_num * PEER_NODE_HOSTPORT_NUM
+
+        request_host_ports = self.find_free_start_ports(request_host_port_num, host)
+
+        if len(request_host_ports) != request_host_port_num:
+            error_msg = "no enough ports for network service containers"
+            logger.error(error_msg)
+            raise Exception(error_msg)
+
+        # logger.info(" before function file_define.commad_create_path,and path is")
+        # create filepath with network_id at path FABRIC_DIR
+        filepath = file_define.commad_create_path(id)
+        print("filepath = {}".format(filepath))
+        # logger.info(" after function file_define.commad_create_path,and path is {}".format(filepath))
+        # create crypto-config.yaml file at filepath
+
+        file_define.update_crypto_file_for_addpeers(filepath, peer_org_dict, peers_num)
+
+        try:
+            # change work dir to '/opt'
+            origin_dir = os.getcwd()
+            os.chdir(filepath)
+            print(os.getcwd())
+            # create certificates
+            call("/opt/fabric_tools/v1_4/cryptogen extend --config=%s/crypto-config.yaml" % filepath, shell=True)
+
+            os.chdir(origin_dir)
+            # os.system('rm -r {}'.format(fileorgpath))
+        except:
+            error_msg = 'create certificate or genesis block failed!'
+            raise Exception(error_msg)
+        try:
+            sk_file = ''
+            org_name = peer_org_dict['name']
+            org_domain = peer_org_dict['domain']
+            org_fullDomain_name = '.'.join([org_name, org_domain])
+            ca_dir = '/opt/fabric/{net_dir}/crypto-config/peerOrganizations/{org_fullDomain_name}/ca/'. \
+                format(net_dir=id, org_fullDomain_name=org_fullDomain_name)
+            for f in os.listdir(ca_dir):  # find out sk!
+                if f.endswith("_sk"):
+                    sk_file = f
+            peer_org_dict['sk_file'] = sk_file
+        except:
+            error_msg = 'create_userdashboard failed!.'
+            raise Exception(error_msg)
+
+        # use network model to get?
+        # network models only have org ids, no details needed
+        network_config = {'id': id, 'name': name, 'fabric_version': fabric_version,
+                          'peer_org_dict': peer_org_dict,
+                          'db_type': db_type}
+
+        t = Thread(target=self._update_network_for_addpeers, args=(network_config, request_host_ports))
+        t.start()
+
+        return self._schema(ins)
+
     def createyamlforneworgs(self, id, peer_orgs,orderer_orgs):
         ins = modelv2.BlockchainNetwork.objects.get(id=id)
 
@@ -625,30 +812,6 @@ class BlockchainNetworkHandler(object):
         networks = modelv2.BlockchainNetwork.objects(__raw__=filter_data)
         return self._schema(networks, many=True)
 
-    def get_node_cpuinfo(self, blockchain_network_id, node_name, filters):
-        network = self.get_by_id(blockchain_network_id)
-        host = network.host
-        node_object = modelv2.ServiceEndpoint.objects(network=network, service_name=node_name)[0]
-        result = self.host_agents[host.type].get_node_cpuinfo(network, node_object, filters)
-
-        return result
-
-    def get_node_meminfo(self, blockchain_network_id, node_name, filters):
-        network = self.get_by_id(blockchain_network_id)
-        host = network.host
-        node_object = modelv2.ServiceEndpoint.objects(network=network, service_name=node_name)[0]
-        result = self.host_agents[host.type].get_node_meminfo(network, node_object, filters)
-
-        return result
-
-    def get_node_netinfo(self, blockchain_network_id, node_name, filters):
-        network = self.get_by_id(blockchain_network_id)
-        host = network.host
-        node_object = modelv2.ServiceEndpoint.objects(network=network, service_name=node_name)[0]
-        result = self.host_agents[host.type].get_node_netinfo(network, node_object, filters)
-
-        return result
-
     def sys_channelInfo_update(self, blockchain_network_id, peer_org_dicts):
         service_object = self.get_endpoints_list(blockchain_network_id)
         organizations_object = org_handler.get_by_networkid(self, blockchain_network_id)
@@ -712,6 +875,40 @@ class BlockchainNetworkHandler(object):
             print("delete userdashboard Mongo datas success")
 
         return
+
+    def remove_network(self, network):
+        try:
+            network.update(set__status='deleting')
+            # remove cluster info from host
+            logger.info("remove network from host, network:{}".format(network.id))
+
+            # if org has referenced network, remove
+            for org_id in network.peer_orgs:
+                peer_org = org_handler().schema(org_handler().get_by_id(org_id))
+                host_id = peer_org['host_id']
+                host = host_handler.get_active_host_by_id(host_id)
+                host.update(pull__clusters=network.id)
+                org_obj = modelv2.Organization.objects.get(id=org_id)
+                org_obj.update(unset__network=network.id)
+
+            for org_id in network.orderer_orgs:
+                orderer_org = org_handler().schema(org_handler().get_by_id(org_id))
+                host_id = orderer_org['host_id']
+                host = host_handler.get_active_host_by_id(host_id)
+                host.update(pull__clusters=network.id)
+                org_obj = modelv2.Organization.objects.get(id=org_id)
+                org_obj.update(unset__network=network.id)
+
+            # 从Userdashboard的mongo中删除该network相关的数据
+            # self.userdashboard_mongo_delete(network.id)
+
+            network.delete()
+            filepath = '{}{}'.format(CELLO_MASTER_FABRIC_DIR, network.id)
+            os.system('rm -rf {}'.format(filepath))
+
+        except Exception as e:
+            logger.error("network remove failed for {}".format(e))
+            raise e
 
 
 

@@ -103,7 +103,7 @@ const FormItem = Form.Item;
 
 const ResizeableTitle = (props) => {
     const { onResize, width, ...restProps } = props;
-
+    
     if (!width) {
         return <th {...restProps} />;
     }
@@ -145,13 +145,13 @@ export default class LogList extends PureComponent {
         this.state = {
             visible: false,
             columns: [{
-                    title: intl.formatMessage(messages.colNumber),
-                    width: 20,
-                    render: (text, record, index) => (
-                        <Fragment>
-                            <a onClick={() => this.showDrawer(record)}>{`${index + 1}`}</a>
-                        </Fragment>),
-                },
+                title: intl.formatMessage(messages.colNumber),
+                width: 20,
+                render: (text, record, index) => (
+                    <Fragment>
+                        <a onClick={() => this.showDrawer(record)}>{`${index + 1}`}</a>
+                    </Fragment>),
+            },
                 {
                     title: intl.formatMessage(messages.colOpObject),
                     dataIndex: 'opObject',
@@ -198,7 +198,7 @@ export default class LogList extends PureComponent {
             endTime: '',
         }
     }
-
+    
     showDrawer = (row) => {
         Modal.info({
             title: intl.formatMessage(messages.detailTitle),
@@ -218,40 +218,40 @@ export default class LogList extends PureComponent {
             )
         });
     };
-
+    
     onClose = () => {
         this.setState({
             visible: false
         });
     };
-
+    
     components = {
         header: {
             cell: ResizeableTitle,
         },
     };
-
+    
     handleSearch = e => {
         e.preventDefault();
-
+        
         const { dispatch, form } = this.props;
-
+        
         form.validateFields((err, fieldsValue) => {
             if (err)
                 return;
-
+            
             const values = {
                 ...fieldsValue,
                 updatedAt: fieldsValue.updatedAt && fieldsValue.updatedAt.valueOf(),
             };
-
+            
             if (values.startTime >= values.endTime) {
                 Modal.warning({title: intl.formatMessage(messages.timeWarning)});
                 return;
             }
-
+            
             const reg = /^\s*|\s*$/g;
-
+            
             if (typeof(values.nameForSel) !== 'undefined') {
                 values.nameForSel = values.nameForSel.replace(reg, '');
             }
@@ -261,19 +261,19 @@ export default class LogList extends PureComponent {
             if (typeof(values.operatorForSel) !== 'undefined') {
                 values.operatorForSel = values.operatorForSel.replace(reg, '');
             }
-
+            
             const startTime = new Date(values.startTime);
             const endTime = new Date(values.endTime);
             values.STime = startTime.getTime();
             values.ETime = endTime.getTime();
-
+            
             dispatch({
                 type: 'loglist/fetch',
                 payload: values
             });
         });
     };
-
+    
     renderSimpleForm() {
         const { form, channelList, submitting } = this.props;
         const { getFieldDecorator } = form;
@@ -299,7 +299,7 @@ export default class LogList extends PureComponent {
                 <Row gutter={{ md: 8, lg: 24, xl: 48 }}>
                     <Col md={8} sm={24} >
                         <FormItem {...formItemLayout}
-                            label={intl.formatMessage(messages.startTime)}
+                                  label={intl.formatMessage(messages.startTime)}
                         >
                             {getFieldDecorator('startTime',{
                                 rules: [{
@@ -310,12 +310,12 @@ export default class LogList extends PureComponent {
                                 format='YYYY-MM-DD HH:mm:ss'
                                 style={{ minWidth: 'auto', width: '100%' }}
                                 showTime={{
-
+                                
                                 }}
                             />)}
                         </FormItem>
                         <FormItem {...formItemLayout}
-                            label={intl.formatMessage(messages.endTime)}
+                                  label={intl.formatMessage(messages.endTime)}
                         >
                             {getFieldDecorator('endTime',{
                                 rules: [{
@@ -326,26 +326,26 @@ export default class LogList extends PureComponent {
                                 style={{ minWidth: 'auto', width: '100%' }}
                                 format='YYYY-MM-DD HH:mm:ss'
                                 showTime={{
-
+                                
                                 }}
                             />)}
                         </FormItem>
                     </Col>
                     <Col md={8} sm={24} >
                         <FormItem {...formItemLayout}
-                            label={intl.formatMessage(messages.colOpObject)}
+                                  label={intl.formatMessage(messages.colOpObject)}
                         >
                             {getFieldDecorator('objectForSel')(<Input />)}
                         </FormItem>
                         <FormItem {...formItemLayout}
-                            label={intl.formatMessage(messages.colOpName)}
+                                  label={intl.formatMessage(messages.colOpName)}
                         >
                             {getFieldDecorator('nameForSel')(<Input />)}
                         </FormItem>
                     </Col>
                     <Col md={8} sm={24} >
                         <FormItem {...formItemLayout}
-                            label={intl.formatMessage(messages.colOperator)}
+                                  label={intl.formatMessage(messages.colOperator)}
                         >
                             {getFieldDecorator('operatorForSel')(<Input />)}
                         </FormItem>
@@ -360,11 +360,11 @@ export default class LogList extends PureComponent {
             </Form>
         );
     }
-
+    
     renderForm() {
         return this.renderSimpleForm();
     }
-
+    
     handleResize = index => (e, { size }) => {
         this.setState(({ columns }) => {
             const nextColumns = [...columns];
@@ -375,18 +375,18 @@ export default class LogList extends PureComponent {
             return { columns: nextColumns };
         });
     };
-
+    
     render() {
         const {
             loadingInfo,
             loglist : {logs},
         } = this.props;
-
+        
         const paginationProps = {
             showSizeChanger: true,
             showQuickJumper: true,
         };
-
+        
         const columns = this.state.columns.map((col, index) => ({
             ...col,
             onHeaderCell: column => ({
@@ -394,7 +394,7 @@ export default class LogList extends PureComponent {
                 onResize: this.handleResize(index)
             }),
         }));
-
+        
         return (
             <PageHeaderLayout
                 title={intl.formatMessage(messages.pageTitle)}

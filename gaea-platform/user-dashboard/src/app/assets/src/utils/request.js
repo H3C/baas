@@ -133,7 +133,7 @@ function checkStatus(response) {
  * @return {object}           An object containing either "data" or "err"
  */
 export default function request(url, options) {
-  const token = `JWT ${localStorage.getItem('gaea-token')}`;
+  const token = `JWT ${localStorage.getItem('cello-token')}`;
   const defaultOptions = {
     credentials: "include",
       headers: {

@@ -8,6 +8,7 @@ import {queryChainCode} from "../services/chaincode_api";
 import { queryTransactionRealtime, queryBlockByNumber, queryBlockByTime } from "../services/overview";
 import { IntlProvider, defineMessages } from 'react-intl';
 import {getLocale} from "../utils/utils";
+import moment from 'moment';
 
 const messages = defineMessages({
     nodeChannel: {
@@ -230,6 +231,7 @@ export default {
             }
 
             const txList = [];
+            let totalTx = 0;
             for (let i = 0;i < txs.transactions.length;i++) {
                 const time = new Date(txs.transactions[i].time);
     
@@ -237,14 +239,27 @@ export default {
                     time: time.getTime(),
                     count: txs.transactions[i].count,
                     type: `${txs.channelName} | ${payload.peerName}`
-                })
+                });
+                totalTx += txs.transactions[i].count;
+            }
+            
+            let tps = totalTx / ((txList[txList.length -1].time - txList[0].time ) / 1000 + 60);
+            
+            if (tps > 0) {
+                if (tps.toFixed(2) < 0.01) {
+                    tps = 'little';
+                }
+                else {
+                    tps = tps.toFixed(2);
+                }
             }
             yield put({
                 type: 'savetx',
                 payload: {
                     txList: txList,
                     peerName: payload.peerName,
-                    channel_id: payload.channel_id
+                    channel_id: payload.channel_id,
+                    tps: tps
                 },
             });
         },
@@ -263,6 +278,10 @@ export default {
 
             const blockInfo = {};
             const blocks = [];
+            let startTime = '';
+            let endTime = '';
+            let tps = -1;
+            let totalTx = 0;
 
             for (let i = 0;i < txs.blocks.length;i++) {
                 blocks.push({
@@ -273,6 +292,33 @@ export default {
                     txCount: txs.blocks[i].transaction.length,
                     txs: txs.blocks[i].transaction
                 });
+    
+                totalTx += txs.blocks[i].transaction.length;
+                for (let j = 0;j < txs.blocks[i].transaction.length;j++) {
+                    const txTime = moment(txs.blocks[i].transaction[j].time).format('YYYY-MM-DD HH:mm:ss');
+                    if ( startTime === '' || txTime < startTime) {
+                        startTime = txTime;
+                    }
+        
+                    if ( endTime === '' || txTime > endTime) {
+                        endTime = txTime;
+                    }
+                }
+    
+            }
+            if (endTime > startTime) {
+                try {
+                    tps = totalTx / (((new Date(endTime)).getTime() - (new Date(startTime)).getTime()) / 1000);
+                    if ( tps.toFixed(2) > 0 ) {
+                        tps = tps.toFixed(2);
+                    }
+                    else {
+                        tps = 'little';
+                    }
+                }
+                catch (e) {
+                    console.log(e.toString());
+                }
             }
 
             if (payload.type === '0') {
@@ -282,6 +328,7 @@ export default {
                 blockInfo.startTime = new Date(payload.startTime);
                 blockInfo.endTime = new Date(payload.endTime);
             }
+            blockInfo.tps = tps;
             blockInfo.type = payload.type;
             blockInfo.channel = payload.channel;
             blockInfo.blocks = blocks;
@@ -302,13 +349,41 @@ export default {
                 if (!blocks.success) {
                     return;
                 }
+                
+                let startTime = '';
+                let endTime = '';
+                let tps = -1;
 
                 for (let i = 0;i < blocks.blocks.length;i++) {
                     for (let j = 0;j < blocks.blocks[i].transaction.length;j++) {
                         txs.push(blocks.blocks[i].transaction[j]);
+                        const txTime = moment(blocks.blocks[i].transaction[j].time).format('YYYY-MM-DD HH:mm:ss');
+                        if ( startTime === '' || txTime < startTime) {
+                            startTime = txTime;
+                        }
+                        
+                        if ( endTime === '' || txTime > endTime) {
+                            endTime = txTime;
+                        }
+                    }
+                }
+                
+                if (endTime > startTime) {
+                    try {
+                        tps = txs.length / (((new Date(endTime)).getTime() - (new Date(startTime)).getTime()) / 1000);
+                        if ( tps.toFixed(2) > 0 ) {
+                            tps = tps.toFixed(2);
+                        }
+                        else {
+                            tps = 'little';
+                        }
+                    }
+                    catch (e) {
+                        console.log(e.toString());
                     }
                 }
 
+                res.tps = tps;
                 res.trans = txs;
                 res.channel = payload.channel;
                 res.type = payload.type;
@@ -321,13 +396,41 @@ export default {
                 if (!blocks.success) {
                     return;
                 }
+    
+                let startTime = '';
+                let endTime = '';
+                let tps = -1;
 
                 for (let i = 0;i < blocks.blocks.length;i++) {
                     for (let j = 0;j < blocks.blocks[i].transaction.length;j++) {
                         txs.push(blocks.blocks[i].transaction[j]);
+                        const txTime = moment(blocks.blocks[i].transaction[j].time).format('YYYY-MM-DD HH:mm:ss');
+                        if ( startTime === '' || txTime < startTime) {
+                            startTime = txTime;
+                        }
+    
+                        if ( endTime === '' || txTime > endTime) {
+                            endTime = txTime;
+                        }
                     }
                 }
-
+    
+                if (endTime > startTime) {
+                    try {
+                        tps = txs.length / (((new Date(endTime)).getTime() - (new Date(startTime)).getTime()) / 1000);
+                        if ( tps.toFixed(2) > 0 ) {
+                            tps = tps.toFixed(2);
+                        }
+                        else {
+                            tps = 'little';
+                        }
+                    }
+                    catch (e) {
+                        console.log(e.toString());
+                    }
+                }
+    
+                res.tps = tps;
                 res.trans = txs;
                 res.channel = payload.channel;
                 res.type = payload.type;

@@ -22,7 +22,7 @@ export async function createOrg(params) {
             method: 'POST',
             body: params,
         });
-
+        
         return res;
     }
     catch (e) {

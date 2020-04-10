@@ -32,6 +32,23 @@ class organizationHandler(object):
         org.save()
         return self._schema(org)
 
+    def update(self, id, peers_num):
+        ins = modelv2.Organization.objects.get(id=id)
+        if 'network' in ins:
+            network = ins['network']
+            networkid = network.id
+            try:
+                from .blockchain_network import BlockchainNetworkHandler
+                network_handler = BlockchainNetworkHandler()
+                network_handler.addpeertonetwork(networkid, id, peers_num)
+            except Exception:
+                logger.warning("addpeertonetwork faild=")
+                return None
+        exist_peers = ins['peerNum']
+        peerNum = exist_peers + peers_num
+        ins.update(set__peerNum=peerNum)
+
+        return ins
 
     def list(self, filter_data={}):
         """ List orgs with given criteria

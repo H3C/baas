@@ -73,7 +73,7 @@ class RequestOperatorService extends Service {
             };
         }
         const body = ctx.request.body;
-    
+        
         try {
             let orgUrl = `http://operator-dashboard:8071/api/user/${id}/changePassword`;
             orgResponse = await ctx.curl(orgUrl, {
@@ -92,7 +92,7 @@ class RequestOperatorService extends Service {
                 success: true,
                 data
             };
-    
+            
         }
         else {
             data = JSON.parse(orgResponse.data.toString());
@@ -100,7 +100,7 @@ class RequestOperatorService extends Service {
                 success: false,
                 data
             };
-    
+            
         }
     }
 }

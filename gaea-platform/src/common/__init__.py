@@ -3,9 +3,9 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 from .db import db
-from .response import make_ok_resp, make_fail_resp, make_ok_gaea_resp,CODE_NOT_FOUND, \
+from .response import make_ok_resp, make_fail_resp, make_ok_resp,CODE_NOT_FOUND, \
     CODE_BAD_REQUEST, CODE_CONFLICT, CODE_CREATED, CODE_FORBIDDEN, \
-    CODE_METHOD_NOT_ALLOWED, CODE_NO_CONTENT, CODE_NOT_ACCEPTABLE, CODE_OK
+    CODE_METHOD_NOT_ALLOWED, CODE_NO_CONTENT, CODE_NOT_ACCEPTABLE, CODE_OK, make_ok_my_resp
 
 from .log import log_handler, LOG_LEVEL
 from .utils import \

@@ -22,86 +22,86 @@ const { intl } = intlProvider.getChildContext();
 
 
 export default {
-  namespace: 'ChainCodeList',
-
-  state: {
-    chaincodes: [],
-  },
-
-  effects: {
-      *fetch({ payload }, { call, put }) {
-          const response = yield call(queryChainCode, payload);
-          const chainCodeResponse=response.chaincodes;   //链码列表
-          yield put({
-              type: 'save',
-              payload: response,
-          });
-      },
-
-    *install({ payload}, { call, put }) {
-        const response = yield call(installChainCode, payload);
-        message.success(intl.formatMessage(messages.success));
-        yield put(
-            routerRedux.push({
-                pathname: '/ChainCode/ChainCodeList',
-            })
-        );
-
-      },
-
-    *create({ payload}, { call, put }) {
-      const response = yield call(createChainCode, payload);
-      if (response && response.message === 'Ok') {
-        yield put(
-          routerRedux.push({
-            pathname: '/ChainCode/ChainCodeDetail',
-          })
-        );
-      }
+    namespace: 'ChainCodeList',
+    
+    state: {
+        chaincodes: [],
     },
-
-    *removeChainCode({ payload }, { call, put }) {
-      console.log('deleteCC');
-      console.log(payload);
-        const response = yield call(deleteChainCode, payload.id);
-      /*  const jsonResponse = JSON.parse(response);
-        if (jsonResponse.status === 'OK') {
-            const values = { name: payload.name };
-            message.success(intl.formatMessage(messages.operate.success.delete, values));
-        }  */
-        yield put({
-            type: 'fetch',
-        });
+    
+    effects: {
+        *fetch({ payload }, { call, put }) {
+            const response = yield call(queryChainCode, payload);
+            const chainCodeResponse=response.chaincodes;   //链码列表
+            yield put({
+                type: 'save',
+                payload: response,
+            });
+        },
+        
+        *install({ payload}, { call, put }) {
+            const response = yield call(installChainCode, payload);
+            message.success(intl.formatMessage(messages.success));
+            yield put(
+                routerRedux.push({
+                    pathname: '/ChainCode/ChainCodeList',
+                })
+            );
+            
+        },
+        
+        *create({ payload}, { call, put }) {
+            const response = yield call(createChainCode, payload);
+            if (response && response.message === 'Ok') {
+                yield put(
+                    routerRedux.push({
+                        pathname: '/ChainCode/ChainCodeDetail',
+                    })
+                );
+            }
+        },
+        
+        *removeChainCode({ payload }, { call, put }) {
+            console.log('deleteCC');
+            console.log(payload);
+            const response = yield call(deleteChainCode, payload.id);
+            /*  const jsonResponse = JSON.parse(response);
+              if (jsonResponse.status === 'OK') {
+                  const values = { name: payload.name };
+                  message.success(intl.formatMessage(messages.operate.success.delete, values));
+              }  */
+            yield put({
+                type: 'fetch',
+            });
+        },
+        
+        
+        *remove({ payload, callback }, { call, put }) {
+            const response = yield call(removeChainCode, payload);
+            yield put({
+                type: 'save',
+                payload: response,
+            });
+            if (callback) callback();
+        },
     },
-
-
-    *remove({ payload, callback }, { call, put }) {
-      const response = yield call(removeChainCode, payload);
-      yield put({
-        type: 'save',
-        payload: response,
-      });
-      if (callback) callback();
-    },
-  },
-
-
+    
+    
     *add({ payload, callback }, { call, put }) {
-      const response = yield call(addChainCode, payload);
-      yield put({
-        type: 'save',
-        payload: response,
-      });
-      if (callback) callback();
+        const response = yield call(addChainCode, payload);
+        yield put({
+            type: 'save',
+            payload: response,
+        });
+        if (callback) callback();
     },
-
-
-  reducers: {
-    save(state, action) {
-      return {
-        ...state,
-        chaincodes: action.payload,
-      };
+    
+    
+    reducers: {
+        save(state, action) {
+            return {
+                ...state,
+                chaincodes: action.payload,
+            };
+        },
     },
-  },
 };

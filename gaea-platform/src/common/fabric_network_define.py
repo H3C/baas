@@ -2,7 +2,6 @@
 
 import os
 import yaml
-from modules.blockchain_network import CELLO_MASTER_FABRIC_DIR,CELLO_SECRET_FOR_TOKEN_DIR
 from common.api_exception import BadRequest, NotFound
 import logging
 from common import log_handler, LOG_LEVEL
@@ -23,6 +22,8 @@ class FileOperaterFailed(Exception):
     description = (
         'File Operater Failed '
     )
+CELLO_MASTER_FABRIC_DIR = '/opt/fabric/'
+CELLO_SECRET_FOR_TOKEN_DIR = '/opt/secret/'
 
 def creat_secret_key_files():
     # if has exist, just return, if not, create them.
@@ -363,3 +364,41 @@ def update_dump_configtx_yaml_file(filepath, peer_org_dicts, orderer_org_dicts, 
 
     f.close()
     return
+
+def update_crypto_file_for_addpeers(filepath, peer_org_dict, peers_num):
+    filename = '{}/crypto-config.yaml'.format(filepath)
+
+    try:
+        f = open(filename)
+    except IOError:
+        error_msg = 'File open filed, can not open yaml file: {}.'.format(filename)
+        raise BadRequest(msg=error_msg)
+
+    try:
+        dataNetwork = yaml.load(f)
+        listPeer = dataNetwork['PeerOrgs']
+
+        for each_peer in listPeer:
+            if each_peer['Domain'] == '{}.{}'.format(peer_org_dict['name'], peer_org_dict['domain']):
+                peer_specs = each_peer['Specs']
+                peers_exist = len(peer_specs)
+                for i in range(peers_num):
+                    id  = peers_exist + i
+                    hostname = 'peer{}'.format(id)
+                    svc_name = '{}-{}'.format(hostname, peer_org_dict['name'])
+                    one_spec = dict(Hostname=hostname, SANS=[svc_name])
+                    peer_specs.append(one_spec)
+                break
+
+    except:
+        raise BadRequest(msg="cryptoconfit.yaml datas set error")
+
+
+    try:
+        f = open(filename,'w')
+        yaml.dump(dataNetwork,f)
+    except:
+        error_msg = 'Yaml file dump filed, can not write date to  yaml file: {}.'.format(filename)
+        raise BadRequest(msg=error_msg)
+
+    f.close()

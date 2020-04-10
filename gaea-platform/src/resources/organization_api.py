@@ -20,8 +20,8 @@ from modules import host_handler
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 from common import fabric_network_define,log_handler, LOG_LEVEL, \
-    make_ok_resp, make_fail_resp, \
-    CODE_CREATED, make_ok_gaea_resp, \
+    make_ok_my_resp, make_fail_resp, \
+    CODE_CREATED, make_ok_my_resp, \
     request_debug
 
 logger = logging.getLogger(__name__)
@@ -209,8 +209,7 @@ def organization_create():
                                   operator=operator,
                                   opDetails=opDetails)
 
-
-            return make_ok_gaea_resp('organization', result)
+            return make_ok_my_resp('organization', result)
         except Exception as e:
             error_msg = "internal server error"
             opResult['resDes'] = "ERROR"
@@ -261,7 +260,7 @@ def organization_create():
                                   operator=operator,
                                   opDetails=opDetails)
 
-            return make_ok_gaea_resp('organization', result)
+            return make_ok_my_resp('organization', result)
         except Exception as e:
             error_msg = "internal server error"
             op_log_handler.record_operating_log(
@@ -286,7 +285,7 @@ def organization_list():
     except:
         raise NotFound(msg='get organizations failed')
 
-    return make_ok_gaea_resp(resource='organizations',result=items)
+    return make_ok_my_resp(resource='organizations',result=items)
 
 @bp_organization_api.route('/organizations/<organization_id>', methods=['GET'])
 def organization_query(organization_id):
@@ -295,7 +294,7 @@ def organization_query(organization_id):
         result = org_handler().schema(org_handler().get_by_id(organization_id))
         logger.debug(result)
         if result:
-            return make_ok_gaea_resp(resource='organization',result=result)
+            return make_ok_my_resp(resource='organization',result=result)
         else:
             error_msg = "organization not found with id=" + organization_id
             logger.warning(error_msg)
@@ -304,29 +303,25 @@ def organization_query(organization_id):
         raise NotFound(msg='get organization failed')
 
 @bp_organization_api.route('/organizations/<organization_id>', methods=['PUT'])
-def organization_update():
+def organization_update(organization_id):
     request_debug(r, logger)
     if r.content_type.startswith("application/json"):
         body = dict(r.get_json(force=True, silent=True))
     else:
         body = r.form
-    if "id" not in body:
-        error_msg = "organization PUT without enough data"
-        logger.warning(error_msg)
-        raise BadRequest(msg=error_msg)
+
+    id = organization_id
+
+    peerNum = body["peerNum"]
+
+    result = org_handler().update(id, peerNum)
+    if result:
+        logger.debug("organization PUT successfully")
+        return make_ok_my_resp()
     else:
-        id, d = body["id"], {}
-        for k in body:
-            if k != "id":
-                d[k] = body.get(k)
-        result = org_handler().update(id, d)
-        if result:
-            logger.debug("organization PUT successfully")
-            return make_ok_resp()
-        else:
-            error_msg = "Failed to update organization {}".format(result.get("name"))
-            logger.warning(error_msg)
-            return make_fail_resp(error=error_msg)
+        error_msg = "Failed to update organization {}".format(result.get("name"))
+        logger.warning(error_msg)
+        return make_fail_resp(error=error_msg)
 
 @bp_organization_api.route('/organizations/<organization_id>', methods=['DELETE'])
 def organization_delete(organization_id):
@@ -391,8 +386,7 @@ def organization_delete(organization_id):
                               operator=operator,
                               opDetails=opDetails)
 
-
-        return make_ok_gaea_resp(resource='delete success!',result={})
+        return make_ok_my_resp(resource='delete success!',result={})
     else:
         error_msg = "Failed to delete organization {}".format(organization_id)
         logger.warning(error_msg)

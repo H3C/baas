@@ -19,9 +19,9 @@ class K8sNetworkOperation():
     """
     def __init__(self, kube_config):
         client.Configuration.set_default(kube_config)
-        self.extendv1client = client.ExtensionsV1beta1Api()
+        self.extendv1client = client.AppsV1Api()
         self.corev1client = client.CoreV1Api()
-        self.appv1beta1client = client.AppsV1beta1Api()
+        self.appv1beta1client = client.AppsV1Api()
         self.support_namespace = ['Deployment', 'Service',
                                   'PersistentVolumeClaim', 'StatefulSet', 'ConfigMap']
         self.create_func_dict = {

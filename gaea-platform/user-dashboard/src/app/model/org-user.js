@@ -20,6 +20,7 @@ module.exports = app => {
     information: { type: Array },
     expiration_date: { type: String },
     caVersion: { type: String },
+    SSOUser: {type: String}
   });
 
   return mongoose.model('OrgUser', OrgUserSchema);

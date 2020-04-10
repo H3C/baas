@@ -3,7 +3,6 @@ const path = require('path');
 const Enum = require('enum');
 
 // in fact, "apiBaseUrl" and "operator" is not
-// used in gaea, so its value is not cared
 // keep it for cell's old code
 const apiBaseUrl = `http://operator-dashboard:8071/api`;
 module.exports = appInfo => {
@@ -92,17 +91,9 @@ module.exports = appInfo => {
 
   config.jwt = {
     enable: true,
-    ignore: ['/login','/v2/token','/v2/sys_channel','/v2/sys_channel_orderer','/logout','/public/','/v2/resources'], //哪些请求不需要认证
+    ignore: ['/login','/v2/token','/v2/sys_channel','/v2/sys_channel_orderer','/logout','/public/','/v2/resources', '/v2/channels/:channel_id/appOperation'], //哪些请求不需要认证
   };
 
- // config.redis = {
- //   client: {
- //     port: 6379,
- //     host: '127.0.0.1',
- //     password: 'gaearedis',
- //     db: 0,
- //   }
- // }
 
   return config;
 };

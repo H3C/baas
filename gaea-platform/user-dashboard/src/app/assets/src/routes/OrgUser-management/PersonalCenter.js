@@ -85,7 +85,7 @@ export default class PersonalCenter extends PureComponent {
         btnEditMsg: intl.formatMessage(messages.btnEdit),
         bChange: false
     };
-
+    
     componentDidMount() {
         const { dispatch } = this.props;
         dispatch({
@@ -95,7 +95,7 @@ export default class PersonalCenter extends PureComponent {
             }
         });
     }
-
+    
     Detail( title, fun, value, edit ){
         let val = value;
         if (edit) {

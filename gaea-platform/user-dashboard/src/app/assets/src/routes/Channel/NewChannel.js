@@ -88,13 +88,13 @@ const { Option } = Select;
 }))
 @Form.create()
 export default class NewChannel extends PureComponent {
-
+    
     componentWillMount() {
         this.props.dispatch({
             type: 'organization/fetch',      // 获取创建通道时各个字段的选项信息
         });
     }
-
+    
     clickCancel = () => {
         this.props.dispatch(
             routerRedux.push({
@@ -102,7 +102,7 @@ export default class NewChannel extends PureComponent {
             })
         );
     };
-
+    
     handleSubmit = e => {
         e.preventDefault();
         this.props.form.validateFieldsAndScroll({ force: true }, (err, values) => {
@@ -113,7 +113,7 @@ export default class NewChannel extends PureComponent {
                     "orderer_url": values.orderer_url,
                     "peer_orgs": values.peer_orgs,
                 };
-
+                
                 this.props.dispatch({
                     type: 'ChannelList/create',
                     payload: {
@@ -121,133 +121,133 @@ export default class NewChannel extends PureComponent {
                         callback: this.submitCallback,
                     },
                 });
-       //     window.history.back();
+                //     window.history.back();
             }
         });
     };
-
-/*static contextTypes = {
-    routes: PropTypes.array,
-    params: PropTypes.object,
-    location: PropTypes.object,
-};  */
-
-  render() {
-    const {
-        organization : {organization},
-        submitting,
+    
+    /*static contextTypes = {
+        routes: PropTypes.array,
+        params: PropTypes.object,
+        location: PropTypes.object,
+    };  */
+    
+    render() {
+        const {
+            organization : {organization},
+            submitting,
         }=this.props;
-    const {getFieldDecorator} = this.props.form;
-
-    const formItemLayout = {
-        labelCol: {
-            xs: {span: 24},
-            sm: {span: 7},
-        },
-        wrapperCol: {
-            xs: {span: 24},
-            sm: {span: 12},
-            md: {span: 10},
-        },
-    };
-
-      const submitFormLayout = {
-          wrapperCol: {
-              xs: {span: 24, offset: 0},
-              sm: {span: 10, offset: 14},
-          },
-      };
-
-      const orgs = Array.isArray(organization.organizations) ? organization.organizations : [];  // 从8080后台获取到的组织列表
-      const peerorgs = orgs.filter(orgItem => (orgItem.type === 'peer' ));   //筛选出peer类型的组织
-      const orgpeerOptions = peerorgs.map(peerorg => (     // 将peer组织数组映射成选项
-          <Option key={peerorg.id} value={peerorg.id}>
-              <span>{peerorg.name}</span>
-          </Option>
-      ));
-
-      const ordererorgs = orgs.filter(orgItem => (orgItem.type === 'orderer'));  //筛选出orderer类型的组织
-      const orgordererOptions = ordererorgs.map(ordererorg => (        //将orderer组织数组映射成选项  value值传递时需要带domain信息
-          <Option key={ordererorg.id} value={ordererorg.ordererHostnames[0] +'.'+ ordererorg.domain}>
-              <span>{ordererorg.name}</span>
-          </Option>
-      ));
-
-
-    return (
-        <PageHeaderLayout
-            title={intl.formatMessage(messages.pageTitle)}
-            content={intl.formatMessage(messages.pageDesc)}
-            logo={<Icon type="share-alt" style={{fontSize: 30, color: '#722ed1'}} />}
-        >
-            <Card bordered={false}>
-                <Form onSubmit={this.handleSubmit} hideRequiredMark style={{marginTop: 8}}>
-                    <FormItem
-                        {...formItemLayout}
-                        label={intl.formatMessage(messages.labelName)}
-                        extra={intl.formatMessage(messages.labelNameRule)}
-                    >
-                        {getFieldDecorator('name', {
-                            rules: [{required: true,
-                                     pattern: new RegExp("^[a-z][\\da-z-]*$"),
-                                     message: intl.formatMessage(messages.labelNameWarning)}],
-                        })(<Input style={{maxWidth: 515, width: '100%'}} placeholder={intl.formatMessage(messages.labelNameInfo)}/>)}
-                    </FormItem>
-                    <FormItem {...formItemLayout}
-                              label={<span>
+        const {getFieldDecorator} = this.props.form;
+        
+        const formItemLayout = {
+            labelCol: {
+                xs: {span: 24},
+                sm: {span: 7},
+            },
+            wrapperCol: {
+                xs: {span: 24},
+                sm: {span: 12},
+                md: {span: 10},
+            },
+        };
+        
+        const submitFormLayout = {
+            wrapperCol: {
+                xs: {span: 24, offset: 0},
+                sm: {span: 10, offset: 14},
+            },
+        };
+        
+        const orgs = Array.isArray(organization.organizations) ? organization.organizations : [];  // 从8080后台获取到的组织列表
+        const peerorgs = orgs.filter(orgItem => (orgItem.type === 'peer' ));   //筛选出peer类型的组织
+        const orgpeerOptions = peerorgs.map(peerorg => (     // 将peer组织数组映射成选项
+            <Option key={peerorg.id} value={peerorg.id}>
+                <span>{peerorg.name}</span>
+            </Option>
+        ));
+        
+        const ordererorgs = orgs.filter(orgItem => (orgItem.type === 'orderer'));  //筛选出orderer类型的组织
+        const orgordererOptions = ordererorgs.map(ordererorg => (        //将orderer组织数组映射成选项  value值传递时需要带domain信息
+            <Option key={ordererorg.id} value={ordererorg.ordererHostnames[0] +'.'+ ordererorg.domain}>
+                <span>{ordererorg.name}</span>
+            </Option>
+        ));
+        
+        
+        return (
+            <PageHeaderLayout
+                title={intl.formatMessage(messages.pageTitle)}
+                content={intl.formatMessage(messages.pageDesc)}
+                logo={<Icon type="share-alt" style={{fontSize: 30, color: '#722ed1'}} />}
+            >
+                <Card bordered={false}>
+                    <Form onSubmit={this.handleSubmit} hideRequiredMark style={{marginTop: 8}}>
+                        <FormItem
+                            {...formItemLayout}
+                            label={intl.formatMessage(messages.labelName)}
+                            extra={intl.formatMessage(messages.labelNameRule)}
+                        >
+                            {getFieldDecorator('name', {
+                                rules: [{required: true,
+                                    pattern: new RegExp("^[a-z][\\da-z-]*$"),
+                                    message: intl.formatMessage(messages.labelNameWarning)}],
+                            })(<Input style={{maxWidth: 515, width: '100%'}} placeholder={intl.formatMessage(messages.labelNameInfo)}/>)}
+                        </FormItem>
+                        <FormItem {...formItemLayout}
+                                  label={<span>
                                   {intl.formatMessage(messages.labelDesc)}
-                                <em className={styles.optional}>
+                                      <em className={styles.optional}>
                                     {intl.formatMessage(messages.labelOption)}
                                 </em>
                               </span>}
-                    >
-                        {getFieldDecorator('description', {
-                            initialValue: '',
-                            rules: [{required: false, message: 'Please input some description...'}],
-                        })(<Input style={{maxWidth: 515, width: '100%'}} placeholder={intl.formatMessage(messages.labelDescInfo)} />)}
-                    </FormItem>
-                    <FormItem {...formItemLayout} label={intl.formatMessage(messages.labelOrderOrg)} >
-                        {getFieldDecorator('orderer_url', {
-                            initialValue: '',
-                            rules: [
-                                {
-                                    required: true,
-                                    message: intl.formatMessage(messages.labelOrderOrgWarning),
-                                },
-                            ],
-                        })(
-                            <Select>
-                                {orgordererOptions}
-                            </Select >
-                        )}
-                    </FormItem>
-                    <FormItem {...formItemLayout} label={intl.formatMessage(messages.labelPeerOrg)}>
-                        {getFieldDecorator('peer_orgs', {
-                            rules: [
-                                {
-                                    required: true,
-                                    message: intl.formatMessage(messages.labelPeerOrgWarning),
-                                },
-                            ],
-                        })(
-                            <Select mode="multiple">
-                                {orgpeerOptions}
-                            </Select>
-                        )}
-                    </FormItem>
-                    <FormItem {...submitFormLayout} style={{marginTop: 32}}>
-                        <Button onClick={this.clickCancel}>
-                            {intl.formatMessage(messages.buttonCancel)}
-                        </Button>
-                        <Button loading={submitting} type="primary" htmlType="submit" style={{marginLeft: 10}}>
-                            {intl.formatMessage(messages.buttonOk)}
-                        </Button>
-                    </FormItem>
-                </Form>
-            </Card>
-        </PageHeaderLayout>
-    );
-  };
+                        >
+                            {getFieldDecorator('description', {
+                                initialValue: '',
+                                rules: [{required: false, message: 'Please input some description...'}],
+                            })(<Input style={{maxWidth: 515, width: '100%'}} placeholder={intl.formatMessage(messages.labelDescInfo)} />)}
+                        </FormItem>
+                        <FormItem {...formItemLayout} label={intl.formatMessage(messages.labelOrderOrg)} >
+                            {getFieldDecorator('orderer_url', {
+                                initialValue: '',
+                                rules: [
+                                    {
+                                        required: true,
+                                        message: intl.formatMessage(messages.labelOrderOrgWarning),
+                                    },
+                                ],
+                            })(
+                                <Select>
+                                    {orgordererOptions}
+                                </Select >
+                            )}
+                        </FormItem>
+                        <FormItem {...formItemLayout} label={intl.formatMessage(messages.labelPeerOrg)}>
+                            {getFieldDecorator('peer_orgs', {
+                                rules: [
+                                    {
+                                        required: true,
+                                        message: intl.formatMessage(messages.labelPeerOrgWarning),
+                                    },
+                                ],
+                            })(
+                                <Select mode="multiple">
+                                    {orgpeerOptions}
+                                </Select>
+                            )}
+                        </FormItem>
+                        <FormItem {...submitFormLayout} style={{marginTop: 32}}>
+                            <Button onClick={this.clickCancel}>
+                                {intl.formatMessage(messages.buttonCancel)}
+                            </Button>
+                            <Button loading={submitting} type="primary" htmlType="submit" style={{marginLeft: 10}}>
+                                {intl.formatMessage(messages.buttonOk)}
+                            </Button>
+                        </FormItem>
+                    </Form>
+                </Card>
+            </PageHeaderLayout>
+        );
+    };
 }
 
 

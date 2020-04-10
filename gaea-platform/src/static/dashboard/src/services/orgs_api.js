@@ -12,10 +12,10 @@ export async function queryOrgByName(params) {
 export async function createOrg(params) {
     try {
         const res = request('/v2/organizations', {
-                method: 'POST',
-                body: params,
-            });
-
+            method: 'POST',
+            body: params,
+        });
+        
         return res;
     }
     catch (e) {
@@ -45,4 +45,11 @@ export async function searchOrgById(params) {
 
 export async function searchOrgByName(params) {
     return request(`/api/search_org?${stringify(params)}`);
+}
+
+export async function appendPeer(params) {
+    return request(`/v2/organizations/${params.organization_id}`, {
+        method:'PUT',
+        body: params.peerNum,
+    });
 }

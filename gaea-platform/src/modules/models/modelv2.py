@@ -36,6 +36,7 @@ class ServiceEndpoint(Document):
     service_type = StringField(choices=FABRIC_SERVICE_TYPE)
     peer_port_proto = StringField(default="")
     org_name = StringField(default="")
+    healthy = BooleanField(default=False)
     network = ReferenceField(BlockchainNetwork, reverse_delete_rule=CASCADE)
 
 class ServiceEndpointSchema(Schema):
@@ -46,6 +47,7 @@ class ServiceEndpointSchema(Schema):
     service_type = fields.String()
     peer_port_proto = fields.String()
     org_name = fields.String()
+    healthy = fields.Boolean()
 
 class BlockchainNetworkSchema(Schema):
     id = fields.String()
@@ -60,7 +62,6 @@ class BlockchainNetworkSchema(Schema):
     consensus_type = fields.String()
     status = fields.String()
     db_type = fields.String()
-
 
     def get_host_id(self, network):
         return str(network.host.id)
@@ -119,80 +120,6 @@ class OperatorLogSchema(Schema):
     opResult = fields.Dict()
     operator = fields.String()
     opDetails = fields.Dict()
-
-#license_check
-class LicenseInfo(Document):
-    # id = StringField(required=True, primary_key=True)
-    id = IntField(required=True)
-    total = IntField(required=True)
-    used_num = IntField(required=True)
-
-#license_check
-class LicenseInfoSchema(Schema):
-    # id = fields.String()
-    id = fields.Integer()
-    total = fields.Integer()
-    used_num = fields.Integer()
-
-#license_check
-class LicenseUserInfo(Document):
-    # id = StringField(required=True, primary_key=True)
-    total = IntField(required=True)
-    used_num = IntField(required=True)
-    username = StringField(required=True)
-    password = StringField(required=True)
-    ip = StringField(required=True)
-    port = IntField(required=True)
-
-#license_check
-class LicenseUserInfoSchema(Schema):
-    # id = fields.String()
-    total = fields.Integer()
-    used_num = fields.Integer()
-    username = fields.String()
-    password = fields.String()
-    ip = fields.String()
-    port = fields.Integer()
-
-#license_check
-class LicenseUserInfos(Document):
-    # id = StringField(required=True, primary_key=True)
-    total = IntField(required=True)
-    used_num = IntField(required=True)
-    username = StringField(required=True)
-    password = StringField(required=True)
-    ip = StringField(required=True)
-    port = IntField(required=True)
-    userRand = StringField(required=True)
-    licMRand = StringField(required=True)
-    flag = IntField(required=True)
-    token = StringField(required=True)
-    uid = StringField(required=True)
-    sn = DictField(default={})
-
-#license_check
-class LicenseUserInfosSchema(Schema):
-    # id = fields.String()
-    total = fields.Integer()
-    used_num = fields.Integer()
-    username = fields.String()
-    password = fields.String()
-    ip = fields.String()
-    port = fields.Integer()
-    userRand = fields.String()
-    licMRand = fields.String()
-    flag = fields.Integer()
-    token = fields.String()
-    uid = fields.String()
-    sn = fields.Dict()
-
-
-
-
-
-
-
-
 
 
 

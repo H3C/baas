@@ -5,11 +5,11 @@ import request from '../utils/request';
 
 export async function queryChannels() {
     return request('/v2/channels', {method:'GET'});
- //   return request(`/api/getChannel?${stringify(params)}`);
+    //   return request(`/api/getChannel?${stringify(params)}`);
 }
 
 export async function queryOneChannel(params) {
-
+    
     return request(`/v2/channels/${params}`, {method:'GET'});
 }
 

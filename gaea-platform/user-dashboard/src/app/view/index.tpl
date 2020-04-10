@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Gaea User Dashboard</title>
+    <title>Cello User Dashboard</title>
     <link type="text/css" rel="stylesheet" href="{{webRoot}}static/index.css">
     <link rel="icon" type="image/x-icon" href="{{webRoot}}static/logo.ico" />
 </head>
@@ -12,7 +12,7 @@
   window.webRoot = "{{webRoot}}";
   window.csrf = "{{ ctx.csrf |  safe }}";
   localStorage.setItem('cello-authority', "{{ authority }}");
-  localStorage.setItem('gaea-token', "{{ token }}");
+  localStorage.setItem('cello-token', "{{ token }}");
   window.id = "{{ id }}";
   window.username = "{{ username }}";
 </script>

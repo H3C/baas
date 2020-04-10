@@ -85,7 +85,7 @@ const { intl } = intlProvider.getChildContext();
 
 const ResizeableTitle = (props) => {
     const { onResize, width, ...restProps } = props;
-
+    
     if (!width) {
         return <th {...restProps} />;
     }
@@ -116,90 +116,90 @@ export default class ChannelList extends PureComponent {
             width: 100,
             render: val => <Ellipsis tooltip lines={1}>{val}</Ellipsis>
         },
-          /*  {
-                title: '通道ID',
-                dataIndex: 'id',
-                key: 'id',
-                width: 180,
-                defaultSortOrder: 'descend',
-                sorter: (a, b) => a.id- b.id,
-            },  */
-            {
-                title: intl.formatMessage(messages.colChannel),
-                dataIndex: 'name',
-                key: 'name',
-                width: 120,
-                defaultSortOrder: 'descend',
-                sorter: (a, b) => a.name.length - b.name.length,
-                render: val => <Ellipsis tooltip lines={1}>{val}</Ellipsis>,
-            },
-            {
-                title: intl.formatMessage(messages.colDescription),
-                dataIndex: 'description',
-                width: 120,
-                render: val => <Ellipsis tooltip lines={1}>{val}</Ellipsis>,
-            },
-            {
-                title: intl.formatMessage(messages.colPeerOrgNum),
-                dataIndex: 'peer_orgs',
-                key: 'peer_orgs',
-                width: 80,
-                defaultSortOrder: 'descend',
-                sorter: (a, b) => a.peer_orgs.length - b.peer_orgs.length,
-                render: val => <Ellipsis tooltip lines={1}>{val.length}</Ellipsis>,
-            },
-            {
-                title: intl.formatMessage(messages.colNodeNum),
-                dataIndex: 'peer_num',
-                width: 80,
-                defaultSortOrder: 'descend',
-                sorter: (a, b) => a.peer_num - b.peer_num,
-                render: val => <Ellipsis lines={1}>{val}</Ellipsis>,
-            },
-
             /*  {
-                  title: '创建者',
-                  dataIndex: 'creator_id',
-                  width: 100,
-                  sorter: (a, b) => a.create_name - b.create_name,
-                  render: val => <Ellipsis tooltip lines={1}>{val}</Ellipsis>,
-              },
-              {
-                  title: '创建时间',
-                  dataIndex: 'create_time',
-                  width: 100,
-                  sorter: (a, b) => a.create_time - b.create_time,
-                  render: val => <span>{moment(val).format('YYYY-MM-DD HH:mm:ss')}</span>,
-              }, */
-            {
-                title: intl.formatMessage(messages.colOperation),
-                width: 250,
-                render: (row) => (
-                    <Fragment>
-                        <a   onClick={() => this.onChannelDetail(row)}>{intl.formatMessage(messages.linkDetail)}</a>
-                        {window.localStorage["cello-authority"] === "operator" ? "" :
-                            <nobr>
-                                <Divider type="vertical"/>
-                                <a onClick={() => this.onAddPeer(row)}>{intl.formatMessage(messages.linkAddPeer)}</a>
-                                <Divider type="vertical"/>
-                                <a onClick={() => this.onAddOrg(row)}>{intl.formatMessage(messages.linkAddOrg)}</a>
-                                <Divider type="vertical"/>
-                                <a onClick={() => this.onLeaveChannel(row)}>{intl.formatMessage(messages.linkLeaveChannel)}</a>
-                            </nobr>
-                        }
-                    </Fragment>
-                ),
-            }],
+                  title: '通道ID',
+                  dataIndex: 'id',
+                  key: 'id',
+                  width: 180,
+                  defaultSortOrder: 'descend',
+                  sorter: (a, b) => a.id- b.id,
+              },  */
+        {
+            title: intl.formatMessage(messages.colChannel),
+            dataIndex: 'name',
+            key: 'name',
+            width: 120,
+            defaultSortOrder: 'descend',
+            sorter: (a, b) => a.name.length - b.name.length,
+            render: val => <Ellipsis tooltip lines={1}>{val}</Ellipsis>,
+        },
+        {
+            title: intl.formatMessage(messages.colDescription),
+            dataIndex: 'description',
+            width: 120,
+            render: val => <Ellipsis tooltip lines={1}>{val}</Ellipsis>,
+        },
+        {
+            title: intl.formatMessage(messages.colPeerOrgNum),
+            dataIndex: 'peer_orgs',
+            key: 'peer_orgs',
+            width: 80,
+            defaultSortOrder: 'descend',
+            sorter: (a, b) => a.peer_orgs.length - b.peer_orgs.length,
+            render: val => <Ellipsis tooltip lines={1}>{val.length}</Ellipsis>,
+        },
+        {
+            title: intl.formatMessage(messages.colNodeNum),
+            dataIndex: 'peer_num',
+            width: 80,
+            defaultSortOrder: 'descend',
+            sorter: (a, b) => a.peer_num - b.peer_num,
+            render: val => <Ellipsis lines={1}>{val}</Ellipsis>,
+        },
+        
+        /*  {
+              title: '创建者',
+              dataIndex: 'creator_id',
+              width: 100,
+              sorter: (a, b) => a.create_name - b.create_name,
+              render: val => <Ellipsis tooltip lines={1}>{val}</Ellipsis>,
+          },
+          {
+              title: '创建时间',
+              dataIndex: 'create_time',
+              width: 100,
+              sorter: (a, b) => a.create_time - b.create_time,
+              render: val => <span>{moment(val).format('YYYY-MM-DD HH:mm:ss')}</span>,
+        }, */
+        {
+            title: intl.formatMessage(messages.colOperation),
+            width: 250,
+            render: (row) => (
+                <Fragment>
+                    <a   onClick={() => this.onChannelDetail(row)}>{intl.formatMessage(messages.linkDetail)}</a>
+                    {window.localStorage["cello-authority"] === "operator" ? "" :
+                        <nobr>
+                            <Divider type="vertical"/>
+                            <a onClick={() => this.onAddPeer(row)}>{intl.formatMessage(messages.linkAddPeer)}</a>
+                            <Divider type="vertical"/>
+                            <a onClick={() => this.onAddOrg(row)}>{intl.formatMessage(messages.linkAddOrg)}</a>
+                            <Divider type="vertical"/>
+                            <a onClick={() => this.onLeaveChannel(row)}>{intl.formatMessage(messages.linkLeaveChannel)}</a>
+                        </nobr>
+                    }
+                </Fragment>
+            ),
+        }],
     };
-
-
+    
+    
     componentDidMount() {
-             const { dispatch } = this.props;
-             dispatch({
-                 type: 'ChannelList/fetch',
-             });
+        const { dispatch } = this.props;
+        dispatch({
+            type: 'ChannelList/fetch',
+        });
     }
-
+    
     onChannelDetail =(row) => {
         this.props.dispatch(
             routerRedux.push({
@@ -207,11 +207,11 @@ export default class ChannelList extends PureComponent {
                 search: stringify({
                     id: row.id,
                 })
-
+                
             })
         )
     };
-
+    
     onAddOrg =(row) => {
         this.props.dispatch(
             routerRedux.push({
@@ -219,7 +219,7 @@ export default class ChannelList extends PureComponent {
                 search: stringify({
                     id: row.id,
                 })
-
+                
             })
         )
     };
@@ -234,7 +234,7 @@ export default class ChannelList extends PureComponent {
             })
         )
     };
-
+    
     onAddPeer =(row) => {
         this.props.dispatch(
             routerRedux.push({
@@ -245,22 +245,22 @@ export default class ChannelList extends PureComponent {
             })
         )
     };
-
-
+    
+    
     handleFormReset = () => {
         const { dispatch } = this.props;
         dispatch({
             type: 'ChannelList/fetch',
         });
     };
-
+    
     /* handleSelectRows = rows => {
        this.setState({
          selectedRows: rows,
        });
      };  */
-
-
+    
+    
     onAddNewChannel = () =>{
         this.props.dispatch(
             routerRedux.push({
@@ -268,13 +268,13 @@ export default class ChannelList extends PureComponent {
             })
         )
     };
-
+    
     components = {
         header: {
             cell: ResizeableTitle,
         },
     };
-
+    
     handleResize = index => (e, { size }) => {
         this.setState(({ columns }) => {
             const nextColumns = [...columns];
@@ -285,20 +285,20 @@ export default class ChannelList extends PureComponent {
             return { columns: nextColumns };
         });
     };
-
-
+    
+    
     render() {
         const {
             ChannelList: { channels },
             loading,
         } = this.props;
-
+        
         const paginationProps = {
             showSizeChanger: true,
             showQuickJumper: true,
         };
-
-
+        
+        
         const columns = this.state.columns.map((col, index) => ({
             ...col,
             onHeaderCell: column => ({
@@ -306,9 +306,9 @@ export default class ChannelList extends PureComponent {
                 onResize: this.handleResize(index),
             }),
         }));
-
-      //  console.log(channels);
-
+        
+        //  console.log(channels);
+        
         return (
             <PageHeaderLayout title={intl.formatMessage(messages.pageTitle)}
                               content={intl.formatMessage(messages.pageDesc)}
@@ -338,7 +338,7 @@ export default class ChannelList extends PureComponent {
                 </Card>
             </PageHeaderLayout>
         );
-
+        
     }
-
+    
 }

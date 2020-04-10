@@ -3,9 +3,9 @@ import request from '../utils/request';
 
 
 export async function queryChannelPeers(params) {
-   // console.log(232323232);
-   // console.log(`/v2/peers?channel_${stringify(params)}`);
-   // console.log(232323232);
+    // console.log(232323232);
+    // console.log(`/v2/peers?channel_${stringify(params)}`);
+    // console.log(232323232);
     return request(`/v2/peers?channel_${stringify(params)}`,{method:'GET'});
 //    return request(`/api/getChannelDetail?${stringify(params)}`);
 }

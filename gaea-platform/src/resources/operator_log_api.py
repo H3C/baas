@@ -3,7 +3,7 @@ import logging
 from modules.operator_log import OperatorLogHandler
 from uuid import uuid4
 from common import log_handler, LOG_LEVEL, \
-    CODE_CREATED, make_ok_gaea_resp, \
+    CODE_CREATED, make_ok_my_resp, \
     request_debug
 from flask import Blueprint
 from flask import request as r
@@ -48,7 +48,7 @@ def operator_log_create():
                                        operator = operator,
                                        opDetails = opDetails)
 
-        return make_ok_gaea_resp(resource='operator_log', result=op_log)
+        return make_ok_my_resp(resource='operator_log', result=op_log)
     except Exception as e:
         msg = "operator_log create failed, error is  {e}, method is {m}".format(e=e, m=opName)
         logger.error(msg)
@@ -84,4 +84,4 @@ def operator_log_list():
     except:
         raise NotFound(msg='get operation logs failed')
 
-    return make_ok_gaea_resp(resource='operator_logs', result=items)
+    return make_ok_my_resp(resource='operator_logs', result=items)
