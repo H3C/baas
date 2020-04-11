@@ -1,10 +1,11 @@
-h3c baas system:
+﻿h3c baas system:
 
 编译方法：
 
 make docker
 
-启动方法 make start
+启动方法
+make start
 
 使用方法:
 
