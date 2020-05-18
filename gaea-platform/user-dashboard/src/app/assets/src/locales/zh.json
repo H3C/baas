@@ -16,7 +16,7 @@
   "Menu.ChainCode": "链码管理",
   "Menu.UserManagement": "用户管理",
   "Menu.LogManagement": "日志管理",
-  "Guide.Description": "使用向导帮助您使用Cello系统开展区块链业务。",
+  "Guide.Description": "使用向导帮助您使用Gaea系统开展区块链业务。",
   "Guide.ContentTitle": "开展区块链业务流程",
   "Guide.ChannelMenu": "1、创建通道",
   "Guide.ChannelContent": "通道是区块链中各组织间开展业务的载体。",

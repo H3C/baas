@@ -16,7 +16,7 @@
   "Menu.ChainCode": "ChainCode Management",
   "Menu.UserManagement": "User Management",
   "Menu.LogManagement": "Log Management",
-  "Guide.Description": "The Guide help you use the Cello system for block chain business.",
+  "Guide.Description": "The Guide help you use the Gaea system for block chain business.",
   "Guide.ContentTitle": "Block Chain Business Process",
   "Guide.ChannelMenu": "1.Create Channel",
   "Guide.ChannelContent": "Channels are the basis of inter-organizational business in block chains.",

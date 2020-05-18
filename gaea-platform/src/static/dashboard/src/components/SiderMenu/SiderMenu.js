@@ -241,7 +241,7 @@ export default class SiderMenu extends PureComponent {
                 <div className={styles.logo} key="logo">
                     <Link to="/">
                         <img src={logo} alt="logo" />
-                        <h1>Cello Operator</h1>
+                        <h1>Gaea Operator</h1>
                     </Link>
                     <h4>{intl.formatMessage(messages.menus.systemName)}</h4>
                 </div>

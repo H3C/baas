@@ -5,6 +5,6 @@
 #
 from .version import version, author
 
-__title__ = 'Cello'
+__title__ = 'Gaea'
 __version__ = version
 __author__ = author

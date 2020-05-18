@@ -4,21 +4,21 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 #
-# Local `/opt/cello/mongo` will be used for the db storage.
+# Local `/opt/gaea/mongo` will be used for the db storage.
 
-#  cello-nginx: proxy to access operator dashboard service, listen on 8080
-#  cello-operator-dashboard: dashboard service for operators
-#  cello-user-dashboard: user service of cello, listen on 8081
-#  engine: engine service of cello to provide RESTful APIs, listen on 80
-#  cello-mongo: mongo db
+#  gaea-nginx: proxy to access operator dashboard service, listen on 8080
+#  gaea-operator-dashboard: dashboard service for operators
+#  gaea-user-dashboard: user service of gaea, listen on 8081
+#  engine: engine service of gaea to provide RESTful APIs, listen on 80
+#  gaea-mongo: mongo db
 
 version: '3.2'
 services:
   # nginx as front end for the services, disable now
   #nginx:
-  #  image: hyperledger/cello-nginx
-  #  hostname: cello-nginx
-  #  container_name: cello-nginx
+  #  image: hyperledger/gaea-nginx
+  #  hostname: gaea-nginx
+  #  container_name: gaea-nginx
   #  restart: always
   #  deploy:
   #    resources:
@@ -32,21 +32,21 @@ services:
   #    - "80:80"
   #    - "8080:8080"
   #  environment:
-  #    - BACKEND=cello-operator-dashboard
+  #    - BACKEND=gaea-operator-dashboard
   #    - PORT=8080
   #    - USERNAME=admin
   #    - PASSWORD=pass
 
 
 
-# cello dashboard service for network operator
+# gaea dashboard service for network operator
   operator-dashboard:
-    image: hyperledger/cello-operator-dashboard
-    container_name: cello-operator-dashboard
-    hostname: cello-operator-dashboard
+    image: hyperledger/gaea-operator-dashboard
+    container_name: gaea-operator-dashboard
+    hostname: gaea-operator-dashboard
     restart: unless-stopped
     environment:
-      - MONGO_URL=mongodb://cello-mongo:27017  # used by pymongo, deprecate soon
+      - MONGO_URL=mongodb://gaea-mongo:27017  # used by pymongo, deprecate soon
       - MONGO_HOST=mongo
       - MONGO_DB=dev
       - MONGODB_PORT=27017
@@ -59,7 +59,7 @@ services:
       - "8071:8071"
     volumes:
     #  - ./src:/app
-      - ./src/agent/docker/_compose_files:/cello
+      - ./src/agent/docker/_compose_files:/gaea
       - /opt/fabric:/opt/fabric
       - /opt/secret:/opt/secret
       - /etc/localtime:/etc/localtime 
@@ -67,9 +67,9 @@ services:
 
  #TODO: need to follow other images to put at dockerhub
   user-dashboard:
-    image: hyperledger/cello-user-dashboard
-    container_name: cello-user-dashboard
-    hostname: cello-user-dashboard
+    image: hyperledger/gaea-user-dashboard
+    container_name: gaea-user-dashboard
+    hostname: gaea-user-dashboard
     restart: unless-stopped
     links:
       - mongo:dashboard_mongo
@@ -93,7 +93,7 @@ services:
       - FROM_EMAIL=$FROM_EMAIL
       - WEBROOT=$USER_DASHBOARD_WEBROOT
     volumes:
-      - /opt/cellodb/baas:/opt/data
+      - /opt/gaeadb/baas:/opt/data
       - /opt/fabric:/opt/fabric 
       - /opt/secret:/opt/secret
       - /etc/localtime:/etc/localtime
@@ -102,8 +102,8 @@ services:
   # mongo database, may use others in future
   mongo:
     image: mongo:3.4.10
-    hostname: cello-mongo
-    container_name: cello-mongo
+    hostname: gaea-mongo
+    container_name: gaea-mongo
     restart: unless-stopped
     deploy:
       resources:
@@ -120,27 +120,27 @@ services:
     environment:
       - NO_USED=0
     volumes:
-      - /opt/cellodb/mongo:/data/db
+      - /opt/gaeadb/mongo:/data/db
       - /etc/localtime:/etc/localtime 
 
   # TODO: we may use one mongo instance, that should be enough
   dashboard_mongo:
     image: mongo:3.4.10
-    hostname: cello-dashboard_mongo
-    container_name: cello-dashboard_mongo
+    hostname: gaea-dashboard_mongo
+    container_name: gaea-dashboard_mongo
     restart: unless-stopped
     environment:
       - NO_USED=0
     volumes:
-      - /opt/cellodb/dashboard_mongo:/data/db
+      - /opt/gaeadb/dashboard_mongo:/data/db
 
   nfs:
     image: itsthenetwork/nfs-server-alpine:9
     restart: unless-stopped
     environment:
-      - SHARED_DIRECTORY=/cello
+      - SHARED_DIRECTORY=/gaea
     volumes:
-      - /opt/fabric:/cello
+      - /opt/fabric:/gaea
       - /etc/localtime:/etc/localtime 
     privileged: true
     network_mode: host

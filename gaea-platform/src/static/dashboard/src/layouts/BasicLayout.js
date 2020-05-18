@@ -103,9 +103,9 @@ class BasicLayout extends React.PureComponent {
     getPageTitle() {
         const { routerData, location } = this.props;
         const { pathname } = location;
-        let title = 'Cello Operator Dashboard';
+        let title = 'Gaea Operator Dashboard';
         if (routerData[pathname] && routerData[pathname].name) {
-            title = `${routerData[pathname].name} - Cello Operator Dashboard`;
+            title = `${routerData[pathname].name} - Gaea Operator Dashboard`;
         }
         return title;
     }
@@ -187,7 +187,7 @@ class BasicLayout extends React.PureComponent {
                         <GlobalFooter
                             copyright={
                                 <Fragment>
-                                    Copyright <Icon type="copyright" /> Hyperledger Cello
+                                    Copyright <Icon type="copyright" /> Hyperledger Gaea
                                 </Fragment>
                             }
                         />

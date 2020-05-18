@@ -1,7 +1,7 @@
 {
   "name": "user-dashboard",
   "version": "1.0.0",
-  "description": "Cello User Dashboard",
+  "description": "Gaea User Dashboard",
   "private": true,
   "dependencies": {
     "fabric-ca-client": "1.4.4",

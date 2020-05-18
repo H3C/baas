@@ -16,11 +16,11 @@
 #   - license:		    Checks sourrce files for Apache license header
 #   - help:           Output the help instructions for each command
 #   - log:            Check the recent log output of all services
-#   - restart:        Stop the cello service and then start
+#   - restart:        Stop the gaea service and then start
 #   - setup-master:   Setup the host as a master node, install pkg and download docker images
 #   - setup-worker:   Setup the host as a worker node, install pkg and download docker images
-#   - start:          Start the cello service
-#   - stop:           Stop the cello service, and remove all service containers
+#   - start:          Start the gaea service
+#   - stop:           Stop the gaea service, and remove all service containers
 
 GREEN  := $(shell tput -Txterm setaf 2)
 WHITE  := $(shell tput -Txterm setaf 7)
@@ -33,7 +33,7 @@ PREV_VERSION?=0.8.0
 
 # Building image usage
 DOCKER_NS ?= hyperledger
-BASENAME ?= $(DOCKER_NS)/cello
+BASENAME ?= $(DOCKER_NS)/gaea
 VERSION ?= latest
 IS_RELEASE=false
 
@@ -50,7 +50,7 @@ else
 	IMG_TAG=$(BASE_VERSION)
 endif
 
-# Docker images needed to run cello services
+# Docker images needed to run gaea services
 DOCKER_IMAGES =baseimage operator-dashboard user-dashboard
 DUMMY = .$(IMG_TAG)
 
@@ -143,7 +143,7 @@ dockerhub: $(patsubst %,dockerhub-%,$(DOCKERHUB_IMAGES))  ##@Building latest ima
 
 dockerhub-%: ##@Building latest images with dockerhub materials, to valid them
 	dir=$*; \
-	IMG=hyperledger/cello-$$dir; \
+	IMG=hyperledger/gaea-$$dir; \
 	echo "Building $$IMG"; \
 	docker build \
 	-t $$IMG \
@@ -194,8 +194,8 @@ logs: ##@Log tail for all service log
 	docker-compose logs -f --tail=200
 
 image-clean: clean ##@Clean all existing images to rebuild
-	echo "Clean all cello related images, may need to remove all containers before"
-	docker images | grep "hyperledger/cello-" | awk '{print $3}' | xargs docker rmi -f
+	echo "Clean all gaea related images, may need to remove all containers before"
+	docker images | grep "hyperledger/gaea-" | awk '{print $3}' | xargs docker rmi -f
 
 initial-env: ##@Configuration Initial Configuration for dashboard
 	@envsubst < env.tmpl > .env

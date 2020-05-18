@@ -9,7 +9,7 @@ This dashboard is a web based application for blockchain developers. It is espec
 1. Goto directory of user dashboard
 
 	```
-	$ cd my-local-cello-dir/user-dashboard
+	$ cd my-local-gaea-dir/user-dashboard
 	```
 
 2. Build dashboard image
@@ -40,5 +40,5 @@ This dashboard is a web based application for blockchain developers. It is espec
 | Infrastructure Analytics | `/dashboard/analytics/infrastructure` | Cluster's CPU, memory, disk and network statistic analysis |
 
 ## License <a name="license"></a>.
-The Hyperledger Cello project uses the [Apache License Version 2.0](LICENSE) software license.
+The Hyperledger Gaea project uses the [Apache License Version 2.0](LICENSE) software license.
 
