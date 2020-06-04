@@ -113,7 +113,7 @@ class NetworkOnKubenetes(BlockchainNetworkBase):
         return k8s_config
 
 
-    def create_peer_org(self, peer_org, couchdb_enabled, host, net_id, net_name, fabric_version, request_host_ports, portid):
+    def create_peer_org(self, peer_org, couchdb_enabled, host, net_id, net_name, fabric_version, request_host_ports, portid, peer_num):
         index = portid[0]
         peer_org_names = []
         net_dir = CELLO_MASTER_FABRIC_DIR + net_id
