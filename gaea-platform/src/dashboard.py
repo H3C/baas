@@ -22,6 +22,8 @@ from resources import bp_index, \
 from modules.user import User
 from sockets.custom import CustomSockets
 from flask_cors import *
+from threading import Thread
+from modules.blockchain_network import health_check
 from flask_apscheduler import APScheduler
 
 logger = logging.getLogger(__name__)
@@ -105,11 +107,17 @@ def load_user(id):
 
 socketio.on_namespace(CustomSockets('/socket.io'))
 
-
+def task_opterator():
+    while True:
+        health_check()
+        time.sleep(120)
+t = Thread(target=task_opterator(),args=())
+t.start()
+print("opterator task running !!!")
 if __name__ == '__main__':
-    scheduler = APScheduler()
-    scheduler.init_app(app)
-    scheduler.start()
+    #scheduler = APScheduler()
+    #scheduler.init_app(app)
+    #scheduler.start()
 
     socketio.run(app, port=OPERATOR_SERVICE_PORT, host="0.0.0.0",
                  debug=os.environ.get('DEBUG', app.config.get("DEBUG", True)))

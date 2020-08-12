@@ -77,7 +77,7 @@ def health_check():
                 sock.connect((ip, port))
                 #logger.info("connect {}:{} succeed".format(ip, port))
                 healthy = True
-                end_healthy = healthy and end_healthy
+                #end_healthy = healthy and end_healthy
                 ep.update(set__healthy=True)
             except Exception as e:
                 logger.error("connect {}:{} fail, reason {}".format(ip, port, e))
@@ -86,13 +86,15 @@ def health_check():
                 # break
             finally:
                 sock.close()
+                end_healthy = healthy and end_healthy
 
         if not healthy:
             network.update(set__healthy=False)
-            return
+
         else:
             network.update(set__healthy=True)
-            return
+
+    return
 
 class BlockchainNetworkHandler(object):
     """ Main handler to operate the cluster in pool
