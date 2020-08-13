@@ -1,4 +1,4 @@
-FROM _NS_/cello-baseimage:_TAG_
+FROM _NS_/gaea-baseimage:_TAG_
 
 COPY src /app
 RUN  apt-get update && apt-get install -y python3-pip libtool libltdl-dev
