@@ -32,7 +32,7 @@
     "dora-plugin-proxy": "^0.7.0",
     "dora-plugin-webpack": "0.6.x",
     "dora-plugin-webpack-hmr": "^0.1.0",
-    "eslint": "^2.13.1",
+    "eslint": "^6.8.0",
     "eslint-config-airbnb": "^9.0.1",
     "eslint-plugin-import": "^1.8.1",
     "eslint-plugin-jsx-a11y": "^1.4.2",
