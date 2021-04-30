@@ -51,7 +51,7 @@ pyvmomi==6.5
 PyYAML==3.13
 requests==2.13.0
 requests-oauthlib==1.3.0
-rsa==4.0
+rsa==4.7
 six==1.15.0
 texttable==0.9.1
 tzlocal==2.1
