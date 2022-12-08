@@ -4,7 +4,7 @@ APScheduler==3.6.3
 bcrypt==3.1.0
 cached-property==1.5.1
 cachetools==4.1.0
-certifi==2020.4.5.1
+certifi==2022.12.7
 cffi==1.14.0
 click==7.1.2
 cryptography==2.9.2
